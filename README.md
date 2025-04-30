@@ -17,8 +17,8 @@ Features:
 - indicators for hauling under capacity or hauling more than required (for absent-minded people like myself :)
 - simulate Fleet Carrier Buy requests as construction depot
 - simulate Fleet Carrier Sell offers as available cargo
-- group several active construction for one request (useful for low quantity requests)
-- show original request list for finished constructions
+- group several active constructions as one (useful for low quantity requests)
+- show original request for finished constructions
 
 
 The FC commodity market is bugged in E:D as of now so you may have to visit it twice to update properly. 
