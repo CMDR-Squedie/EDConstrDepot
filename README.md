@@ -6,7 +6,7 @@ You need to dock to construction depot to start tracking (sorry, this is how pla
 
 The app uses local journal files only (ie. no cAPI/INARA/EDDB interface), so it is of limited use for team effort (ie. you get no updates from other commanders until you dock to FC/construction depot).
 
-The app requires no configuration and shows the recent active construction depot by default, regardless of owner.
+The app requires no configuration and shows the recent active construction depot by default, regardless of the owner.
 Use the popup menu (right mouse button) to select specific construction depot or change some options.
 You can use Add Construction Info command to enter your own short text about each construction (eg. there is no construction type in journal, use this command if you need it).
 
@@ -26,7 +26,9 @@ Features:
 - show original request for finished constructions
 - comments/custom names for construction depots and FCs
 
-The FC commodity market is a bit bugged in E:D as of now so you may have to visit it twice to update properly. 
+The app scans all journals from all game accounts (alts) used on current Windows user account.
+
+Commodity markets are only updated if you actually visit them (docking is not sufficient). The FC commodity market is a bit bugged in E:D as of now so you may have to visit it twice to update properly. 
 
 You can also run the app on a PC tablet next to your main screen (old tablets with Win10 32-bit will do). You need to share your ED Saved Games folder for that and use JournalDir option in the .ini file to enter full UNC path.
 
