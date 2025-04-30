@@ -9,7 +9,7 @@ To temporarily turn the transparency off, double-click the title bar or choose t
 
 The tool scans ALL your journal entries since Trailblazers update launch. 
 
-To speed up application launch and/or skip long finished constructions, change the JournalStart option in the .ini file. 
+To speed up application launch and/or skip long finished constructions, change the IncludeFinished and JournalStart options in the .ini file. 
 
 Features:
 - construction depot requested commodity tracking
