@@ -10,7 +10,7 @@ The app requires no configuration and shows the recent active construction depot
 Use the popup menu (right mouse button) to select specific construction depot or change some options.
 You can use Add Construction Info command to enter your own short text about each construction (eg. there is no construction type in journal, use this command if you need it).
 
-To temporarily turn the transparency off, double-click the title bar or choose the Backdrop popup menu command.
+To temporarily turn the transparency off, double-click the title bar or choose the Backdrop command.
 
 The app can be heavily customized in the **EDConstrDepot.ini** file - no user interface is planned for this as of now.
 It scans ALL your available journal entries since Trailblazers update launch. 
