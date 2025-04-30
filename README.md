@@ -3,14 +3,13 @@
 A simple overlay tool to track construction depots in Elite Dangerous colonies.
 This app only works in Borderless/Windowed mode in Elite.
 You need to dock to construction depot to start tracking (sorry, this is how player journals work).
-The tool can be heavily customized in the EDConstrDepot.ini file - no user interface is planned for this as of now.
 
 Use the popup menu (right mouse button) to select construction depot or display in-app options.
 
 To temporarily turn the transparency off, double-click the title bar or choose the Backdrop popup menu command.
 
+The tool can be heavily customized in the EDConstrDepot.ini file - no user interface is planned for this as of now.
 The tool scans ALL your journal entries since Trailblazers update launch. 
-
 To speed up application launch and/or skip long finished constructions, change the IncludeFinished and JournalStart options in the .ini file. 
 
 Features:
