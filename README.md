@@ -14,7 +14,7 @@ The tool scans ALL your journal entries since Trailblazers update launch.
 To speed up application launch and/or skip long finished constructions, change the IncludeFinished and JournalStart options in the .ini file. 
 
 Features:
-- construction depot requested commodity tracking
+- construction depot requested commodity/progress tracking
 - indicators for availability at recent market
 - indicators for hauling under capacity or hauling more than required (for absent-minded people like myself :)
 - simulate Fleet Carrier Buy requests as construction depot
