@@ -412,7 +412,10 @@ begin
   begin
     cd := TConstructionDepot(DataSrc.Constructions.Objects[TMenuItem(Sender).Tag]);
     if not TMenuItem(Sender).Checked then
-      FSelectedConstructions.Delete(FSelectedConstructions.IndexOf(cd.MarketId))
+    begin
+      i := FSelectedConstructions.IndexOf(cd.MarketId);
+      if i >= 0 then FSelectedConstructions.Delete(i);
+    end
     else
       FSelectedConstructions.Add(cd.MarketId);
   end;
@@ -540,7 +543,7 @@ end;
 
 procedure TEDCDForm.PopupMenuPopup(Sender: TObject);
 var
-  i: Integer;
+  i,j: Integer;
   mitem: TMenuItem;
   cd: TConstructionDepot;
   selectedf,activef: Boolean;
@@ -548,11 +551,16 @@ var
 begin
   SelectDepotSubMenu.Clear;
   activef := False;
+
+//stress test
+//  for j := 0 to 10 do
+
   for i := 0 to DataSrc.Constructions.Count - 1 do
   begin
     cd := TConstructionDepot(DataSrc.Constructions.Objects[i]);
     if cd.Status = '' then continue; //docked but no depot info?
-    if cd.Finished and not FSettings.Flags['IncludeFinished'] then continue;
+    if cd.Finished and not FSettings.Flags['IncludeFinished'] then
+      if FSelectedConstructions.IndexOf(cd.MarketID) = -1 then continue;
 
     
     mitem := TMenuItem.Create(SelectDepotSubMenu);
@@ -591,6 +599,8 @@ procedure TEDCDForm.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
   FSettings['Left'] := IntToStr(self.Left);
   FSettings['Top'] := IntToStr(self.Top);
+  if FSettings.Flags['KeepSelected'] then
+    FSettings['SelectedDepots'] := FSelectedConstructions.CommaText;
   FSettings.Save;
 end;
 
@@ -612,6 +622,9 @@ begin
   if DataSrc = nil then
     DataSrc := TEDDataSource.Create;
   FSelectedConstructions := TStringList.Create;
+
+  if FSettings.Flags['KeepSelected'] then
+    FSelectedConstructions.CommaText := FSettings['SelectedDepots'];
 
   FTransColor := self.Color;
 

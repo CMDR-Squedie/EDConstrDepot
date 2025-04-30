@@ -12,14 +12,14 @@ object EDCDForm: TEDCDForm
   TransparentColorValue = 3158064
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
-  Font.Height = -12
-  Font.Name = 'Segoe UI'
+  Font.Height = -13
+  Font.Name = 'Bahnschrift SemiCondensed'
   Font.Style = []
   FormStyle = fsStayOnTop
   OnClose = FormClose
   OnCreate = FormCreate
   OnShow = FormShow
-  TextHeight = 15
+  TextHeight = 16
   object DividerTop: TShape
     Left = 0
     Top = 17
@@ -45,9 +45,9 @@ object EDCDForm: TEDCDForm
     Caption = 'No construction depot found'
     Color = 3158064
     Font.Charset = EASTEUROPE_CHARSET
-    Font.Color = clGoldenrod
+    Font.Color = 41215
     Font.Height = -13
-    Font.Name = 'Bahnschrift Condensed'
+    Font.Name = 'Bahnschrift SemiCondensed'
     Font.Style = []
     ParentColor = False
     ParentFont = False
@@ -74,9 +74,9 @@ object EDCDForm: TEDCDForm
     Caption = 'No construction depot found'
     Color = 3158064
     Font.Charset = EASTEUROPE_CHARSET
-    Font.Color = clGoldenrod
+    Font.Color = 41215
     Font.Height = -13
-    Font.Name = 'Bahnschrift Condensed'
+    Font.Name = 'Bahnschrift SemiCondensed'
     Font.Style = []
     ParentColor = False
     ParentFont = False

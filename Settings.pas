@@ -79,13 +79,14 @@ begin
   FDefaults.Values['ShowRecentMarket'] := '1';
   FDefaults.Values['ShowDividers'] := '1';
   FDefaults.Values['ShowIndicators'] := '1';
-  FDefaults.Values['ShowCloseBox'] := '1';
-  FDefaults.Values['AlwaysOnTop'] := '1';
+  FDefaults.Values['ShowCloseBox'] := '0';
+  FDefaults.Values['AlwaysOnTop'] := '2';
   FDefaults.Values['Backdrop'] := '0';
   FDefaults.Values['AutoHeight'] := '1';
   FDefaults.Values['AutoWidth'] := '1';
   FDefaults.Values['AutoSort'] := '1';
   FDefaults.Values['IncludeDone'] := '1';
+  FDefaults.Values['KeepSelected'] := '0';
   FDefaults.Values['BaseWidthText'] := '00000';
   FDefaults.Values['JournalStart'] := '2025-02-26';    //trailblazers start
 

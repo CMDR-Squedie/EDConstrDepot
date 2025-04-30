@@ -364,7 +364,7 @@ begin
   UpdateCargoExternal;
 
   fn := '';
-  res := FindFirst(FJournalDir + 'journal*.log', faAnyFile, srec);
+  res := FindFirst(FJournalDir + 'journal.*.log', faAnyFile, srec);
   while res = 0 do
   begin
     if LowerCase(srec.Name) >= ('journal.' + FSettings.Values['JournalStart']) then
