@@ -4,6 +4,8 @@ A simple transparent overlay tool to track construction depots in Elite Dangerou
 This app only works in **Borderless/Windowed** mode in Elite.
 You need to dock to construction depot to start tracking (sorry, this is how player journals work), so consider hauling Steel or other popular bulk quantity commodity already on your first visit.
 
+The app uses local journal files only (ie. no cAPI/INARA/EDDB interface), so it is of limited use for team effort (ie. you get no updates from other commanders until you dock to FC/construction depot).
+
 The app requires no configuration and shows the recent active construction depot by default, regardless of owner.
 Use the popup menu (right mouse button) to select specific construction depot or change some options.
 
@@ -27,8 +29,6 @@ Features:
 
 
 The FC commodity market is bugged in E:D as of now so you may have to visit it twice to update properly. 
-
-The app uses local journal files only, no cAPI/INARA/EDDB interface, so it is of limited use for team effort (ie. you get no updates from other commanders until you dock to FC/construction depot).
 
 You can also run the app on a PC tablet next to your main screen (old tablets with Win10 32-bit will do). You need to share your ED Saved Games folder for that and use JournalDir option in the .ini file to enter full UNC path.
 
