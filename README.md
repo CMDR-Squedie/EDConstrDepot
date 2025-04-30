@@ -30,4 +30,5 @@ The FC commodity market is a bit bugged in E:D as of now so you may have to visi
 
 You can also run the app on a PC tablet next to your main screen (old tablets with Win10 32-bit will do). You need to share your ED Saved Games folder for that and use JournalDir option in the .ini file to enter full UNC path.
 
+o7, CMDRs!
 
