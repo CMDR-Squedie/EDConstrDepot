@@ -5,7 +5,7 @@ The tool can be heavily customized in the EDConstrDepot.ini file - no user inter
 
 Use the popup menu (right mouse button) to select construction depot or display in-app options.
 
-To temporarily turn the transparency off, double-click the title bar or choose a popup menu command.
+To temporarily turn the transparency off, double-click the title bar or choose the Backdrop popup menu command.
 
 The tool scans ALL your journal entries since Trailblazers update launch. 
 
