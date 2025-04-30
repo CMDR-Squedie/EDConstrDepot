@@ -7,6 +7,7 @@ The tool can be heavily customized in the EDConstrDepot.ini file - no user inter
 Features:
 - construction depot requested commodity tracking
 - indicators for recent market availability
+- indicators for hauling under capacity or hauling more than required
 - simulate Fleet Carrier Buy requests as construction depot
 - simulate Fleet Carrier Sell offers as available cargo
 - group several active construction for one request (useful for low quantity requests)
