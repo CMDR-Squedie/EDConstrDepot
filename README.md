@@ -3,6 +3,13 @@ This app only works in Borderless/Windowed mode in Elite.
 You need to dock to construction depot to start tracking (sorry, this is how player journals work).
 The tool can be heavily customized in the EDConstrDepot.ini file - no user interface is planned for this as of now.
 
+Use the popup menu (right mouse button) to select construction depot or display in-app options.
+
+To temporarily turn the transparency off, double-click the title bar or choose a popup menu command.
+
+The tool scans ALL your journal entries since Trailblazers update launch. 
+
+To speed up application launch and/or skip long finished constructions, change the JournalStart option in the .ini file. 
 
 Features:
 - construction depot requested commodity tracking
@@ -13,10 +20,9 @@ Features:
 - group several active construction for one request (useful for low quantity requests)
 - show original request list for finished constructions
 
-The tool scans ALL your journal entries since Trailblazers update launch. 
-To speed up application launch, change the JournalStart option in the .ini file. 
 
-Use the right mouse button to select construction depot or display in-app options.
+
+
 
 The FC commodity market is bugged in E:D as of now so you may have to visit it twice to update properly. 
 
