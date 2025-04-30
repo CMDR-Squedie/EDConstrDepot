@@ -6,25 +6,25 @@ You need to dock to construction depot to start tracking (sorry, this is how pla
 
 The app uses local journal files only (ie. no cAPI/INARA/EDDB interface), so it is of limited use for team effort (ie. you get no updates from other commanders until you dock to FC/construction depot).
 
-The app requires no configuration and shows the recent active construction depot by default, regardless of the owner.
+The app shows the recent active construction depot by default, regardless of the owner.
 Use the popup menu (right mouse button) to select specific construction depot or change some options.
 You can use Add Construction Info command to enter your own short text about each construction (eg. there is no construction type in journal, use this command if you need it).
 
 To temporarily turn the transparency off, double-click the title bar or choose the Backdrop command.
 
-The app can be heavily customized in the **EDConstrDepot.ini** file - no user interface is planned for this as of now.
+The app can be customized in the **EDConstrDepot.ini** file - no user interface is planned for this as of now.
 It scans ALL your available journal entries since Trailblazers update launch. 
 To speed up application launch and/or skip long finished constructions, change the **IncludeFinished** and **JournalStart** options in the .ini file. 
 
 Features:
 - construction depot commodity/progress tracking
-- indicators for availability at recent market, sort available commodities as first
+- indicators for availability at current/recent market (available commodities sort as first)
 - indicators for hauling under capacity or hauling more than required (for absent-minded people like myself :)
 - simulate Fleet Carrier Buy requests as construction depot
 - simulate Fleet Carrier Sell offers as available cargo
 - group several active constructions as one (useful for multiple low quantity requests)
 - show original request for finished constructions
-- comments/custom names for construction depots and FCs
+- comments/custom text for construction depots and FCs
 
 The app scans all journals from all game accounts (alts) used on current Windows user account.
 
