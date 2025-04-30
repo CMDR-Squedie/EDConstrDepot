@@ -17,17 +17,16 @@ It scans ALL your available journal entries since Trailblazers update launch.
 To speed up application launch and/or skip long finished constructions, change the **IncludeFinished** and **JournalStart** options in the .ini file. 
 
 Features:
-- construction depot requested commodity/progress tracking
+- construction depot commodity/progress tracking
 - indicators for availability at recent market, sort available commodities as first
 - indicators for hauling under capacity or hauling more than required (for absent-minded people like myself :)
 - simulate Fleet Carrier Buy requests as construction depot
 - simulate Fleet Carrier Sell offers as available cargo
-- group several active constructions as one (useful for low quantity requests)
+- group several active constructions as one (useful for multiple low quantity requests)
 - show original request for finished constructions
-- comments/custom names or types for construction depots 
+- comments/custom names for construction depots and FCs
 
-
-The FC commodity market is bugged in E:D as of now so you may have to visit it twice to update properly. 
+The FC commodity market is a bit bugged in E:D as of now so you may have to visit it twice to update properly. 
 
 You can also run the app on a PC tablet next to your main screen (old tablets with Win10 32-bit will do). You need to share your ED Saved Games folder for that and use JournalDir option in the .ini file to enter full UNC path.
 
