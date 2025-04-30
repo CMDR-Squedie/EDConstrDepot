@@ -7,6 +7,8 @@ You need to dock to construction depot to start tracking (sorry, this is how pla
 The app requires no configuration and shows the recent active construction depot by default, regardless of owner.
 Use the popup menu (right mouse button) to select specific construction depot or change some options.
 
+You can use Add Construction Comment command to enter your own short text about each construction (eg. there is no construction type in journal, use comments if you need it).
+
 To temporarily turn the transparency off, double-click the title bar or choose the Backdrop popup menu command.
 
 The app can be heavily customized in the **EDConstrDepot.ini** file - no user interface is planned for this as of now.
@@ -21,6 +23,7 @@ Features:
 - simulate Fleet Carrier Sell offers as available cargo
 - group several active constructions as one (useful for low quantity requests)
 - show original request for finished constructions
+- comments/custom names or types for construction depots 
 
 
 The FC commodity market is bugged in E:D as of now so you may have to visit it twice to update properly. 
