@@ -23,5 +23,6 @@ Features:
 
 The FC commodity market is bugged in E:D as of now so you may have to visit it twice to update properly. 
 
-The app uses local journal files only, no cAPI/INARA/EDDB interface, so it is of limited use for team effort (ie. you get no updates from other commanders until you dock to FC/construction depot)
-You can run the app on PC tablet next to your main screen. You need to share your ED Saved Games folder for that and use JournalDir option in the .ini file.
+The app uses local journal files only, no cAPI/INARA/EDDB interface, so it is of limited use for team effort (ie. you get no updates from other commanders until you dock to FC/construction depot).
+
+You can also run the app on a PC tablet next to your main screen (eg. Lenovo Miix with Win10 32-bit). You need to share your ED Saved Games folder for that and use JournalDir option in the .ini file to enter full UNC path.
