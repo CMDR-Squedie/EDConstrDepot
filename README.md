@@ -6,7 +6,7 @@ You need to dock to construction depot to start tracking (sorry, this is how pla
 
 The app uses local journal files only (ie. no cAPI/INARA/EDDB interface), so it is of limited use for team effort (ie. you get no updates from other commanders until you dock to FC/construction depot).
 
-The app shows the most recent active construction depot by default, regardless of the owner.
+The most recent active construction depot is selected by default, regardless of the owner.
 Use the popup menu (right mouse button) to select specific construction depot or change some options.
 You can use Add Construction Info command to enter your own short text about each construction (eg. there is no construction type in journal, use this command if you need it).
 
