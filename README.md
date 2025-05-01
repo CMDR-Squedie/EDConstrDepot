@@ -40,7 +40,7 @@ Commodity markets are only updated if you actually visit them (merely docking is
 
 Advanced Features:
  - You can run the app on a PC tablet next to your main screen (old tablets with Win10 32-bit will do). You need to share your ED Saved Games folder for that and use JournalDir option in the .ini file to enter full UNC path.
- - You can display multiple overlays, each with its own construction depot. Either run multiple copies of the app, or use AllowMoreWindows option in the .ini file (this option will not save your workspace though).
+ - You can display multiple overlays, each with its own construction depot. Either run multiple copies of the app, or use AllowMoreWindows option in the .ini file and New Window command (this option will not save your workspace though).
 
 o7, CMDRs!
 
