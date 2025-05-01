@@ -19,6 +19,7 @@ To speed up application launch and/or skip long finished constructions, change t
 Features:
 - construction depot commodity/progress tracking
 - indicators for availability at current/recent market (available commodities sort as first)
+- indicators for availablity at secondary markets (local market files only)
 - indicators for hauling under capacity or hauling more than required (for absent-minded people like myself :)
 - simulate Fleet Carrier Buy requests as construction depot
 - simulate Fleet Carrier Sell offers as available cargo
