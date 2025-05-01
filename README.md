@@ -27,6 +27,13 @@ Features:
 - show original request for finished constructions
 - comments/custom text for construction depots and FCs
 
+Indicators:
+- □  commodity available at recent/current market
+- ∆  commodity available at secondary market 
+- ■  commodity in cargo, exact match with construction request
+- ■> commodity in cargo, hauling more than requested
+- □> commodity in cargo, hauling less then requested
+
 The app scans all journals from all game accounts (alts) used on current Windows user account.
 
 Commodity markets are only updated if you actually visit them (merely docking is not sufficient). The FC commodity market is a bit bugged in E:D as of now so you may have to visit it twice to update properly. 
