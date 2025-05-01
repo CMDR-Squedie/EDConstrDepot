@@ -28,7 +28,7 @@ Features:
 - comments/custom text for construction depots and FCs
 
 Indicators:
-- □ - commodity available at recent/current market
+- □ - commodity available at current (or recent) market
 - ∆ - commodity available at secondary market 
 - ■ - commodity in cargo, exact match with construction request
 - ■> - commodity in cargo, hauling more than requested
