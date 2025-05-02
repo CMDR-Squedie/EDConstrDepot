@@ -39,7 +39,7 @@ The app scans all journals from all game accounts (alts) used on current Windows
 
 Commodity markets are only updated if you actually visit them (merely docking is not sufficient). The FC commodity market is a bit bugged in E:D as of now so you may have to visit it twice to update properly. 
 
-Advanced Features (.ini file):
+Advanced Features (.ini file only):
  - run the app on a PC tablet next to your main screen (old tablets with Win10 32-bit will do). You need to share your ED Saved Games folder for that and use JournalDir option to enter full UNC path.
  - display multiple overlays, each with its own construction depot. Either run multiple copies of the app, or use AllowMoreWindows option and New Window command (this option will not save your workspace though).
  - automatically store all visited market data. Typically, you add your favorite markets manually with the Markets/Add Recent Market common. TrackMarkets option can automatically add all new markets to the list.
