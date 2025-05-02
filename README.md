@@ -29,7 +29,8 @@ Features:
 
 Indicators:
 - □ - commodity available at current (or recent) market
-- ∆ - commodity available at selected secondary market 
+- ∆ - commodity available at secondary market (user selected)
+- ○ - commodity available at secondary market (auto-selected, see below)
 - ■ - commodity in cargo, exact match with construction request
 - ■> - commodity in cargo, hauling more than requested
 - □> - commodity in cargo, hauling less then requested
