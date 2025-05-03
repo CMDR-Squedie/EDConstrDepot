@@ -35,7 +35,7 @@ Indicators:
 - ≠! - commodity in cargo, hauling more than requested
 - <! - commodity in cargo, hauling less then requested and under ship capacity
 
-* If market supply is greater than ship capacity, it is considered "full supply".
+(*) If market supply is greater than ship capacity, it is considered "full supply".
 
 The app scans all journals from all game accounts (alts) used on current Windows user account.
 
