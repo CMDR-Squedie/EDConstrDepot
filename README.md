@@ -30,12 +30,12 @@ Features:
 - comments/custom text for construction depots and FCs
 
 Indicators:
-- □/■ - commodity available at current (or recent) market; partial/full supply*
-- ∆/▲ - commodity available at secondary market (user selected); partial/full supply*
-- ○/● - commodity available at best market (auto-selected, see below); partial/full supply*
-- (no indicators) - commodity in cargo, exact match with construction request or ship capacity
-- ≠ - commodity in cargo, hauling more than requested
-- < - commodity in cargo, hauling less then requested and under ship capacity
+□/■ - commodity available at current (or recent) market; partial/full supply*
+∆/▲ - commodity available at secondary market (user selected); partial/full supply*
+○/● - commodity available at best market (auto-selected, see below); partial/full supply*
+(no indicators) - commodity in cargo, exact match with construction request or ship capacity
+≠ - commodity in cargo, hauling more than requested
+< - commodity in cargo, hauling less then requested and under ship capacity
 
 (*) If market supply is greater than ship capacity, it is considered "full supply".
 
