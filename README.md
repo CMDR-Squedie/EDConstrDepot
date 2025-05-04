@@ -1,7 +1,7 @@
 ![2c](https://github.com/user-attachments/assets/b47877b9-eb5f-4e8f-af39-169bb7cdec51)
 
 A minimalistic transparent overlay tool to track construction depots in Elite Dangerous colonies.
-This app only works in **Borderless/Windowed** mode in Elite.
+The overlay feature only works in **Borderless/Windowed** mode in Elite.
 You need to dock to construction depot to start tracking (sorry, this is how player journals work), so consider hauling Steel or other popular bulk quantity commodity already on your first visit.
 
 The most recent active construction depot is selected by default, regardless of the owner.
