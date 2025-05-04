@@ -4,8 +4,6 @@ A minimalistic transparent overlay tool to track construction depots in Elite Da
 This app only works in **Borderless/Windowed** mode in Elite.
 You need to dock to construction depot to start tracking (sorry, this is how player journals work), so consider hauling Steel or other popular bulk quantity commodity already on your first visit.
 
-The app uses local journal files only (ie. no cAPI/INARA/EDDB interface), so it is of limited use for team effort (ie. you get no updates from other commanders until you dock to FC/construction depot).
-
 The most recent active construction depot is selected by default, regardless of the owner.
 Use the popup menu (right mouse button) to select specific construction depot or change some options.
 You can use **Add Construction Info** command to enter your own short text about each construction (eg. there is no construction type in journal, use this command if you need it).
@@ -17,6 +15,8 @@ To temporarily turn the transparency off, double-click the title bar or choose t
 The app can be customized in the **EDConstrDepot.ini** file - no user interface is planned for this as of now.
 It scans ALL your available journal entries since Trailblazers update launch. 
 To speed up application launch and/or skip long finished constructions, change the **IncludeFinished** and **JournalStart** options in the .ini file. 
+
+The app uses local journal files only (ie. no cAPI/INARA/EDDB interface), so it is of limited use for team effort (ie. you get no updates from other commanders until you dock to FC/construction depot).
 
 Features:
 - construction depot commodity/progress tracking
