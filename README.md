@@ -10,7 +10,7 @@ The most recent active construction depot is selected by default, regardless of 
 Use the popup menu (right mouse button) to select specific construction depot or change some options.
 You can use **Add Construction Info** command to enter your own short text about each construction (eg. there is no construction type in journal, use this command if you need it).
 
-You can manage all your visited markets and constructions using the **Manage All** command.
+You can also manage all your visited markets and constructions in one place using the **Manage All** command. This tool lets you filter data, quickly set active market or construction, ignore selected markets etc.
 
 To temporarily turn the transparency off, double-click the title bar or choose the **Backdrop** command.
 
