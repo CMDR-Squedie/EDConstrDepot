@@ -15,7 +15,7 @@ You can manage all your visited markets and constructions in one place using the
 To temporarily turn the transparency off, double-click the title bar or choose the **Backdrop** command.
 
 The app can be customized in the **EDConstrDepot.ini** file - no user interface is planned for this as of now.
-It scans ALL your available journal entries since Trailblazers update launch. 
+It scans ALL your available journal entries since Trailblazers update 2 launch. 
 To speed up application launch and/or skip long finished constructions, change the **IncludeFinished** and **JournalStart** options in the .ini file. 
 
 The app uses local journal files only (ie. no cAPI/INARA/EDDB interface), so it is of limited use for team effort (ie. you get no updates from other commanders until you dock to FC/construction depot). The app scans all journals from all game accounts (alts) used on current Windows user account.
