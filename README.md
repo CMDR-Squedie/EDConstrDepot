@@ -30,9 +30,9 @@ Features:
 - comments/custom text for construction depots and FCs
 
 Indicators:
--  □/■ - commodity available at current (or recent) market; partial/full supply*<
--  ∆/▲ - commodity available at secondary market (user selected); partial/full supply*
+-  □/■ - commodity available at current (or recent) market; partial/full supply*
 -  ○/● - commodity available at best market (auto-selected, see below); partial/full supply*
+-  ∆/▲ - commodity available at secondary market (user or auto-selected); partial/full supply*
 -  (no indicators) - commodity in cargo, exact match with construction request or ship capacity
 -  ≠ - commodity in cargo, hauling more than requested<br>
 -  < - commodity in cargo, hauling less then requested and under ship capacity
@@ -45,9 +45,12 @@ Commodity markets are only updated if you actually visit them (merely docking is
 
 Advanced Features (.ini file only):
  - automatically store all visited market data. Typically, you add your favorite markets manually with the Markets/Add Recent Market command (the app then updates the market with each visit automatically) . **TrackMarkets** option can automatically add all new markets to the list.
- - the app can auto-suggest best market for your remaining construction request with its own indicator, base on your visited market data. Use **ShowBestMarket** to test it (experimental; recent market and player-selected market are excluded; megaships are included, you can use Ignore option to skip them)
+ - the app can auto-select best market for your remaining construction request with its own indicator, based on your visited market data. Use **ShowBestMarket** to test it (experimental; megaships are included - use Ignore option to skip them)
  - display multiple overlays, each with its own construction depot. Either run multiple copies of the app, or use **AllowMoreWindows** option and New Window command (this option is experimental and will not save your workspace though).
  - run the app on a PC tablet next to your main screen (old tablets with Win10 32-bit will do). You need to share your ED Saved Games folder for that and use **JournalDir** option to enter full UNC path.
+
+Rules for market auto-selection:
+- 
 
 o7, CMDRs!
 
