@@ -42,6 +42,7 @@ Indicators:
 (*) If market supply is greater than ship capacity, it is considered "full supply".
 
 Rules for market auto-selection (experimental; subject to change a lot):
+
 Market score is generally based on how many requested commodities are available. There are additional score modifiers:
 - bonus for market in current system
 - bonus for tiny quantity depot request (quickly clearing the request list is favoured)
