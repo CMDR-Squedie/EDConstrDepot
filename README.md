@@ -8,6 +8,8 @@ The most recent active construction depot is selected by default, regardless of 
 Use the popup menu (right mouse button) to select specific construction depot or change some options.
 You can use **Add Construction Info** command to enter your own short text about each construction (eg. there is no construction type in journal, use this command if you need it).
 
+Commodity markets are only updated if you actually visit them (merely docking is not sufficient). The FC commodity market is a bit bugged in E:D as of now so you may have to visit it twice to update properly. 
+
 You can also manage all your visited markets and constructions in one place using the **Manage All** command. This tool lets you filter data, quickly set active market or construction, ignore/forget selected markets etc.
 
 To temporarily turn the transparency off, double-click the title bar or choose the **Backdrop** command.
@@ -16,7 +18,7 @@ The app can be customized in the **EDConstrDepot.ini** file - no user interface 
 It scans ALL your available journal entries since Trailblazers update launch. 
 To speed up application launch and/or skip long finished constructions, change the **IncludeFinished** and **JournalStart** options in the .ini file. 
 
-The app uses local journal files only (ie. no cAPI/INARA/EDDB interface), so it is of limited use for team effort (ie. you get no updates from other commanders until you dock to FC/construction depot).
+The app uses local journal files only (ie. no cAPI/INARA/EDDB interface), so it is of limited use for team effort (ie. you get no updates from other commanders until you dock to FC/construction depot). The app scans all journals from all game accounts (alts) used on current Windows user account.
 
 Features:
 - construction depot commodity/progress tracking
@@ -38,19 +40,17 @@ Indicators:
 -  < - commodity in cargo, hauling less then requested and under ship capacity
 
 (*) If market supply is greater than ship capacity, it is considered "full supply".
+Rules for market auto-selection:
+Market score is generally based on how many requested commodities are available. There are additional score modifiers:
 
-The app scans all journals from all game accounts (alts) used on current Windows user account.
 
-Commodity markets are only updated if you actually visit them (merely docking is not sufficient). The FC commodity market is a bit bugged in E:D as of now so you may have to visit it twice to update properly. 
+
 
 Advanced Features (.ini file only):
  - automatically store all visited market data. Typically, you add your favorite markets manually with the Markets/Add Recent Market command (the app then updates the market with each visit automatically) . **TrackMarkets** option can automatically add all new markets to the list.
  - the app can auto-select best market for your remaining construction request with its own indicator, based on your visited market data. Use **ShowBestMarket** to test it (experimental; megaships are included - use Ignore option to skip them)
  - display multiple overlays, each with its own construction depot. Either run multiple copies of the app, or use **AllowMoreWindows** option and New Window command (this option is experimental and will not save your workspace though).
- - run the app on a PC tablet next to your main screen (old tablets with Win10 32-bit will do). You need to share your ED Saved Games folder for that and use **JournalDir** option to enter full UNC path.
-
-Rules for market auto-selection:
-- 
+ - run the app on a PC tablet next to your main screen (old tablets with Win10 32-bit will do). You need to share your ED Saved Games folder for that and use **JournalDir** option to enter full UNC path. - 
 
 o7, CMDRs!
 
