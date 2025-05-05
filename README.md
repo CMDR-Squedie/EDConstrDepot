@@ -41,13 +41,11 @@ Indicators:
 
 (*) If market supply is greater than ship capacity, it is considered "full supply".
 
-Rules for market auto-selection (experimental; subject to change a lot):
-
-Market score is generally based on how many requested commodities are available. There are additional score modifiers:
+Market score for market auto-selection is generally based on how many requested commodities are available. There are additional score modifiers:
 - bonus for market in current system
 - bonus for tiny quantity depot request (quickly clearing the request list is favoured)
-- penalty for low stock or stock below request and capacity
-- penalty for under capacity flight
+- penalty for low stock (stock below request and capacity)
+- penalty for under capacity flight (total quantity)
 
 
 Advanced Features (.ini file only):
