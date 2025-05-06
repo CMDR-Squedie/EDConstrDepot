@@ -20,10 +20,11 @@ type TSettings = class (TStringList)
 //    property Defaults[const Name: string]: string read GetDefaults write SetDefaults;
     procedure Load;
     procedure Save;
+    procedure GetUserSettings(sl: TStringList);
     constructor Create(fn: string);
 end;
 
-var FSettings: TSettings;
+var Opts: TSettings;
 
 implementation
 
@@ -51,7 +52,7 @@ end;
 
 function TSettings.GetFlag(const Name: string): Boolean;
 begin
-  Result := GetVal(Name) = '1';
+  Result := GetVal(Name) > '0';
 end;
 
 procedure TSettings.SetFlag(const Name: string; v: Boolean);
@@ -69,6 +70,18 @@ begin
   try SaveToFile(FFileName); except end;
 end;
 
+procedure TSettings.GetUserSettings(sl: TStringList);
+var i: Integer;
+    s: string;
+begin
+  sl.Clear;
+  for i := 0 to FDefaults.Count - 1 do
+  begin
+    s := FDefaults.Names[i];
+    sl.Values[s] := GetVal(s);
+  end;
+end;
+
 constructor TSettings.Create(fn: string);
 begin
   FDefaults := TStringList.Create;
@@ -77,18 +90,26 @@ begin
   FDefaults.Values['ShowProgress'] := '1';
   FDefaults.Values['ShowFlightsLeft'] := '1';
   FDefaults.Values['ShowRecentMarket'] := '1';
+  FDefaults.Values['ShowBestMarket'] := '0';
   FDefaults.Values['ShowDividers'] := '1';
   FDefaults.Values['ShowIndicators'] := '1';
+  FDefaults.Values['IndicatorsPadding'] := '1';
+  FDefaults.Values['IncludeSupply'] := '1';
   FDefaults.Values['ShowCloseBox'] := '0';
+  FDefaults.Values['TransparentTitle'] := '0';
+  FDefaults.Values['ScanMenuKey'] := '0';
   FDefaults.Values['AlwaysOnTop'] := '2';
   FDefaults.Values['Backdrop'] := '0';
   FDefaults.Values['AutoHeight'] := '1';
   FDefaults.Values['AutoWidth'] := '1';
   FDefaults.Values['AutoSort'] := '1';
-  FDefaults.Values['IncludeDone'] := '1';
+  FDefaults.Values['IncludeFinished'] := '1';
   FDefaults.Values['KeepSelected'] := '0';
+  FDefaults.Values['TrackMarkets'] := '1';
+  FDefaults.Values['ShowBestMarket'] := '1';
+  FDefaults.Values['AllowMoreWindows'] := '0';
   FDefaults.Values['BaseWidthText'] := '00000';
-  FDefaults.Values['JournalStart'] := '2025-02-26';    //trailblazers start
+  FDefaults.Values['JournalStart'] := '2025-04-14';    //trailblazers journals start
 
 
   FFileName := fn;

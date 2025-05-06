@@ -54,7 +54,7 @@ object EDCDForm: TEDCDForm
     PopupMenu = PopupMenu
     Transparent = False
     StyleElements = [seFont, seClient]
-    OnDblClick = TextColLabelDblClick
+    OnDblClick = TitleLabelDblClick
     OnMouseDown = TextColLabelMouseDown
     OnMouseMove = TextColLabelMouseMove
     ExplicitTop = -1
@@ -80,7 +80,9 @@ object EDCDForm: TEDCDForm
     Font.Style = []
     ParentColor = False
     ParentFont = False
+    ParentShowHint = False
     PopupMenu = PopupMenu
+    ShowHint = False
     Transparent = True
     StyleElements = [seFont, seClient]
     OnDblClick = TextColLabelDblClick
@@ -113,7 +115,6 @@ object EDCDForm: TEDCDForm
     ParentFont = False
     Transparent = True
     StyleElements = [seFont, seClient]
-    OnDblClick = TextColLabelDblClick
     OnMouseDown = TextColLabelMouseDown
     OnMouseMove = TextColLabelMouseMove
     ExplicitLeft = 0
@@ -143,7 +144,6 @@ object EDCDForm: TEDCDForm
     ParentFont = False
     Transparent = True
     StyleElements = [seFont, seClient]
-    OnDblClick = TextColLabelDblClick
     OnMouseDown = TextColLabelMouseDown
     OnMouseMove = TextColLabelMouseMove
     ExplicitLeft = 158
@@ -164,15 +164,14 @@ object EDCDForm: TEDCDForm
     AutoSize = False
     Color = 3158064
     Font.Charset = EASTEUROPE_CHARSET
-    Font.Color = clSeashell
+    Font.Color = clSilver
     Font.Height = -13
-    Font.Name = 'Bahnschrift Condensed'
+    Font.Name = 'Courier New'
     Font.Style = [fsBold]
     ParentColor = False
     ParentFont = False
     Transparent = True
     StyleElements = [seFont, seClient]
-    OnDblClick = TextColLabelDblClick
     OnMouseDown = TextColLabelMouseDown
     OnMouseMove = TextColLabelMouseMove
     ExplicitLeft = 219
@@ -214,27 +213,25 @@ object EDCDForm: TEDCDForm
     Transparent = False
     OnClick = ExitMenuItemClick
   end
-  object UpdTimer: TTimer
-    Enabled = False
-    Interval = 1500
-    OnTimer = UpdTimerTimer
-    Left = 96
-    Top = 362
-  end
   object PopupMenu: TPopupMenu
     OnPopup = PopupMenuPopup
     Left = 152
     Top = 362
     object SelectDepotSubMenu: TMenuItem
-      Caption = 'Select Construction'
+      Caption = 'Constructions'
       object SwitchDepotMenuItem: TMenuItem
         Caption = '(placeholder)'
+        Visible = False
         OnClick = SwitchDepotMenuItemClick
       end
     end
-    object AddDepotInfoMenuItem: TMenuItem
-      Caption = 'Add Construction Info'
-      OnClick = AddDepotInfoMenuItemClick
+    object SelectMarketSubMenu: TMenuItem
+      Caption = 'Markets'
+      object SwitchMarketMenuItem: TMenuItem
+        Caption = '(placeholder)'
+        Visible = False
+        OnClick = SwitchMarketMenuItemClick
+      end
     end
     object ExternalCargoMenu: TMenuItem
       Caption = 'Fleet Carrier'
@@ -254,24 +251,43 @@ object EDCDForm: TEDCDForm
         OnClick = MarketAsDepotMenuItemClick
       end
     end
+    object AddDepotInfoMenuItem: TMenuItem
+      Caption = 'Add Construction Info'
+      OnClick = AddDepotInfoMenuItemClick
+    end
+    object ManageMarketsMenuItem: TMenuItem
+      Caption = 'Manage All'
+      OnClick = ManageMarketsMenuItemClick
+    end
     object N1: TMenuItem
       Caption = '-'
     end
     object BackdropMenuItem: TMenuItem
       Caption = 'Toggle Backdrop'
-      OnClick = TextColLabelDblClick
-    end
-    object MinimizeMenuItem: TMenuItem
-      Caption = 'Minimize'
-      OnClick = MinimizeMenuItemClick
+      OnClick = TitleLabelDblClick
     end
     object NewWindowMenuItem: TMenuItem
       Caption = 'New Window'
       OnClick = NewWindowMenuItemClick
     end
+    object SettingsMenuItem: TMenuItem
+      Caption = 'Settings'
+      Visible = False
+      OnClick = SettingsMenuItemClick
+    end
+    object MinimizeMenuItem: TMenuItem
+      Caption = 'Minimize'
+      OnClick = MinimizeMenuItemClick
+    end
     object ExitMenuItem: TMenuItem
       Caption = 'Exit'
       OnClick = ExitMenuItemClick
     end
+  end
+  object UpdTimer: TTimer
+    Interval = 200
+    OnTimer = UpdTimerTimer
+    Left = 152
+    Top = 296
   end
 end
