@@ -10,7 +10,7 @@ You can use **Add Construction Info** command to enter your own short text about
 
 Markets are only updated if you actually visit them (merely docking is not sufficient). The FC market is a bit bugged in E:D as of now so you may have to visit it twice to update properly. 
 
-You can manage all your visited markets and constructions in one place using the **Manage All** command. This tool lets you filter data, search for commodities, quickly set active market or construction, ignore/forget selected markets etc.
+You can manage all your visited markets and constructions in one place using the **Manage All** command. This tool lets you filter data, search for commodities, quickly set active market or construction, ignore/forget selected markets, check market economies etc.
 
 To temporarily turn the transparency off, double-click the title bar or choose the **Backdrop** command.
 
