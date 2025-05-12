@@ -104,10 +104,11 @@ begin
   FDefaults.Values['AutoWidth'] := '1';
   FDefaults.Values['AutoSort'] := '1';
   FDefaults.Values['IncludeFinished'] := '1';
-  FDefaults.Values['KeepSelected'] := '0';
+  FDefaults.Values['KeepSelected'] := '1';
   FDefaults.Values['TrackMarkets'] := '1';
   FDefaults.Values['ShowBestMarket'] := '1';
   FDefaults.Values['AllowMoreWindows'] := '0';
+  FDefaults.Values['AnyMarketAsDepot'] := '0'; //this enables using any market type as FC
   FDefaults.Values['BaseWidthText'] := '00000';
   FDefaults.Values['JournalStart'] := '2025-04-14';    //trailblazers journals start
 

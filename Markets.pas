@@ -16,6 +16,7 @@ type
     ConstrCheck: TCheckBox;
     InclIgnoredCheck: TCheckBox;
     FilterEdit: TComboBox;
+    InclPartialCheck: TCheckBox;
     procedure ListViewColumnClick(Sender: TObject; Column: TListColumn);
     procedure ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
@@ -78,7 +79,7 @@ var
   fs,cs: string;
   items: TStringList;
   lev: TMarketLevel;
-  ignoredf: Boolean;
+  ignoredf,partialf: Boolean;
 
   function CheckFilter: Boolean;
   var i: Integer;
@@ -111,6 +112,7 @@ begin
 
   try
     ignoredf := InclIgnoredCheck.Checked;
+    partialf := InclPartialCheck.Checked;
 
     ListView.SortType := stNone;
     ListView.Items.Clear;
@@ -124,7 +126,8 @@ begin
     for i := 0 to DataSrc.Constructions.Count - 1 do
     begin
       cd := TConstructionDepot(DataSrc.Constructions.Objects[i]);
-      if cd.Status = '' then continue; //docked but no depot info?
+      if cd.Status = '' then
+        if not partialf then continue; //docked but no depot info
       lev := DataSrc.GetMarketLevel(cd.MarketId);
       if not ignoredf then
         if lev = miIgnore then continue;
@@ -151,7 +154,8 @@ begin
     for i := 0 to DataSrc.RecentMarkets.Count - 1 do
     begin
       m := TMarket(DataSrc.RecentMarkets.Objects[i]);
-      if m.Status = '' then continue; //docked but no depot info?
+      if m.Status = '' then
+        if not partialf then continue; //docked but no market info
       lev := DataSrc.GetMarketLevel(m.MarketId);
       if not ignoredf then
         if lev = miIgnore then continue;
@@ -163,8 +167,9 @@ begin
       item.SubItems.Add(m.LastUpdate);
       item.SubItems.Add(cMarketIgnoreInd[lev]);
       item.SubItems.Add(cMarketFavInd[lev]);
-      item.SubItems.Add(s);
+//      item.SubItems.Add(s);
       item.SubItems.Add(DataSrc.MarketComments.Values[m.MarketID]);
+      item.SubItems.Add(m.Economies);
       for j := 0 to m.Stock.Count - 1 do
         items.Add(m.Stock.Names[j]);
       if not CheckFilter then item.Delete;

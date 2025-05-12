@@ -3,7 +3,7 @@ object MarketsForm: TMarketsForm
   Top = 0
   Caption = 'Manage Markets'
   ClientHeight = 555
-  ClientWidth = 790
+  ClientWidth = 968
   Color = clBackground
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -16,7 +16,7 @@ object MarketsForm: TMarketsForm
   object ListView: TListView
     Left = 0
     Top = 41
-    Width = 790
+    Width = 968
     Height = 514
     Align = alClient
     BevelEdges = []
@@ -48,6 +48,9 @@ object MarketsForm: TMarketsForm
       end
       item
         Caption = 'Comment'
+      end
+      item
+        Caption = 'Economies'
       end>
     Ctl3D = False
     Font.Charset = DEFAULT_CHARSET
@@ -66,12 +69,12 @@ object MarketsForm: TMarketsForm
     OnCompare = ListViewCompare
     OnDblClick = ListViewDblClick
     OnMouseDown = ListViewMouseDown
-    ExplicitTop = 47
+    ExplicitWidth = 790
   end
   object Panel1: TPanel
     Left = 0
     Top = 0
-    Width = 790
+    Width = 968
     Height = 41
     Align = alTop
     BevelEdges = []
@@ -85,6 +88,7 @@ object MarketsForm: TMarketsForm
     ParentBackground = False
     ParentFont = False
     TabOrder = 1
+    ExplicitWidth = 790
     object Label1: TLabel
       Left = 8
       Top = 8
@@ -133,6 +137,15 @@ object MarketsForm: TMarketsForm
       DropDownCount = 20
       TabOrder = 3
       OnChange = FilterEditChange
+    end
+    object InclPartialCheck: TCheckBox
+      Left = 608
+      Top = 8
+      Width = 137
+      Height = 17
+      Caption = 'Include Partial Info'
+      TabOrder = 4
+      OnClick = MarketsCheckClick
     end
   end
 end

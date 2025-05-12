@@ -39,6 +39,8 @@ type
     UpdTimer: TTimer;
     ManageMarketsMenuItem: TMenuItem;
     SettingsMenuItem: TMenuItem;
+    IndicatorsPaintBox: TPaintBox;
+    IncludeExtCargoinRequestMenuItem: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure UpdTimerTimer(Sender: TObject);
     procedure TextColLabelMouseMove(Sender: TObject; Shift: TShiftState; X,
@@ -68,6 +70,8 @@ type
     procedure AutoSelectMarketMenuItemClick(Sender: TObject);
     procedure TitleLabelDblClick(Sender: TObject);
     procedure TextColLabelDblClick(Sender: TObject);
+    procedure IndicatorsPaintBoxPaint(Sender: TObject);
+    procedure IncludeExtCargoinRequestMenuItemClick(Sender: TObject);
   private
     { Private declarations }
     FSelectedConstructions: TStringList;
@@ -79,9 +83,11 @@ type
     FTransColor: TColor;
     FLastActiveWnd: HWND;
     FTable: array [colReq..colStatus] of TLabel;
+    FBackdrop: Boolean;
     procedure ResetAlwaysOnTop;
     procedure UpdateConstrDepot;
     procedure ApplySettings;
+    procedure UpdateBackdrop;
     function FindBestMarket(reqList: TStringList; prevMarket: TMarket): TMarket;
     function GetItemMarketIndicators(normItem: string; reqQty: Integer; cargo: Integer; bestMarket: TMarket): string;
   public
@@ -148,16 +154,24 @@ begin
   end;
 end;
 
-procedure TEDCDForm.TitleLabelDblClick(Sender: TObject);
+procedure TEDCDForm.UpdateBackdrop;
 begin
-  if self.TransparentColor then
+  if FBackdrop then
   begin
-    self.Color := clBlack
-
+    self.Color := clBlack;
+    self.TransparentColor := false;
   end
   else
+  begin
     self.Color := FTransColor;
-  self.TransparentColor := not self.TransparentColor;
+    self.TransparentColor := true;
+  end;
+end;
+
+procedure TEDCDForm.TitleLabelDblClick(Sender: TObject);
+begin
+  FBackdrop := not FBackdrop;
+  UpdateBackdrop;
 end;
 
 procedure TEDCDForm.AddDepotInfoMenuItemClick(Sender: TObject);
@@ -174,6 +188,12 @@ end;
 procedure TEDCDForm.AddMarketToExtCargoMenuItemClick(Sender: TObject);
 begin
   if DataSrc.Market.MarketID = '' then Exit;
+  if DataSrc.Market.StationType <> 'FleetCarrier' then
+    if Opts['AnyMarketAsDepot'] <> '1' then
+    begin
+      ShowMessage('Recent market is not a Fleet Carrier.' + Chr(13) + 'Visit a valid Commodity market and try again.');
+      Exit;
+    end;
 
 
   if Vcl.Dialogs.MessageDlg('Are you sure you want to use ' +
@@ -195,10 +215,11 @@ begin
 end;
 
 function TEDCDForm.FindBestMarket(reqList: TStringList; prevMarket: TMarket): TMarket;
-var i,mi,score,maxscore,reqQty,stock,totAvail,lowCnt: Integer;
+var i,mi,score,maxscore,reqQty,shipQty,stock,totAvail,lowCnt: Integer;
     m: TMarket;
     s: string;
     testf: Boolean;
+    mlev: TMarketLevel;
 begin
   Result := nil;
   maxscore := 0;
@@ -208,7 +229,8 @@ begin
     testf := true;
     if m.MarketID = DataSrc.Market.MarketID then testf := false;
     if (prevMarket <> nil) and (m.MarketID = prevMarket.MarketID) then testf := false;
-    if DataSrc.GetMarketLevel(m.MarketID) = miIgnore then testf := false;
+    mlev := DataSrc.GetMarketLevel(m.MarketID);
+    if mlev = miIgnore then testf := false;
     if testf then
     begin
       score := 0;
@@ -218,6 +240,9 @@ begin
         s := LowerCase(reqList.Names[i]);
         reqQty := StrToIntDef(reqList.ValueFromIndex[i],0);
         if DataSrc.Cargo[s] >= reqQty then continue;
+        shipQty := reqQty;
+        if shipQty > DataSrc.Capacity then shipQty := DataSrc.Capacity;
+
 
         lowCnt := 0;
         stock := m.Stock[s];
@@ -226,11 +251,19 @@ begin
 //base points for stocking the commodity
           score := score + 100;
 //bonus for stocking other items than pre-selected market
-          if (prevMarket <> nil) and (prevMarket.Stock[s] < reqQty) then
+          if (prevMarket <> nil) and (prevMarket.Stock[s] < shipQty) then
           begin
             score := score + 20;
-            if stock >= reqQty then score := score + 40;
+            if stock >= shipQty then score := score + 40;
           end;
+//or, a penalty  for stocking same items as pre-selected market
+{
+          if (prevMarket <> nil) and
+            ((prevMarket.Stock[s] >= DataSrc.Capacity) or (prevMarket.Stock[s] >= reqQty)) then
+          begin
+            score := score - 50;
+          end;
+}
 
 //extra points for station in same system
           if (FCurrentDepot <> nil) and (m.StarSystem = FCurrentDepot.StarSystem) then
@@ -243,10 +276,10 @@ begin
           begin
             totAvail := totAvail + stock;
 //penalty points for low stock
-            if stock > DataSrc.Capacity then
-              score := score - 20
+            if stock < DataSrc.Capacity then
+              score := score - 50
             else
-              score := score - 50;
+              score := score - 10;
           end
           else
           begin
@@ -261,10 +294,6 @@ begin
         end;
       end;
 
-//bonus for favorite market
-      if score > 0 then
-         if DataSrc.GetMarketLevel(m.MarketID) >= miFavorite then
-           score := score * 4 div 3;  //25% bonus
 //penalty points for under capacity run
       if totAvail < DataSrc.Capacity then
       begin
@@ -272,7 +301,16 @@ begin
 //        score := score div 2;
         score := score * 2 div 3; //33% penalty
       end;
- 
+
+//bonus for favorite market
+      if score > 0 then
+      begin
+        if mlev = miFavorite then
+          score := score * 5 div 4;  //25% bonus
+        if mlev = miPriority then
+          score := score * 3 div 2;  //50% bonus
+      end;
+
       if score > maxscore then
       begin
         maxscore := score;
@@ -444,6 +482,22 @@ begin
         __log_except('UpdateConstrDepot','');
       end;
     end;
+
+    if Opts['UseExtCargo'] = '2' then
+    begin
+      for i := sl.Count - 1 downto 0  do
+      begin
+        normItem := LowerCase(sl.Names[i]);
+        reqQty := StrToIntDef(sl.ValueFromIndex[i],0);
+        reqQty := reqQty - StrToIntDef(DataSrc.CargoExt.Stock.Values[normItem],0);
+        if reqQty <= 0 then
+          sl.Delete(i)
+        else
+          sl.Values[sl.Names[i]] := IntToStr(reqQty);
+      end;
+
+    end;
+
 
 
     bestMarket := nil;
@@ -618,12 +672,25 @@ begin
 end;
 
 procedure TEDCDForm.UpdTimerTimer(Sender: TObject);
+var orgactivewnd: HWND;
 begin
   if Opts['AlwaysOnTop'] = '2' then
     ResetAlwaysOnTop;
-  if Opts.Flags['ScanMenuKey']  then
+
+//experimental
+  if Opts.Flags['ScanMenuKey'] and (self = EDCDForm) then
     if GetKeyState(VK_APPS) < 0 then
-      MarketsForm.Show; //PopupMenu.Popup(self.Left,self.Top);
+    begin
+      orgactivewnd := GetForegroundWindow;
+      Application.BringToFront;
+      self.BringToFront;
+      self.Activate;
+      FBackdrop := True;
+      UpdateBackdrop;
+      FBackdrop := false;
+      if orgactivewnd = self.Handle then
+        PopupMenu.Popup(self.Left,self.Top);
+    end;
 end;
 
 
@@ -727,8 +794,6 @@ begin
     CloseLabel.Visible := False;
   if not Opts.Flags['AlwaysOnTop'] then
     self.FormStyle := fsNormal;
-  if Opts.Flags['Backdrop'] then
-    self.TransparentColor := False;
   if Opts['TransColor'] <> '' then
   begin
     FTransColor := GetColorFromCode(Opts['TransColor'],self.Color);
@@ -765,6 +830,9 @@ begin
   //this is not optimized right now
   if not Opts.Flags['AllowMoreWindows'] then
     NewWindowMenuItem.Visible := False;
+
+  FBackdrop :=  Opts.Flags['Backdrop'];
+  UpdateBackdrop;
 
   FAutoSelectMarket := Opts['SelectedMarket'] = 'auto';
 end;
@@ -844,6 +912,28 @@ begin
   UpdateConstrDepot;
 end;
 
+procedure TEDCDForm.IncludeExtCargoinRequestMenuItemClick(Sender: TObject);
+begin
+  if IncludeExtCargoinRequestMenuItem.Checked then
+    Opts['UseExtCargo'] := '0'
+  else
+    Opts['UseExtCargo'] := '2';
+  UpdateConstrDepot;
+end;
+
+procedure TEDCDForm.IndicatorsPaintBoxPaint(Sender: TObject);
+var r: TRect;
+begin
+{
+  with IndicatorsPaintBox do
+  begin
+    Canvas.Brush.Style := bsClear;
+    r := ClientRect;
+    Canvas.TextRect(r,0,0,StatusColLabel.Caption)
+  end;
+}
+end;
+
 procedure TEDCDForm.PopupMenuPopup(Sender: TObject);
 var
   i,j: Integer;
@@ -852,32 +942,46 @@ var
   m: TMarket;
   selectedf,activef: Boolean;
   s: string;
+  sl: TStringList;
 begin
+
+  ToggleExtCargoMenuItem.Checked := Opts['UseExtCargo'] = '1';
+  IncludeExtCargoinRequestMenuItem.Checked := Opts['UseExtCargo'] = '2';
+
   SelectDepotSubMenu.Clear;
   activef := False;
+
+  sl := TStringList.Create;
+  try
 
 //stress test
 //  for j := 0 to 10 do
 
+  sl.Clear;
   for i := 0 to DataSrc.Constructions.Count - 1 do
   begin
     cd := TConstructionDepot(DataSrc.Constructions.Objects[i]);
     if cd.Status = '' then continue; //docked but no depot info?
     if cd.Finished and not Opts.Flags['IncludeFinished'] then
       if FSelectedConstructions.IndexOf(cd.MarketID) = -1 then continue;
-
-
+    sl.AddObject(cd.LastUpdate,cd);
+  end;
+  sl.Sort;
+  for i := sl.Count - 1 downto sl.Count - 20 do
+  begin
+    if i < 0 then break;
+    cd := TConstructionDepot(sl.Objects[i]);
     mitem := TMenuItem.Create(SelectDepotSubMenu);
     mitem.Caption := cd.StationName + '/' + cd.StarSystem;
     s := DataSrc.MarketComments.Values[cd.MarketID];
     if s <> '' then
       mitem.Caption := mitem.Caption + ' (' + Copy(s,1,20) + ')';
-    mitem.Tag := i;
+    mitem.Tag := DataSrc.Constructions.IndexOfObject(cd);
     mitem.OnClick := SwitchDepotMenuItemClick;
     mitem.AutoCheck := true;
-    selectedf := FSelectedConstructions.IndexOf(cd.MarketId) <> -1;
+    selectedf := (FSelectedConstructions.IndexOf(cd.MarketId) <> -1) or (cd = FCurrentDepot);
     mitem.Checked := selectedf;
-    activef := activef or selectedf;
+//    activef := activef or selectedf;
 
     if cd.Finished then  mitem.Caption := '[DONE] ' + mitem.Caption;
 
@@ -885,22 +989,35 @@ begin
   end;
 
   mitem := TMenuItem.Create(SelectDepotSubMenu);
-  mitem.Caption := '(Recent construction in progress)';
-  mitem.Checked := not activef;
-  mitem.Enabled := activef;
+  mitem.Caption := '( Recent construction in progress )';
+  mitem.Checked := (FSelectedConstructions.Count = 0); //not activef;
+//  mitem.Enabled := activef;
   mitem.Tag := -1;
   mitem.OnClick := SwitchDepotMenuItemClick;
-  SelectDepotSubMenu.Add(mitem);
-  ToggleExtCargoMenuItem.Checked := Opts.Flags['UseExtCargo'];
+  SelectDepotSubMenu.Insert(0,mitem);
 
 
   SelectMarketSubMenu.Clear;
+  mitem := TMenuItem.Create(SelectMarketSubMenu);
+  mitem.Caption := '( Auto select market )';
+  mitem.AutoCheck := True;
+  mitem.Checked := FAutoSelectMarket;
+  mitem.OnClick := AutoSelectMarketMenuItemClick;
+  SelectMarketSubMenu.Add(mitem);
   activef := False;
+  sl.Clear;
   for i := 0 to DataSrc.RecentMarkets.Count - 1 do
   begin
     m := TMarket(DataSrc.RecentMarkets.Objects[i]);
     if m.Status = '' then continue; //docked but no depot info?
     if DataSrc.GetMarketLevel(m.MarketID) = miIgnore then continue;
+    sl.AddObject(m.LastUpdate,m);
+  end;
+  sl.Sort;
+  for i := sl.Count - 1 downto sl.Count - 20 do
+  begin
+    if i < 0 then break;
+    m := TMarket(sl.Objects[i]);
     mitem := TMenuItem.Create(SelectMarketSubMenu);
     mitem.Caption := m.StationName + '/' + m.StarSystem;
 //    if DataSrc.GetMarketLevel(m.MarketID) = miIgnore then
@@ -908,19 +1025,12 @@ begin
     s := DataSrc.MarketComments.Values[m.MarketID];
     if s <> '' then
       mitem.Caption := mitem.Caption + ' (' + Copy(s,1,20) + ')';
-    mitem.Tag := i;
+    mitem.Tag := DataSrc.RecentMarkets.IndexOfObject(m);
     mitem.OnClick := SwitchMarketMenuItemClick;
     mitem.AutoCheck := true;
     mitem.Checked := (FSecondaryMarket <> nil) and (m.MarketId = FSecondaryMarket.MarketID);
     SelectMarketSubMenu.Add(mitem);
   end;
-
-  mitem := TMenuItem.Create(SelectMarketSubMenu);
-  mitem.Caption := '( Auto select market )';
-  mitem.AutoCheck := True;
-  mitem.Checked := FAutoSelectMarket;
-  mitem.OnClick := AutoSelectMarketMenuItemClick;
-  SelectMarketSubMenu.Add(mitem);
 
   mitem := TMenuItem.Create(SelectMarketSubMenu);
   mitem.Caption := '-';
@@ -951,6 +1061,9 @@ begin
     mitem.Caption := 'Forget Selected Market';
     mitem.OnClick := ForgetMarketMenuItemClick;
     SelectMarketSubMenu.Add(mitem);
+  end;
+  finally
+    sl.Free;
   end;
 end;
 
@@ -1027,7 +1140,10 @@ var i: Integer;
 begin
   for i := 0 to Application.ComponentCount - 1 do
     if Application.Components[i] is TEDCDForm then
+    begin
+      TEDCDForm(Application.Components[i]).UpdateBackdrop;
       TEDCDForm(Application.Components[i]).ToggleTitleBar(false);
+    end;
 end;
 
 procedure TEDCDForm.ToggleTitleBar(activef: Boolean);

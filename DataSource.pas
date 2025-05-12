@@ -40,6 +40,7 @@ end;
 
 type TMarket = class (TBaseMarket)
   Stock: TStock;
+  Economies: string;
   procedure Clear;
   constructor Create;
   destructor Destroy;
@@ -348,10 +349,10 @@ begin
     j := TJSONObject.ParseJSONValue(sl.Text) as TJSONObject;
     try
       FSimDepot.MarketID := j.GetValue<string>('MarketID');
-      FSimDepot.LastUpdate := j.GetValue<string>('timestamp');
       FSimDepot.StationName := j.GetValue<string>('StationName');
       FSimDepot.StarSystem := j.GetValue<string>('StarSystem');
       FSimDepot.Status := sl.Text;
+      FSimDepot.LastUpdate := j.GetValue<string>('timestamp');
 
       FConstructions.AddObject(FSimDepot.MarketID,FSimDepot);
     finally
@@ -402,8 +403,9 @@ procedure TEDDataSource.UpdateFromJournal(jrnl: TStringList);
 var j: TJSONObject;
     jarr: TJSONArray;
     js,s,tms,event,mID: string;
-    i,cpos: Integer;
+    i,i2,cpos: Integer;
     cd: TConstructionDepot;
+    m: TMarket;
 
     function DepotForMarketId(mID: string): TConstructionDepot;
     var midx: Integer;
@@ -418,6 +420,21 @@ var j: TJSONObject;
         midx := FConstructions.AddObject(mID,Result);
       end;
       Result := TConstructionDepot(FConstructions.Objects[midx]);
+    end;
+
+    function MarketForMarketId(mID: string): TMarket;
+    var midx: Integer;
+    begin
+      Result := nil;
+      midx := FRecentMarkets.IndexOf(mID);
+      if midx < 0 then
+      begin
+        Result := TMarket.Create;
+        Result.MarketID := mID;
+        Result.StationName := '#' + mID;
+        midx := FRecentMarkets.AddObject(mID,Result);
+      end;
+      Result := TMarket(FRecentMarkets.Objects[midx]);
     end;
 
 begin
@@ -460,6 +477,37 @@ begin
             cd.StationName := s;
             cd.StarSystem := j.GetValue<string>('StarSystem');
             cd.LastUpdate := tms;
+          end
+          else
+          begin
+            try
+              m := MarketForMarketId(mID);
+//              m := MarketFromId(mID);
+
+              if m <> nil then
+              begin
+
+
+                if m.Status = '' then //markets with no stored data
+                begin
+                  m.StationName := j.GetValue<string>('StationName');;
+                  m.StationType := j.GetValue<string>('StationType');;
+                  m.StarSystem := j.GetValue<string>('StarSystem');
+                  m.LastUpdate := tms;
+                end;
+
+                m.Economies := '';
+                jarr := j.GetValue<TJSONArray>('StationEconomies');
+                for i2 := 0 to jarr.Count - 1 do
+                begin
+                  m.Economies := m.Economies +
+                    Copy(jarr.Items[i2].GetValue<string>('Name_Localised'),1,4) + ' ' +
+                    Copy(jarr.Items[i2].GetValue<string>('Proportion'),1,4) + '; ';
+                end;
+              end;
+            except
+
+            end;
           end;
         end;
 

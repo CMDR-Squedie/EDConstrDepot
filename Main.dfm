@@ -213,6 +213,20 @@ object EDCDForm: TEDCDForm
     Transparent = False
     OnClick = ExitMenuItemClick
   end
+  object IndicatorsPaintBox: TPaintBox
+    Left = 185
+    Top = 23
+    Width = 25
+    Height = 164
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clRed
+    Font.Height = -13
+    Font.Name = 'Bahnschrift SemiCondensed'
+    Font.Style = []
+    ParentFont = False
+    Visible = False
+    OnPaint = IndicatorsPaintBoxPaint
+  end
   object PopupMenu: TPopupMenu
     OnPopup = PopupMenuPopup
     Left = 152
@@ -235,8 +249,12 @@ object EDCDForm: TEDCDForm
     end
     object ExternalCargoMenu: TMenuItem
       Caption = 'Fleet Carrier'
+      object IncludeExtCargoinRequestMenuItem: TMenuItem
+        Caption = 'Include Stock in Request'
+        OnClick = IncludeExtCargoinRequestMenuItemClick
+      end
       object ToggleExtCargoMenuItem: TMenuItem
-        Caption = 'Include Stock'
+        Caption = 'Show Stock As Cargo'
         OnClick = ToggleExtCargoMenuItemClick
       end
       object AddMarketToExtCargoMenuItem: TMenuItem
