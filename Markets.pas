@@ -37,6 +37,7 @@ type
     procedure ListViewAction(Sender: TObject);
     procedure MarketsCheckClick(Sender: TObject);
     procedure CopyMenuItemClick(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
   private
     { Private declarations }
     SortColumn: Integer;
@@ -108,6 +109,12 @@ end;
 procedure TMarketsForm.FilterEditChange(Sender: TObject);
 begin
   UpdateItems;
+end;
+
+procedure TMarketsForm.FormCreate(Sender: TObject);
+begin
+  SortColumn := 3;
+  SortAscending := False;
 end;
 
 procedure TMarketsForm.FormShow(Sender: TObject);
@@ -306,7 +313,10 @@ begin
     orgs := DataSrc.MarketComments.Values[mid];
     s := Vcl.Dialogs.InputBox(TBaseMarket(ListView.Selected.Data).StationName, 'Info', orgs);
     if s <> orgs then
+    begin
       DataSrc.UpdateMarketComment(mid,s);
+      ListView.Selected.SubItems[5] := s;
+    end;
   end
   else
   if action = 2 then
