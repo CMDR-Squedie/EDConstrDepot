@@ -62,14 +62,14 @@ object MarketsForm: TMarketsForm
     MultiSelect = True
     RowSelect = True
     ParentFont = False
+    PopupMenu = PopupMenu
     SortType = stText
     TabOrder = 0
     ViewStyle = vsReport
     OnColumnClick = ListViewColumnClick
     OnCompare = ListViewCompare
-    OnDblClick = ListViewDblClick
+    OnDblClick = ListViewAction
     OnMouseDown = ListViewMouseDown
-    ExplicitWidth = 790
   end
   object Panel1: TPanel
     Left = 0
@@ -88,7 +88,6 @@ object MarketsForm: TMarketsForm
     ParentBackground = False
     ParentFont = False
     TabOrder = 1
-    ExplicitWidth = 790
     object Label1: TLabel
       Left = 8
       Top = 8
@@ -146,6 +145,46 @@ object MarketsForm: TMarketsForm
       Caption = 'Include Partial Info'
       TabOrder = 4
       OnClick = MarketsCheckClick
+    end
+  end
+  object PopupMenu: TPopupMenu
+    Left = 648
+    Top = 232
+    object Select1: TMenuItem
+      Tag = 1
+      Caption = 'Set As Current'
+      OnClick = ListViewAction
+    end
+    object AddToDepotGroup1: TMenuItem
+      Tag = 2
+      Caption = 'Add To Group'
+      OnClick = ListViewAction
+    end
+    object AddComment1: TMenuItem
+      Tag = 6
+      Caption = 'Edit Comment'
+      OnClick = ListViewAction
+    end
+    object AddToFavorite1: TMenuItem
+      Tag = 5
+      Caption = 'Toggle Favorite'
+      OnClick = ListViewAction
+    end
+    object AddComment2: TMenuItem
+      Tag = 4
+      Caption = 'Toggle Ignore'
+      OnClick = ListViewAction
+    end
+    object N1: TMenuItem
+      Caption = '-'
+    end
+    object CopyMenuItem: TMenuItem
+      Caption = 'Copy'
+      OnClick = CopyMenuItemClick
+    end
+    object CopyAllMenuItem: TMenuItem
+      Caption = 'Copy All'
+      OnClick = CopyMenuItemClick
     end
   end
 end

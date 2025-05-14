@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.ComCtrls, DataSource,
-  Vcl.StdCtrls;
+  Vcl.StdCtrls, Vcl.Menus;
 
 type
   TMarketsForm = class(TForm, IEDDataListener)
@@ -17,6 +17,15 @@ type
     InclIgnoredCheck: TCheckBox;
     FilterEdit: TComboBox;
     InclPartialCheck: TCheckBox;
+    PopupMenu: TPopupMenu;
+    AddComment1: TMenuItem;
+    AddComment2: TMenuItem;
+    AddToFavorite1: TMenuItem;
+    Select1: TMenuItem;
+    AddToDepotGroup1: TMenuItem;
+    N1: TMenuItem;
+    CopyMenuItem: TMenuItem;
+    CopyAllMenuItem: TMenuItem;
     procedure ListViewColumnClick(Sender: TObject; Column: TListColumn);
     procedure ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
@@ -25,8 +34,9 @@ type
     procedure FilterEditChange(Sender: TObject);
     procedure ListViewMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
-    procedure ListViewDblClick(Sender: TObject);
+    procedure ListViewAction(Sender: TObject);
     procedure MarketsCheckClick(Sender: TObject);
+    procedure CopyMenuItemClick(Sender: TObject);
   private
     { Private declarations }
     SortColumn: Integer;
@@ -42,7 +52,7 @@ var
 
 implementation
 
-uses Main;
+uses Main,Clipbrd;
 
 {$R *.dfm}
 
@@ -57,6 +67,42 @@ end;
 procedure TMarketsForm.MarketsCheckClick(Sender: TObject);
 begin
   UpdateItems;
+end;
+
+procedure TMarketsForm.CopyMenuItemClick(Sender: TObject);
+var s: string;
+    i,j: Integer;
+    selonlyf: Boolean;
+begin
+{
+  s := '';
+  if ListView.Selected = nil then Exit;
+  s := ListView.Columns[0].Caption + ': ' + ListView.Selected.Caption + Chr(13);
+  for i := 0 to ListView.Selected.SubItems.Count - 1 do
+    if i < ListView.Columns.Count - 1 then
+      s := s + ListView.Columns[i+1].Caption + ': ' +  ListView.Selected.SubItems[i] + Chr(13);
+  Clipboard.SetTextBuf(PChar(s));
+}
+
+  selonlyf := (Sender = CopyMenuItem);
+  s := '';
+  for i := 0 to ListView.Columns.Count -1 do
+  begin
+    s := s + ListView.Columns[i].Caption + Chr(9);
+  end;
+  s := s + Chr(13);
+
+  for i := 0 to ListView.Items.Count -1 do
+  begin
+    if selonlyf then
+      if not ListView.Items[i].Selected then continue;
+    s := s + ListView.Items[i].Caption + Chr(9);
+    for j := 0 to ListView.Items[i].SubItems.Count - 1 do
+      if j < ListView.Columns.Count - 1 then
+        s := s + ListView.Items[i].SubItems[j] + Chr(9);
+    s := s + Chr(13);
+  end;
+  Clipboard.SetTextBuf(PChar(s));
 end;
 
 procedure TMarketsForm.FilterEditChange(Sender: TObject);
@@ -146,6 +192,7 @@ begin
       item.SubItems.Add(cMarketIgnoreInd[DataSrc.GetMarketLevel(cd.MarketId)]);
       item.SubItems.Add('');
       item.SubItems.Add(DataSrc.MarketComments.Values[cd.MarketID]);
+      item.SubItems.Add('');
       if not CheckFilter then item.Delete;
 
     end;
@@ -216,13 +263,19 @@ begin
   if not SortAscending then Compare := -Compare;
 end;
 
-procedure TMarketsForm.ListViewDblClick(Sender: TObject);
+procedure TMarketsForm.ListViewAction(Sender: TObject);
 var mid: string;
     lev: TMarketLevel;
+    s,orgs: string;
+    action: Integer;
 begin
-  if ClickedColumn = -1 then Exit;
+  if ListView.Selected = nil then Exit;
+  action := -1;
+  if Sender is TListView then action := ClickedColumn;
+  if Sender is TMenuItem then action := TMenuItem(Sender).Tag;
+  if action = -1 then Exit;
   mid := TBaseMarket(ListView.Selected.Data).MarketId;
-  if ClickedColumn = 4 then
+  if action = 4 then
   begin
     if DataSrc.GetMarketLevel(mid) = miIgnore then
       DataSrc.SetMarketLevel(mid,miNormal)
@@ -233,7 +286,7 @@ begin
     ListView.Selected.SubItems[4] := '';
   end
   else
-  if ClickedColumn = 5 then
+  if action = 5 then
   begin
     lev := DataSrc.GetMarketLevel(mid);
     if lev = miPriority then
@@ -248,9 +301,23 @@ begin
     ListView.Selected.SubItems[4] := cMarketFavInd[DataSrc.GetMarketLevel(mid)];
   end
   else
+  if action = 6 then
+  begin
+    orgs := DataSrc.MarketComments.Values[mid];
+    s := Vcl.Dialogs.InputBox(TBaseMarket(ListView.Selected.Data).StationName, 'Info', orgs);
+    if s <> orgs then
+      DataSrc.UpdateMarketComment(mid,s);
+  end
+  else
+  if action = 2 then
   begin
     if TBaseMarket(ListView.Selected.Data) is TConstructionDepot then
-      EDCDForm.SetDepot(mid);
+      EDCDForm.SetDepot(mid,true);
+  end
+  else
+  begin
+    if TBaseMarket(ListView.Selected.Data) is TConstructionDepot then
+      EDCDForm.SetDepot(mid,false);
     if TBaseMarket(ListView.Selected.Data) is TMarket then
       EDCDForm.SetSecondaryMarket(mid);
   end;

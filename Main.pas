@@ -93,7 +93,7 @@ type
   public
     { Public declarations }
     procedure OnEDDataUpdate;
-    procedure SetDepot(mID: string);
+    procedure SetDepot(mID: string; groupf: Boolean);
     procedure SetSecondaryMarket(mID: string);
   end;
 
@@ -483,6 +483,7 @@ begin
       end;
     end;
 
+//fleet carrier used to satis
     if Opts['UseExtCargo'] = '2' then
     begin
       for i := sl.Count - 1 downto 0  do
@@ -717,9 +718,19 @@ begin
   UpdateConstrDepot;
 end;
 
-procedure TEDCDForm.SetDepot(mID: string);
+procedure TEDCDForm.SetDepot(mID: string; groupf: Boolean);
+var i: Integer;
 begin
-  FSelectedConstructions.Text := mID;
+  if groupf then
+  begin
+    i := FSelectedConstructions.IndexOf(mID);
+    if i >= 0 then
+      FSelectedConstructions.Delete(i)
+    else
+      FSelectedConstructions.Add(mID);
+  end
+  else
+    FSelectedConstructions.Text := mID;
   UpdateConstrDepot;
 end;
 
