@@ -41,7 +41,7 @@ Indicators:
 -  ≠ - commodity in cargo, hauling more than requested<br>
 -  < - commodity in cargo, hauling less then requested and under ship capacity
 
-(*) If market supply is greater than ship capacity, it is considered "full supply".
+(*) If market supply is not less than ship capacity, it is considered "full supply".
 
 Market score for market auto-selection is generally based on how many requested commodities are available. There are additional score modifiers:
 - bonus for market in current system
