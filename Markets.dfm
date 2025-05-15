@@ -61,6 +61,7 @@ object MarketsForm: TMarketsForm
     Font.Style = []
     GridLines = True
     MultiSelect = True
+    ReadOnly = True
     RowSelect = True
     ParentFont = False
     PopupMenu = PopupMenu
@@ -71,6 +72,7 @@ object MarketsForm: TMarketsForm
     OnCompare = ListViewCompare
     OnDblClick = ListViewAction
     OnMouseDown = ListViewMouseDown
+    ExplicitTop = 35
   end
   object Panel1: TPanel
     Left = 0
@@ -147,6 +149,15 @@ object MarketsForm: TMarketsForm
       TabOrder = 4
       OnClick = MarketsCheckClick
     end
+    object ClearFilterButton: TButton
+      Left = 235
+      Top = 5
+      Width = 20
+      Height = 24
+      Caption = 'X'
+      TabOrder = 5
+      OnClick = ClearFilterButtonClick
+    end
   end
   object PopupMenu: TPopupMenu
     Left = 648
@@ -157,7 +168,7 @@ object MarketsForm: TMarketsForm
       OnClick = ListViewAction
     end
     object AddToDepotGroup1: TMenuItem
-      Tag = 2
+      Tag = 11
       Caption = 'Add To Group'
       OnClick = ListViewAction
     end

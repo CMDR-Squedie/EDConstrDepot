@@ -26,6 +26,7 @@ type
     N1: TMenuItem;
     CopyMenuItem: TMenuItem;
     CopyAllMenuItem: TMenuItem;
+    ClearFilterButton: TButton;
     procedure ListViewColumnClick(Sender: TObject; Column: TListColumn);
     procedure ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
@@ -38,6 +39,7 @@ type
     procedure MarketsCheckClick(Sender: TObject);
     procedure CopyMenuItemClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
+    procedure ClearFilterButtonClick(Sender: TObject);
   private
     { Private declarations }
     SortColumn: Integer;
@@ -68,6 +70,12 @@ end;
 procedure TMarketsForm.MarketsCheckClick(Sender: TObject);
 begin
   UpdateItems;
+end;
+
+procedure TMarketsForm.ClearFilterButtonClick(Sender: TObject);
+begin
+   FilterEdit.Text := '';
+   UpdateItems;
 end;
 
 procedure TMarketsForm.CopyMenuItemClick(Sender: TObject);
@@ -115,6 +123,8 @@ procedure TMarketsForm.FormCreate(Sender: TObject);
 begin
   SortColumn := 3;
   SortAscending := False;
+
+  DataSrc.AddListener(self);
 end;
 
 procedure TMarketsForm.FormShow(Sender: TObject);
@@ -195,7 +205,7 @@ begin
         else
           item.SubItems.Add('ConstructionDepot');
       item.SubItems.Add(cd.StarSystem);
-      item.SubItems.Add(cd.LastUpdate);
+      item.SubItems.Add(niceTime(cd.LastUpdate));
       item.SubItems.Add(cMarketIgnoreInd[DataSrc.GetMarketLevel(cd.MarketId)]);
       item.SubItems.Add('');
       item.SubItems.Add(DataSrc.MarketComments.Values[cd.MarketID]);
@@ -218,7 +228,11 @@ begin
       item.Caption := m.StationName;
       item.SubItems.Add(m.StationType);
       item.SubItems.Add(m.StarSystem);
-      item.SubItems.Add(m.LastUpdate);
+      s := niceTime(m.LastUpdate);
+      if m.StationType <> 'FleetCarrier' then
+        if DataSrc.SystemUpdates.Values[m.StarSystem] > s then
+          s := s + '  *';
+      item.SubItems.Add(s);
       item.SubItems.Add(cMarketIgnoreInd[lev]);
       item.SubItems.Add(cMarketFavInd[lev]);
 //      item.SubItems.Add(s);
@@ -288,9 +302,9 @@ begin
       DataSrc.SetMarketLevel(mid,miNormal)
     else
       DataSrc.SetMarketLevel(mid,miIgnore);
-    ListView.Selected.SubItems[3] :=
-      cMarketIgnoreInd[DataSrc.GetMarketLevel(mid)];
-    ListView.Selected.SubItems[4] := '';
+//    ListView.Selected.SubItems[3] :=
+//      cMarketIgnoreInd[DataSrc.GetMarketLevel(mid)];
+//    ListView.Selected.SubItems[4] := '';
   end
   else
   if action = 5 then
@@ -304,8 +318,8 @@ begin
       else
         lev := miFavorite;
     DataSrc.SetMarketLevel(mid,lev);
-    ListView.Selected.SubItems[3] := '';
-    ListView.Selected.SubItems[4] := cMarketFavInd[DataSrc.GetMarketLevel(mid)];
+//    ListView.Selected.SubItems[3] := '';
+//    ListView.Selected.SubItems[4] := cMarketFavInd[DataSrc.GetMarketLevel(mid)];
   end
   else
   if action = 6 then
@@ -315,11 +329,17 @@ begin
     if s <> orgs then
     begin
       DataSrc.UpdateMarketComment(mid,s);
-      ListView.Selected.SubItems[5] := s;
+//      ListView.Selected.SubItems[5] := s;
     end;
   end
   else
   if action = 2 then
+  begin
+    FilterEdit.Text := TBaseMarket(ListView.Selected.Data).StarSystem;
+    UpdateItems;
+  end
+  else
+  if action = 11 then
   begin
     if TBaseMarket(ListView.Selected.Data) is TConstructionDepot then
       EDCDForm.SetDepot(mid,true);

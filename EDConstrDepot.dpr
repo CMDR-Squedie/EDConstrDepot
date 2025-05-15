@@ -12,6 +12,8 @@ uses
 
 {$R *.res}
 
+var Layer: TForm;
+
 begin
   Application.Initialize;
   Application.MainFormOnTaskbar := True;

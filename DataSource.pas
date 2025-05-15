@@ -61,6 +61,8 @@ type TEDDataSource = class (TDataModule)
     FListeners: array of IEDDataListener;
     FCargo: TStock;
     FFileDates: TStringList;
+    FSystemUpdates: TStringList;
+    FItemCategories: TStringList;
     FRecentMarkets: TStringList;
     FConstructions: TStringList;
     FCargoExt: TMarket;
@@ -71,8 +73,9 @@ type TEDDataSource = class (TDataModule)
     FWorkingDir,FJournalDir: string;
     FMarketJSON,FCargoJSON,FCargoExtJSON,FModuleInfoJSON,FSimDepotJSON: string;
     FCapacity: Integer;
-    FLastJrnlTimeStamp: string;
+    FLastJrnlTimeStamps: TStringList;
     FDataChanged: Boolean;
+    FLoadCategories: Boolean;
     procedure SetDataChanged;
     function CheckLoadFromFile(var sl: TStringList; fn: string): Boolean;
     procedure MarketFromJSON(m: TMarket; js: string);
@@ -83,15 +86,17 @@ type TEDDataSource = class (TDataModule)
     procedure UpdateSimDepot;
     procedure UpdateMarket;
     procedure UpdateCapacity;    //not used
-    procedure UpdateFromJournal(jrnl: TStringList);
+    procedure UpdateFromJournal(fn: string; jrnl: TStringList);
     procedure NotifyListeners;
   public
     property Constructions: TStringList read FConstructions;
     property RecentMarkets: TStringList read FRecentMarkets;
+    property SystemUpdates: TStringList read FSystemUpdates;
     property SimDepot: TConstructionDepot read FSimDepot;
     property MarketComments: TStringList read FMarketComments;
     property MarketLevels: TStringList read FMarketLevels;
     property Market: TMarket read FMarket;
+    property ItemCategories: TStringList read FItemCategories;
     property Cargo: TStock read FCargo;
     property CargoExt: TMarket read FCargoExt;
     property Capacity: Integer read FCapacity;
@@ -257,7 +262,7 @@ procedure TEDDataSource.MarketFromJSON(m: TMarket; js: string);
 var  j: TJSONObject;
      jarr: TJSONArray;
      i: Integer;
-     s: string;
+     s,normItem: string;
 begin
   try
     j := TJSONObject.ParseJSONValue(js) as TJSONObject;
@@ -276,6 +281,12 @@ begin
           s := jarr.Items[i].GetValue<string>('Stock');
           if s > '0' then
            m.Stock.AddPair(LowerCase(jarr.Items[i].GetValue<string>('Name_Localised')), s);
+
+          if FLoadCategories then
+          begin
+            FItemCategories.Values[LowerCase(jarr.Items[i].GetValue<string>('Name_Localised'))] :=
+              jarr.Items[i].GetValue<string>('Category_Localised');
+          end;
         end;
       except
         __log_except('MarketFromJSON',m.MarketID);
@@ -311,6 +322,7 @@ begin
 }
   except
   end;
+  FLoadCategories := false;
   SetDataChanged;
   sl.Free;
 end;
@@ -399,10 +411,10 @@ begin
     FListeners[i].OnEDDataUpdate;
   end;
 end;
-procedure TEDDataSource.UpdateFromJournal(jrnl: TStringList);
+procedure TEDDataSource.UpdateFromJournal(fn: string; jrnl: TStringList);
 var j: TJSONObject;
     jarr: TJSONArray;
-    js,s,tms,event,mID: string;
+    js,s,s2,tms,event,mID: string;
     i,i2,cpos: Integer;
     cd: TConstructionDepot;
     m: TMarket;
@@ -454,7 +466,7 @@ begin
 
         j := TJSONObject.ParseJSONValue(jrnl[i]) as TJSONObject;
         tms := j.GetValue<string>('timestamp');
-        if tms < FLastJrnlTimeStamp then continue;
+        if tms < FLastJrnlTimeStamps.Values[fn] then continue;
 
 //        event := j.GetValue<string>('event');
         if event = 'Loadout' then
@@ -467,10 +479,13 @@ begin
         if event = 'Docked' then
         begin
           s := j.GetValue<string>('StationType');
-          if Pos('Construction',s) > 0 then
+          s2 := j.GetValue<string>('StationName');
+          if (Pos('Construction',s) > 0) or (Pos('ColonisationShip',s2) > 0) then
           begin
             cd := DepotForMarketId(mID);
-            s := j.GetValue<string>('StationName');
+            s := '';
+            try s := j.GetValue<string>('StationName_Localised'); except end;
+            if s = '' then s := j.GetValue<string>('StationName');
             cpos := Pos(': ',s);
             if cpos > 0 then
               s := Copy(s,cpos+2,200);
@@ -490,8 +505,11 @@ begin
 
                 if m.Status = '' then //markets with no stored data
                 begin
-                  m.StationName := j.GetValue<string>('StationName');;
-                  m.StationType := j.GetValue<string>('StationType');;
+                  s := '';
+                  try s := j.GetValue<string>('StationName_Localised'); except end;
+                  if s = '' then s := j.GetValue<string>('StationName');
+                  m.StationName := s;
+                  m.StationType := j.GetValue<string>('StationType');
                   m.StarSystem := j.GetValue<string>('StarSystem');
                   m.LastUpdate := tms;
                 end;
@@ -518,10 +536,14 @@ begin
           cd.LastUpdate := tms;
           s := j.GetValue<string>('ConstructionComplete');
           if s = 'true' then
+          begin
             cd.Finished := true;
+            if FSystemUpdates.Values[cd.StarSystem] < tms  then
+              FSystemUpdates.Values[cd.StarSystem] := tms;
+          end;
         end;
 
-        FLastJrnlTimeStamp := tms;
+        FLastJrnlTimeStamps[fn] := tms;
       except
         __log_except('UpdateFromJournal',tms);
       end;
@@ -607,7 +629,8 @@ var fn: string;
 begin
   FMarketLevels.Values[mID] := IntToStr(Ord(level));
   try FMarketLevels.SaveToFile(FWorkingDir + 'market_level.txt'); except end;
-  SetDataChanged;
+//  SetDataChanged;
+  NotifyListeners;
 end;
 
 function TEDDataSource.GetMarketLevel(mID: string): TMarketLevel;
@@ -677,7 +700,7 @@ begin
       begin
         sl.Clear;
         try _share_LoadFromFile(sl,FJournalDir + srec.Name); except end;
-        UpdateFromJournal(sl);
+        UpdateFromJournal(srec.Name,sl);
         FFileDates.Values[srec.Name] := IntToStr(fa);
         SetDataChanged;
         //FLastJrnlFile := srec.Name;
@@ -728,7 +751,8 @@ procedure TEDDataSource.UpdateMarketComment(mID: string; s: string);
 begin
   FMarketComments.Values[mID] := s;
   try FMarketComments.SaveToFile(FWorkingDir + 'market_info.txt'); except end;
-  SetDataChanged;
+//  SetDataChanged;
+  NotifyListeners;
 end;
 
 constructor TEDDataSource.Create(Owner: TComponent);
@@ -745,14 +769,18 @@ begin
   FSimDepot := TConstructionDepot.Create;
   FSimDepot.Simulated := true;
   FFileDates := TStringList.Create;
+  FSystemUpdates := TStringList.Create;
   FConstructions := TStringList.Create;
   FRecentMarkets := TStringList.Create;
   FMarketComments := TStringList.Create;
   FMarketLevels := TStringList.Create;
+  FItemCategories := TStringList.Create;
+  FLastJrnlTimeStamps := TStringList.Create;
   FDataChanged := false;
 
   LoadAllMarkets;
 
+  FLoadCategories := true; //categories are always updated from market.json
 
   FJournalDir := System.SysUtils.GetEnvironmentVariable('USERPROFILE') +
        '\Saved Games\Frontier Developments\Elite Dangerous\';

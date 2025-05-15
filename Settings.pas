@@ -2,7 +2,7 @@ unit Settings;
 
 interface
 
-uses System.SysUtils, System.Classes;
+uses Winapi.Windows, System.SysUtils, System.Classes;
 
 type TSettings = class (TStringList)
   private
@@ -67,6 +67,7 @@ end;
 
 procedure TSettings.Save;
 begin
+  CopyFile(PChar(FFileName),PChar(FFileName + '.bkp'),false);
   try SaveToFile(FFileName); except end;
 end;
 

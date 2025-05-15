@@ -84,10 +84,13 @@ type
     FLastActiveWnd: HWND;
     FTable: array [colReq..colStatus] of TLabel;
     FBackdrop: Boolean;
+    FLayer0: TForm;
+    FLayer1: TForm;
     procedure ResetAlwaysOnTop;
     procedure UpdateConstrDepot;
     procedure ApplySettings;
     procedure UpdateBackdrop;
+    procedure SetupLayers;
     function FindBestMarket(reqList: TStringList; prevMarket: TMarket): TMarket;
     function GetItemMarketIndicators(normItem: string; reqQty: Integer; cargo: Integer; bestMarket: TMarket): string;
   public
@@ -104,7 +107,7 @@ implementation
 
 {$R *.dfm}
 
-uses Splash, Markets; //SettingsGUI;
+uses Splash, Markets, Alpha; //SettingsGUI;
 
 var gLastCursorPos: TPoint;
 
@@ -150,6 +153,11 @@ begin
     pt := Mouse.CursorPos;
     self.Left := self.Left + pt.X - gLastCursorPos.X;
     self.Top := self.Top + pt.Y - gLastCursorPos.Y;
+    if FLayer1 <> nil then
+    begin
+      FLayer1.Left := self.Left;
+      FLayer1.Top := self.Top + TitleLabel.Height;
+    end;
     gLastCursorPos := pt;
   end;
 end;
@@ -350,8 +358,9 @@ begin
 
   stock := DataSrc.Market.Stock[normItem];
   maxQty := reqQty;
-  if maxQty > DataSrc.Capacity then
-    maxQty := DataSrc.Capacity;
+  if Opts['IncludeSupply'] = '1' then
+    if maxQty > DataSrc.Capacity then
+      maxQty := DataSrc.Capacity;
 
   if not Opts.Flags['IncludeSupply'] then
   begin
@@ -390,7 +399,7 @@ var j: TJSONObject;
     jarr,resReq: TJSONArray;
     sl: TStringList;
     js,s,s2,fn,cnames,lastUpdate,itemName,normItem: string;
-    i,ci,res,lastWIP,h: Integer;
+    i,ci,res,lastWIP,h,sortPrefixLen: Integer;
     fa: DWord;
     reqQty,delQty,cargo,stock,prevQty,maxQty: Integer;
     totReqQty,totDelQty,validCargo: Integer;
@@ -412,7 +421,7 @@ begin
 
     totReqQty := 0;
     totDelQty := 0;
- 
+
     lastWIP := -1;
     lastUpdate := '';
     if FSelectedConstructions.Count = 0 then
@@ -421,10 +430,11 @@ begin
         cd := TConstructionDepot(DataSrc.Constructions.Objects[ci]);
         if not cd.Finished and not cd.Simulated and (cd.Status <> '') then
           if cd.LastUpdate > lastUpdate then
-          begin
-            lastWIP := ci;
-            lastUpdate := cd.LastUpdate;
-          end;
+            if DataSrc.GetMarketLevel(cd.MarketID) <> miIgnore then
+            begin
+              lastWIP := ci;
+              lastUpdate := cd.LastUpdate;
+            end;
       end;
 
     cnames := '';
@@ -508,22 +518,39 @@ begin
     if FAutoSelectMarket then
       FSecondaryMarket := FindBestMarket(sl,bestMarket);
 
-    for i := 0 to sl.Count - 1 do
+    if Opts['AutoSort'] = '2' then
     begin
-      s := LowerCase(sl.Names[i]);
-      s2 := '9';
-      if DataSrc.Cargo[s] > 0 then
-        s2 := '0'
-      else
-      if DataSrc.Market.Stock[s] > 0 then
-        s2 := '1'
-      else
-        if (bestMarket <> nil) and (bestMarket.Stock[s] > 0) then
-          s2 := '2'
+      sortPrefixLen := 20;
+      for i := 0 to sl.Count - 1 do
+      begin
+        s := LowerCase(sl.Names[i]);
+        s2 := '9';
+        if DataSrc.Market.Stock[s] > 0 then
+          s2 := '1';
+        s2 := Copy(s2 + DataSrc.ItemCategories.Values[s] + '                         ',1,20);
+        sl[i] := s2 + sl[i];
+      end;
+    end
+    else
+    begin
+      sortPrefixLen := 1;
+      for i := 0 to sl.Count - 1 do
+      begin
+        s := LowerCase(sl.Names[i]);
+        s2 := '9';
+        if DataSrc.Cargo[s] > 0 then
+          s2 := '0'
         else
-          if (FSecondaryMarket <> nil) and (FSecondaryMarket.Stock[s] > 0) then
-            s2 := '4';
-      sl[i] := s2 + sl[i];
+        if DataSrc.Market.Stock[s] > 0 then
+          s2 := '1'
+        else
+          if (bestMarket <> nil) and (bestMarket.Stock[s] > 0) then
+            s2 := '2'
+          else
+            if (FSecondaryMarket <> nil) and (FSecondaryMarket.Stock[s] > 0) then
+              s2 := '4';
+        sl[i] := s2 + sl[i];
+      end;
     end;
 
     if Opts.Flags['AutoSort'] then
@@ -537,7 +564,7 @@ begin
       useExtCargo := Opts['UseExtCargo'] = '1';
       for i := 0 to sl.Count - 1 do
       begin
-        itemName := Copy(sl.Names[i],2,200);
+        itemName := Copy(sl.Names[i],1+sortPrefixLen,200);
         normItem := LowerCase(itemName);
 
         cargo := StrToIntDef(DataSrc.Cargo.Values[normItem],0);
@@ -621,6 +648,8 @@ begin
            TextColLabel.Margins.Bottom;
       h := TextColLabel.Top + h + 2;
       if self.Height <> h then self.Height := h;
+      if FLayer1 <> nil then
+        FLayer1.Height := self.Height - TitleLabel.Height;
     end;
 
   finally
@@ -641,6 +670,12 @@ begin
   SplashForm.Hide;
   self.BringToFront;
   DataSrc.UpdTimer.Enabled := True;
+
+  {
+  with self, ClientOrigin do
+    SetWindowPos(FLayer1.Handle, HWND_BOTTOM, Left, Top+TitleLabel.Height, ClientWidth, ClientHeight,
+      SWP_SHOWWINDOW);
+}
 end;
 
 procedure TEDCDForm.ResetAlwaysOnTop;
@@ -663,9 +698,15 @@ begin
       begin
         s := PWideChar(@path);
         if Pos('EliteDangerous',s) > 0 then
-          self.FormStyle := fsStayOnTop
+        begin
+          if FLayer1 <> nil then FLayer1.FormStyle := fsStayOnTop;
+          self.FormStyle := fsStayOnTop;
+        end
         else
+        begin
+          if FLayer1 <> nil then FLayer1.FormStyle := fsNormal;
           self.FormStyle := fsNormal;
+        end;
       end;
     finally
       CloseHandle(hProcess);
@@ -768,6 +809,22 @@ begin
   try Result := TColor(StrToInt('$' + s)); except end;
 end;
 
+procedure TEDCDForm.SetupLayers;
+begin
+  FLayer1 := TForm.Create(nil);
+  FLayer1.AlphaBlend := True;
+  FLayer1.AlphaBlendValue := 48;
+  FLayer1.BorderStyle := bsNone;
+  FLayer1.Color := clBlack;
+  FLayer1.FormStyle := fsStayOnTop;
+//  FLayer1.SetBounds(0,0,self.ClientWidth,self.ClientHeight);
+//  FLayer1.Show;
+
+  with self, ClientOrigin do
+    SetWindowPos(FLayer1.Handle, HWND_BOTTOM, Left, Top+TitleLabel.Height, ClientWidth, 0,
+      SWP_SHOWWINDOW);
+end;
+
 procedure TEDCDForm.ApplySettings;
 var i,fs,dh,basew: Integer;
     s: string;
@@ -803,8 +860,7 @@ begin
   end;
   if not Opts.Flags['ShowCloseBox'] then
     CloseLabel.Visible := False;
-  if not Opts.Flags['AlwaysOnTop'] then
-    self.FormStyle := fsNormal;
+
   if Opts['TransColor'] <> '' then
   begin
     FTransColor := GetColorFromCode(Opts['TransColor'],self.Color);
@@ -817,7 +873,6 @@ begin
     basew := self.Canvas.TextWidth(Opts['BaseWidthText']);
 
     ReqQtyColLabel.Width := basew;
-    StockColLabel.Width := basew;
     if not Opts.Flags['ShowIndicators'] then
     begin
       StatusColLabel.Visible := false;
@@ -828,6 +883,7 @@ begin
       StatusColLabel.Width := basew;
       self.Width := basew * 8;
     end;
+    StockColLabel.Width := basew;
     CloseLabel.Left := self.Width - CloseLabel.Width - 3;
 
     dh := self.Canvas.TextHeight('Wq') - TitleLabel.Height;
@@ -837,12 +893,22 @@ begin
 
   self.Left := StrToIntDef(Opts['Left'],Screen.Width - self.Width);
   self.Top := StrToIntDef(Opts['Top'],(Screen.Height - self.Height) div 2);
+   if not Opts.Flags['AlwaysOnTop'] then
+    self.FormStyle := fsNormal
+  else
+    self.FormStyle := fsStayOnTop;
+
+
+  if Opts['Backdrop'] = '2' then
+    SetupLayers;
+
+
 
   //this is not optimized right now
   if not Opts.Flags['AllowMoreWindows'] then
     NewWindowMenuItem.Visible := False;
 
-  FBackdrop :=  Opts.Flags['Backdrop'];
+  FBackdrop :=  Opts['Backdrop'] = '1';
   UpdateBackdrop;
 
   FAutoSelectMarket := Opts['SelectedMarket'] = 'auto';
@@ -975,6 +1041,7 @@ begin
     if cd.Status = '' then continue; //docked but no depot info?
     if cd.Finished and not Opts.Flags['IncludeFinished'] then
       if FSelectedConstructions.IndexOf(cd.MarketID) = -1 then continue;
+    if DataSrc.GetMarketLevel(cd.MarketID) = miIgnore then continue;
     sl.AddObject(cd.LastUpdate,cd);
   end;
   sl.Sort;
@@ -1141,6 +1208,10 @@ end;
 procedure TEDCDForm.AppActivate(Sender: TObject);
 var i: Integer;
 begin
+  if FLayer1 <> nil then
+    self.BringToFront;
+
+
   for i := 0 to Application.ComponentCount - 1 do
     if Application.Components[i] is TEDCDForm then
       TEDCDForm(Application.Components[i]).ToggleTitleBar(true);
