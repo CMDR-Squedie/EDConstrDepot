@@ -1,6 +1,6 @@
 ![2c](https://github.com/user-attachments/assets/b47877b9-eb5f-4e8f-af39-169bb7cdec51)
 
-Lastest version: https://github.com/CMDR-Squedie/EDConstrDepot/releases
+Lastest version to download: https://github.com/CMDR-Squedie/EDConstrDepot/releases/latest
 
 A minimalistic transparent overlay tool to track construction depots in Elite Dangerous colonies.
 The overlay feature only works in **Borderless/Windowed** mode in Elite.
