@@ -167,6 +167,11 @@ var
     end;
   end;
 
+  function niceTime(tms: string): string;
+  begin
+    Result := Copy(tms,1,10) + ' ' + Copy(tms,12,8);
+  end;
+
 begin
 
   items := TStringList.Create;
@@ -230,7 +235,7 @@ begin
       item.SubItems.Add(m.StarSystem);
       s := niceTime(m.LastUpdate);
       if m.StationType <> 'FleetCarrier' then
-        if DataSrc.SystemUpdates.Values[m.StarSystem] > s then
+        if DataSrc.LastConstrTimes.Values[m.StarSystem] > m.LastUpdate then
           s := s + '  *';
       item.SubItems.Add(s);
       item.SubItems.Add(cMarketIgnoreInd[lev]);

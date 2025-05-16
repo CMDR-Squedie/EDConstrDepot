@@ -84,10 +84,10 @@ type
     FLastActiveWnd: HWND;
     FTable: array [colReq..colStatus] of TLabel;
     FBackdrop: Boolean;
+    FItemsShown: Integer;
     FLayer0: TForm;
     FLayer1: TForm;
     procedure ResetAlwaysOnTop;
-    procedure UpdateConstrDepot;
     procedure ApplySettings;
     procedure UpdateBackdrop;
     procedure SetupLayers;
@@ -96,6 +96,7 @@ type
   public
     { Public declarations }
     procedure OnEDDataUpdate;
+    procedure UpdateConstrDepot;
     procedure SetDepot(mID: string; groupf: Boolean);
     procedure SetSecondaryMarket(mID: string);
   end;
@@ -107,7 +108,7 @@ implementation
 
 {$R *.dfm}
 
-uses Splash, Markets, Alpha; //SettingsGUI;
+uses Splash, Markets; //SettingsGUI;
 
 var gLastCursorPos: TPoint;
 
@@ -116,7 +117,8 @@ const cDefaultCapacity: Integer = 784;
 procedure TEDCDForm.TextColLabelDblClick(Sender: TObject);
 var sl: TStringList;
     pt: TPoint;
-    idx: Integer;
+    idx,p: Integer;
+    s: string;
 begin
    pt := Mouse.CursorPos;
    sl := TStringList.Create;
@@ -126,7 +128,16 @@ begin
      idx := pt.Y div self.Canvas.TextHeight('Wq');
      if (idx >= 0)  and (idx < sl.Count) then
      begin
-       MarketsForm.FilterEdit.Text := LowerCase(sl[idx]);
+       s := LowerCase(sl[idx]);
+       if idx >= FItemsShown then
+       begin
+         p := Pos('/',s);
+         if p > 0 then
+           s := Copy(s,3,p-3)
+         else
+           Exit;
+       end;
+       MarketsForm.FilterEdit.Text := s;
        if MarketsForm.Visible then
          MarketsForm.UpdateItems
        else
@@ -415,6 +426,11 @@ begin
 
   FCurrentDepot := nil;
 
+  if FSecondaryMarket = nil then
+    if Opts['SelectedMarket'] <> 'auto' then
+      FSecondaryMarket := DataSrc.MarketFromID(Opts['SelectedMarket']);
+
+
 //  DataSrc.Update;
 
   try
@@ -438,6 +454,7 @@ begin
       end;
 
     cnames := '';
+    FItemsShown := 0;
 
     for ci := 0 to DataSrc.Constructions.Count - 1 do
     begin
@@ -574,6 +591,7 @@ begin
 
         a[colText] := a[colText] + itemName + Chr(13);
         a[colReq] := a[colReq] + sl.ValueFromIndex[i] + Chr(13);
+        FItemsShown := FItemsShown + 1;
 
         s := '';
         if cargo > 0 then s := IntToStr(cargo);
@@ -623,13 +641,16 @@ begin
         a[colText] := a[colText] + 'Flights left: ' +
           FloatToStrF((totReqQty-totDelQty)/DataSrc.Capacity,ffFixed,7,2) +
           ' (' + IntToStr(DataSrc.Capacity) + 't)' + Chr(13);
-      if Opts.Flags['ShowRecentMarket'] then
-        if DataSrc.Market.Stock.Count > 0 then
-          a[colText] := a[colText] + '□ ' + DataSrc.Market.FullName + Chr(13);
-      if bestMarket <> nil then
-        a[colText] := a[colText] + '○ ' + bestMarket.FullName + Chr(13);
-      if FSecondaryMarket <> nil then
-        a[colText] := a[colText] + '∆ ' + FSecondaryMarket.FullName + Chr(13);
+      if Opts.Flags['ShowIndicators'] then
+      begin
+        if Opts.Flags['ShowRecentMarket'] then
+          if DataSrc.Market.Stock.Count > 0 then
+            a[colText] := a[colText] + '□ ' + DataSrc.Market.FullName + Chr(13);
+        if bestMarket <> nil then
+          a[colText] := a[colText] + '○ ' + bestMarket.FullName + Chr(13);
+        if FSecondaryMarket <> nil then
+          a[colText] := a[colText] + '∆ ' + FSecondaryMarket.FullName + Chr(13);
+      end;
     end;
 
     for col := colReq to colStatus do
@@ -647,9 +668,12 @@ begin
            self.Canvas.TextHeight('Wq') * sl.Count +
            TextColLabel.Margins.Bottom;
       h := TextColLabel.Top + h + 2;
-      if self.Height <> h then self.Height := h;
-      if FLayer1 <> nil then
-        FLayer1.Height := self.Height - TitleLabel.Height;
+      if self.Height <> h then
+      begin
+        self.Height := h;
+        if FLayer1 <> nil then
+          FLayer1.Height := self.Height - TitleLabel.Height;
+      end;
     end;
 
   finally
@@ -661,21 +685,7 @@ end;
 
 procedure TEDCDForm.FormShow(Sender: TObject);
 begin
-  SplashForm.Show;
-  SplashForm.Update;
-  DataSrc.Update;
-  if Opts['SelectedMarket'] <> 'auto' then
-    FSecondaryMarket := DataSrc.MarketFromID(Opts['SelectedMarket']);
-  UpdateConstrDepot;
-  SplashForm.Hide;
-  self.BringToFront;
-  DataSrc.UpdTimer.Enabled := True;
-
-  {
-  with self, ClientOrigin do
-    SetWindowPos(FLayer1.Handle, HWND_BOTTOM, Left, Top+TitleLabel.Height, ClientWidth, ClientHeight,
-      SWP_SHOWWINDOW);
-}
+//
 end;
 
 procedure TEDCDForm.ResetAlwaysOnTop;
@@ -813,11 +823,16 @@ procedure TEDCDForm.SetupLayers;
 begin
   FLayer1 := TForm.Create(nil);
   FLayer1.AlphaBlend := True;
-  FLayer1.AlphaBlendValue := 48;
+  FLayer1.AlphaBlendValue := StrToIntDef(Opts['AlphaBlend'],64);
   FLayer1.BorderStyle := bsNone;
   FLayer1.Color := clBlack;
   FLayer1.FormStyle := fsStayOnTop;
-//  FLayer1.SetBounds(0,0,self.ClientWidth,self.ClientHeight);
+//  FLayer1.Enabled := False;
+
+  FLayer1.OnClick := AppActivate;
+  FLayer1.OnDblClick := TextColLabelDblClick;
+
+  //  FLayer1.SetBounds(0,0,self.ClientWidth,self.ClientHeight);
 //  FLayer1.Show;
 
   with self, ClientOrigin do
@@ -955,6 +970,7 @@ begin
   begin
     Top := self.Top + self.Height;
     Show;
+    UpdateConstrDepot;
   end;
 end;
 
@@ -1154,6 +1170,7 @@ end;
 
 procedure TEDCDForm.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
+  Action := caFree;
   if self = EDCDForm then
   begin
     Opts['Left'] := IntToStr(self.Left);
@@ -1170,6 +1187,8 @@ begin
     Opts.Save;
   end;
   DataSrc.RemoveListener(self);
+  if FLayer1 <> nil then
+    FLayer1.Free;
 end;
 
 procedure TEDCDForm.FormCreate(Sender: TObject);
@@ -1180,15 +1199,6 @@ begin
   FTable[colStock] := StockColLabel;
   FTable[colStatus] := StatusColLabel;
 
-  FWorkingDir := GetCurrentDir + '\';
-  if Opts = nil then
-  begin
-    Opts := TSettings.Create(FWorkingDir + 'EDConstrDepot.ini');
-    Opts.Load;
-  end;
-
-  if DataSrc = nil then
-    DataSrc := TEDDataSource.Create(Application);
   DataSrc.AddListener(self);
 
   FSelectedConstructions := TStringList.Create;
@@ -1199,10 +1209,6 @@ begin
   FTransColor := self.Color;
 
   ApplySettings;
-
-  Application.OnActivate :=  AppActivate;
-  Application.OnDeactivate :=  AppDeactivate;
-
 end;
 
 procedure TEDCDForm.AppActivate(Sender: TObject);

@@ -61,7 +61,7 @@ type TEDDataSource = class (TDataModule)
     FListeners: array of IEDDataListener;
     FCargo: TStock;
     FFileDates: TStringList;
-    FSystemUpdates: TStringList;
+    FLastConstrTimes: TStringList;
     FItemCategories: TStringList;
     FRecentMarkets: TStringList;
     FConstructions: TStringList;
@@ -91,7 +91,7 @@ type TEDDataSource = class (TDataModule)
   public
     property Constructions: TStringList read FConstructions;
     property RecentMarkets: TStringList read FRecentMarkets;
-    property SystemUpdates: TStringList read FSystemUpdates;
+    property LastConstrTimes: TStringList read FLastConstrTimes;
     property SimDepot: TConstructionDepot read FSimDepot;
     property MarketComments: TStringList read FMarketComments;
     property MarketLevels: TStringList read FMarketLevels;
@@ -538,12 +538,12 @@ begin
           if s = 'true' then
           begin
             cd.Finished := true;
-            if FSystemUpdates.Values[cd.StarSystem] < tms  then
-              FSystemUpdates.Values[cd.StarSystem] := tms;
+            if FLastConstrTimes.Values[cd.StarSystem] < tms  then
+              FLastConstrTimes.Values[cd.StarSystem] := tms;
           end;
         end;
 
-        FLastJrnlTimeStamps[fn] := tms;
+        FLastJrnlTimeStamps.Values[fn] := tms;
       except
         __log_except('UpdateFromJournal',tms);
       end;
@@ -769,7 +769,7 @@ begin
   FSimDepot := TConstructionDepot.Create;
   FSimDepot.Simulated := true;
   FFileDates := TStringList.Create;
-  FSystemUpdates := TStringList.Create;
+  FLastConstrTimes := TStringList.Create;
   FConstructions := TStringList.Create;
   FRecentMarkets := TStringList.Create;
   FMarketComments := TStringList.Create;

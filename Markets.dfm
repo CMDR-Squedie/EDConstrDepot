@@ -35,7 +35,7 @@ object MarketsForm: TMarketsForm
         Caption = 'System'
       end
       item
-        Caption = 'Last Visited'
+        Caption = 'Last Visit (UTC)'
       end
       item
         Alignment = taCenter
@@ -72,7 +72,6 @@ object MarketsForm: TMarketsForm
     OnCompare = ListViewCompare
     OnDblClick = ListViewAction
     OnMouseDown = ListViewMouseDown
-    ExplicitTop = 35
   end
   object Panel1: TPanel
     Left = 0

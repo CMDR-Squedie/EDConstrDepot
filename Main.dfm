@@ -298,7 +298,7 @@ object EDCDForm: TEDCDForm
       OnClick = MinimizeMenuItemClick
     end
     object ExitMenuItem: TMenuItem
-      Caption = 'Exit'
+      Caption = 'Close'
       OnClick = ExitMenuItemClick
     end
   end
