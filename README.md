@@ -51,6 +51,7 @@ Market score for market auto-selection is generally based on how many requested 
 
 
 Advanced Features (.ini file only):
+ - semi-transparent mode: set **Backdrop** to '2' in ini file, and optionally set AlphaBlend to a value from  0-255 range (0 is fully transparent, 255 is fully opaque)
  - display multiple overlays, each with its own construction depot. Either run multiple copies of the app, or use **AllowMoreWindows** option and New Window command (this option is experimental and will not save your workspace though).
  - run the app on a PC tablet next to your main screen (old tablets with Win10 32-bit will do). You need to share your ED Saved Games folder for that and use **JournalDir** option to enter full UNC path. - 
 
