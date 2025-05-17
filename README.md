@@ -1,4 +1,5 @@
-![2c](https://github.com/user-attachments/assets/b47877b9-eb5f-4e8f-af39-169bb7cdec51)
+![image](https://github.com/user-attachments/assets/fd2c3e5f-f0b0-4f3d-b7c9-b4c67b0df3eb)
+
 
 Lastest version to download: https://github.com/CMDR-Squedie/EDConstrDepot/releases/latest
 
