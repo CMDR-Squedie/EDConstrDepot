@@ -18,7 +18,7 @@ To temporarily turn the transparency off, double-click the title bar or choose t
 
 The app can be customized in the **EDConstrDepot.ini** file - no user interface is planned for this as of now.
 
-The app uses local journal files only (ie. no cAPI/INARA/EDDB interface), so it is of limited use for team effort (ie. you get no updates from other commanders until you dock to FC/construction depot). The app scans all journals from all game accounts (alts) used on current Windows user account. The app scans ALL your available journal entries since Trailblazers update 2 launch. To speed up application launch and/or skip long finished constructions, change the **IncludeFinished** and **JournalStart** options in the .ini file. 
+The app uses local journal files only (ie. no cAPI/INARA/EDDB interface), so it is of limited use for team effort (ie. you get no updates from other commanders until you dock to FC/construction depot). The app scans all journals since Trailblazers update 2 launch, from all game accounts (alts) used on current Windows user account. To speed up application launch and/or skip long finished constructions, change the **IncludeFinished** and **JournalStart** options in the .ini file. 
 
 Features:
 - construction depot commodity/progress tracking
