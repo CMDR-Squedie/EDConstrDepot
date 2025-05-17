@@ -1,5 +1,4 @@
-![image](https://github.com/user-attachments/assets/fd2c3e5f-f0b0-4f3d-b7c9-b4c67b0df3eb)
-
+![00000aa](https://github.com/user-attachments/assets/774bc254-f7a0-4e59-8276-70ce2eed085a)
 
 Lastest version to download: https://github.com/CMDR-Squedie/EDConstrDepot/releases/latest
 
@@ -61,4 +60,5 @@ Advanced Features (.ini file only):
  - run the app on a PC tablet next to your main screen (old tablets with Win10 32-bit will do). You need to share your ED Saved Games folder for that and use **JournalDir** option to enter full UNC path. - 
 
 o7, CMDRs!
+
 
