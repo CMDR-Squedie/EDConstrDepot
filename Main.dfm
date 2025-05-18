@@ -246,14 +246,14 @@ object EDCDForm: TEDCDForm
         OnClick = SwitchMarketMenuItemClick
       end
     end
-    object ExternalCargoMenu: TMenuItem
+    object FleetCarrierSubMenu: TMenuItem
       Caption = 'Fleet Carrier'
-      object LastFCMenuItem: TMenuItem
-        Caption = '(placeholder)'
-        Enabled = False
+      object N3: TMenuItem
+        Caption = '-'
       end
       object UseAsStockMenuItem: TMenuItem
         Caption = 'Use As Stock'
+        Visible = False
         OnClick = UseAsStockMenuItemClick
       end
       object MarketAsDepotMenuItem: TMenuItem
@@ -262,10 +262,6 @@ object EDCDForm: TEDCDForm
       end
       object N2: TMenuItem
         Caption = '-'
-      end
-      object CargoExtFCMenuItem: TMenuItem
-        Caption = '(placeholder)'
-        Enabled = False
       end
       object ToggleExtCargoMenuItem: TMenuItem
         Caption = 'Show Stock'

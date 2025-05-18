@@ -19,7 +19,7 @@ type
     PopupMenu: TPopupMenu;
     N1: TMenuItem;
     ExitMenuItem: TMenuItem;
-    ExternalCargoMenu: TMenuItem;
+    FleetCarrierSubMenu: TMenuItem;
     ToggleExtCargoMenuItem: TMenuItem;
     SelectDepotSubMenu: TMenuItem;
     SwitchDepotMenuItem: TMenuItem;
@@ -42,8 +42,7 @@ type
     IncludeExtCargoinRequestMenuItem: TMenuItem;
     UseAsStockMenuItem: TMenuItem;
     ComparePurchaseOrderMenuItem: TMenuItem;
-    LastFCMenuItem: TMenuItem;
-    CargoExtFCMenuItem: TMenuItem;
+    N3: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure UpdTimerTimer(Sender: TObject);
     procedure TextColLabelMouseMove(Sender: TObject; Shift: TShiftState; X,
@@ -56,6 +55,7 @@ type
     procedure ToggleExtCargoMenuItemClick(Sender: TObject);
     procedure PopupMenuPopup(Sender: TObject);
     procedure SwitchDepotMenuItemClick(Sender: TObject);
+    procedure SwitchFleetCarrierMenuItemClick(Sender: TObject);
     procedure MinimizeMenuItemClick(Sender: TObject);
     procedure AddDepotInfoMenuItemClick(Sender: TObject);
     procedure MarketAsDepotMenuItemClick(Sender: TObject);
@@ -235,20 +235,20 @@ begin
       Exit;
     end;
 
-
+{
   if Vcl.Dialogs.MessageDlg('Are you sure you want to use ' +
-    m.StationName + ' as external cargo?',
+    m.StationName + ' as active Fleet Carrier?',
     mtConfirmation, [mbYes, mbNo], 0, mbNo) = mrNo then Exit;
-
-  Opts['UseExtCargo'] := IntToStr(mode);
-  Opts['CargoExt'] := m.MarketId;
+}
+  if mode <> -1 then
+    Opts['UseExtCargo'] := IntToStr(mode);
   DataSrc.MarketToCargoExt(m.MarketID);
   UpdateConstrDepot;
 end;
 
 procedure TEDCDForm.UseAsStockMenuItemClick(Sender: TObject);
 begin
-  MarketAsExtCargoDlg(DataSrc.LastFC,1);
+  MarketAsExtCargoDlg(DataSrc.CargoExt,1);
 end;
 
 
@@ -1052,7 +1052,8 @@ end;
 
 procedure TEDCDForm.MarketAsDepotMenuItemClick(Sender: TObject);
 begin
-  MarketAsDepotDlg(DataSrc.LastFC);
+  if DataSrc.CargoExt = nil then Exit;
+  MarketAsDepotDlg(DataSrc.CargoExt);
 end;
 
 procedure TEDCDForm.MinimizeMenuItemClick(Sender: TObject);
@@ -1123,9 +1124,21 @@ begin
 }
 end;
 
+procedure TEDCDForm.SwitchFleetCarrierMenuItemClick(Sender: TObject);
+var m: TMarket;
+    idx: Integer;
+begin
+  idx := TMenuItem(Sender).Tag - 1;
+  if idx >= DataSrc.RecentMarkets.Count then Exit;
+  if not TMenuItem(Sender).Checked or (idx = -1) then
+    DataSrc.MarketToCargoExt('')
+  else
+    MarketAsExtCargoDlg(TMarket(DataSrc.RecentMarkets.Objects[idx]),-1);
+end;
+
 procedure TEDCDForm.PopupMenuPopup(Sender: TObject);
 var
-  i,j: Integer;
+  i,j,idx: Integer;
   mitem: TMenuItem;
   cd: TConstructionDepot;
   m: TMarket;
@@ -1137,19 +1150,6 @@ begin
   ToggleExtCargoMenuItem.Checked := Opts['UseExtCargo'] = '1';
   IncludeExtCargoinRequestMenuItem.Checked := Opts['UseExtCargo'] = '2';
   ComparePurchaseOrderMenuItem.Checked := Opts['UseExtCargo'] = '3';
-
-  LastFCMenuItem.Caption := '(no carrier visited)';
-  m := DataSrc.LastFC;
-  if m <> nil then
-    LastFCMenuItem.Caption := 'Recent: ' + m.StationName;
-
-  CargoExtFCMenuItem.Visible := False;
-  CargoExtFCMenuItem.Caption := '(no carrier selected)';
-  if (m <> nil) and (DataSrc.CargoExt <> nil) and (DataSrc.CargoExt.MarketID <> m.MarketID) then
-  begin
-    CargoExtFCMenuItem.Visible := True;
-    CargoExtFCMenuItem.Caption := 'Selected: ' + DataSrc.CargoExt.StationName;
-  end;
 
   SelectDepotSubMenu.Clear;
   activef := False;
@@ -1266,6 +1266,33 @@ begin
     mitem.OnClick := ForgetMarketMenuItemClick;
     SelectMarketSubMenu.Add(mitem);
   end;
+
+  for i := FleetCarrierSubMenu.Count - 1 downto 0 do
+  begin
+    if FleetCarrierSubMenu.Items[i].Tag > 0 then
+      FleetCarrierSubMenu.Delete(i);
+  end;
+  MarketAsDepotMenuItem.Enabled := False;
+  idx := 0;
+  for i := sl.Count - 1 downto sl.Count - 20 do
+  begin
+    if i < 0 then break;
+    m := TMarket(sl.Objects[i]);
+    if m.StationType <> 'FleetCarrier' then continue;
+    mitem := TMenuItem.Create(FleetCarrierSubMenu);
+    mitem.Caption := m.StationName;
+    s := DataSrc.MarketComments.Values[m.MarketID];
+    if s <> '' then
+      mitem.Caption := mitem.Caption + ' (' + Copy(s,1,20) + ')';
+    mitem.Tag := DataSrc.RecentMarkets.IndexOfObject(m) + 1;
+    mitem.OnClick := SwitchFleetCarrierMenuItemClick;
+    mitem.AutoCheck := true;
+    mitem.Checked := (DataSrc.CargoExt <> nil) and (m.MarketId = DataSrc.CargoExt.MarketID);
+    FleetCarrierSubMenu.Insert(idx,mitem);
+    MarketAsDepotMenuItem.Enabled := True;
+    idx := idx + 1;
+  end;
+
   finally
     sl.Free;
   end;
@@ -1318,8 +1345,6 @@ begin
 
   FTransColor := self.Color;
 
-  self.Left := StrToIntDef(Opts['Left'],Screen.Width - self.Width);
-  self.Top := StrToIntDef(Opts['Top'],(Screen.Height - self.Height) div 2);
    if not Opts.Flags['AlwaysOnTop'] then
     self.FormStyle := fsNormal
   else
@@ -1328,6 +1353,15 @@ begin
   SetupLayers;
 
   ApplySettings;
+
+  self.Left := StrToIntDef(Opts['Left'],Screen.Width - self.Width);
+  self.Top := StrToIntDef(Opts['Top'],(Screen.Height - self.Height) div 2);
+  if FLayer1 <> nil then
+  begin
+    FLayer1.Left := self.Left - 2;
+    FLayer1.Top := self.Top - 2;
+  end;
+
 end;
 
 procedure TEDCDForm.AppActivate(Sender: TObject);

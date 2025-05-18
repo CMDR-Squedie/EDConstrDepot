@@ -854,6 +854,7 @@ end;
 procedure TEDDataSource.MarketToCargoExt(mID: string);
 begin
   FCargoExt := MarketFromId(mID);
+  Opts['CargoExt'] := mID;
   SetDataChanged;
 end;
 

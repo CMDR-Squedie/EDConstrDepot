@@ -103,7 +103,7 @@ begin
   FDefaults.Values['TransparentTitle'] := '0';
   FDefaults.Values['ScanMenuKey'] := '0';
   FDefaults.Values['AlwaysOnTop'] := '2';
-  FDefaults.Values['Backdrop'] := '0';
+  FDefaults.Values['Backdrop'] := '2';
   FDefaults.Values['AlphaBlend'] := '64';
   FDefaults.Values['AutoHeight'] := '1';
   FDefaults.Values['AutoWidth'] := '1';

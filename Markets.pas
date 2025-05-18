@@ -419,7 +419,7 @@ begin
   13:
     begin
       if TBaseMarket(ListView.Selected.Data) is TMarket then
-        EDCDForm.MarketAsExtCargoDlg(TMarket(ListView.Selected.Data),1);
+        EDCDForm.MarketAsExtCargoDlg(TMarket(ListView.Selected.Data),-1);
     end;
   else
     begin

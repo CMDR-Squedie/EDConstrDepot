@@ -200,7 +200,7 @@ object MarketsForm: TMarketsForm
       Caption = 'Fleet Carrier'
       object SetAsStockMenuItem: TMenuItem
         Tag = 13
-        Caption = 'Set As Stock'
+        Caption = 'Set As Active'
         OnClick = ListViewAction
       end
       object SetAsConstrDepotMenuItem: TMenuItem
