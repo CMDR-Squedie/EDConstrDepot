@@ -104,6 +104,12 @@ object MarketsForm: TMarketsForm
       Height = 17
       Caption = 'Markets'
       Checked = True
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -13
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentFont = False
       State = cbChecked
       TabOrder = 0
       OnClick = MarketsCheckClick
@@ -111,7 +117,7 @@ object MarketsForm: TMarketsForm
     object ConstrCheck: TCheckBox
       Left = 367
       Top = 8
-      Width = 130
+      Width = 115
       Height = 17
       Caption = 'Constructions'
       Checked = True
@@ -122,7 +128,7 @@ object MarketsForm: TMarketsForm
     object InclIgnoredCheck: TCheckBox
       Left = 488
       Top = 8
-      Width = 129
+      Width = 114
       Height = 17
       Caption = 'Include Ignored'
       Checked = True
@@ -142,7 +148,7 @@ object MarketsForm: TMarketsForm
     object InclPartialCheck: TCheckBox
       Left = 608
       Top = 8
-      Width = 137
+      Width = 129
       Height = 17
       Caption = 'Include Partial Info'
       TabOrder = 4
@@ -159,6 +165,7 @@ object MarketsForm: TMarketsForm
     end
   end
   object PopupMenu: TPopupMenu
+    OnPopup = PopupMenuPopup
     Left = 648
     Top = 232
     object Select1: TMenuItem
@@ -185,6 +192,22 @@ object MarketsForm: TMarketsForm
       Tag = 4
       Caption = 'Toggle Ignore'
       OnClick = ListViewAction
+    end
+    object N2: TMenuItem
+      Caption = '-'
+    end
+    object FleetCarrierSubMenu: TMenuItem
+      Caption = 'Fleet Carrier'
+      object SetAsStockMenuItem: TMenuItem
+        Tag = 13
+        Caption = 'Set As Stock'
+        OnClick = ListViewAction
+      end
+      object SetAsConstrDepotMenuItem: TMenuItem
+        Tag = 12
+        Caption = 'Set As Construction Depot'
+        OnClick = ListViewAction
+      end
     end
     object N1: TMenuItem
       Caption = '-'

@@ -9,7 +9,8 @@ uses
   Vcl.Styles,
   System.SysUtils,
   Settings in 'Settings.pas',
-  DataSource in 'DataSource.pas';
+  DataSource in 'DataSource.pas',
+  SettingsGUI in 'SettingsGUI.pas' {SettingsForm};
 
 {$R *.res}
 
@@ -28,6 +29,7 @@ begin
   Application.CreateForm(TEDCDForm, EDCDForm);
   Application.CreateForm(TSplashForm, SplashForm);
   Application.CreateForm(TMarketsForm, MarketsForm);
+  Application.CreateForm(TSettingsForm, SettingsForm);
 
   Application.OnActivate :=  EDCDForm.AppActivate;
   Application.OnDeactivate :=  EDCDForm.AppDeactivate;

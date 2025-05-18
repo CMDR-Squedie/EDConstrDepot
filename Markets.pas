@@ -27,6 +27,10 @@ type
     CopyMenuItem: TMenuItem;
     CopyAllMenuItem: TMenuItem;
     ClearFilterButton: TButton;
+    N2: TMenuItem;
+    FleetCarrierSubMenu: TMenuItem;
+    SetAsConstrDepotMenuItem: TMenuItem;
+    SetAsStockMenuItem: TMenuItem;
     procedure ListViewColumnClick(Sender: TObject; Column: TListColumn);
     procedure ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
@@ -40,6 +44,7 @@ type
     procedure CopyMenuItemClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure ClearFilterButtonClick(Sender: TObject);
+    procedure PopupMenuPopup(Sender: TObject);
   private
     { Private declarations }
     SortColumn: Integer;
@@ -48,6 +53,7 @@ type
   public
     { Public declarations }
     procedure OnEDDataUpdate;
+    procedure ApplySettings;
   end;
 
 var
@@ -55,7 +61,7 @@ var
 
 implementation
 
-uses Main,Clipbrd;
+uses Main,Clipbrd,Settings;
 
 {$R *.dfm}
 
@@ -64,7 +70,22 @@ const cMarketFavInd: array [miNormal..miLast] of string = ('','','','●','●�
 
 procedure TMarketsForm.OnEDDataUpdate;
 begin
-  UpdateItems;
+  if Visible then UpdateItems;
+end;
+
+procedure TMarketsForm.PopupMenuPopup(Sender: TObject);
+var cdf,mf: Boolean;
+    m: TBaseMarket;
+begin
+  cdf := False;
+  mf := False;
+  m :=  TBaseMarket(ListView.Selected.Data);
+  if m <> nil then
+  begin
+    cdf := m is TConstructionDepot;
+    mf := m is TMarket;
+  end;
+  FleetCarrierSubMenu.Enabled := (m<>nil) and (m.StationType='FleetCarrier');
 end;
 
 procedure TMarketsForm.MarketsCheckClick(Sender: TObject);
@@ -119,12 +140,58 @@ begin
   UpdateItems;
 end;
 
+procedure TMarketsForm.ApplySettings;
+var i,fs: Integer;
+    fn: string;
+    clr: TColor;
+begin
+  if not Opts.Flags['MarketsDarkMode'] then
+  begin
+    with ListView do
+    begin
+      Color := clSilver;
+      Font.Color := clBlack;
+    end;
+  end
+  else
+  begin
+    clr := EDCDForm.TextColLabel.Font.Color;
+    {
+    for i := 0 to Panel1.ControlCount - 1 do
+    begin
+      if Panel1.Controls[i] is TLabel then
+        with TLabel(Panel1.Controls[i]) do
+        begin
+          Color := clBlack;
+          Font.Color := clr;
+        end;
+      if Panel1.Controls[i] is TCheckBox then
+        with TCheckBox(Panel1.Controls[i]) do
+        begin
+          Color := clBlack;
+          Font.Color := clr;
+        end;
+    end;
+    Panel1.Color := clBlack;
+    }
+    with ListView do
+    begin
+      Color := clBlack;
+      Font.Color := clr;
+      //GridLines := False;
+    end;
+
+  end;
+
+end;
+
 procedure TMarketsForm.FormCreate(Sender: TObject);
 begin
   SortColumn := 3;
   SortAscending := False;
 
   DataSrc.AddListener(self);
+  ApplySettings;
 end;
 
 procedure TMarketsForm.FormShow(Sender: TObject);
@@ -210,7 +277,9 @@ begin
         else
           item.SubItems.Add('ConstructionDepot');
       item.SubItems.Add(cd.StarSystem);
-      item.SubItems.Add(niceTime(cd.LastUpdate));
+      s := cd.LastDock;
+      if s < cd.LastUpdate then s := cd.LastUpdate;
+      item.SubItems.Add(niceTime(s));
       item.SubItems.Add(cMarketIgnoreInd[DataSrc.GetMarketLevel(cd.MarketId)]);
       item.SubItems.Add('');
       item.SubItems.Add(DataSrc.MarketComments.Values[cd.MarketID]);
@@ -233,9 +302,11 @@ begin
       item.Caption := m.StationName;
       item.SubItems.Add(m.StationType);
       item.SubItems.Add(m.StarSystem);
-      s := niceTime(m.LastUpdate);
+      s := m.LastDock;
+      if s < m.LastUpdate then s := m.LastUpdate;
+      s := niceTime(s);
       if m.StationType <> 'FleetCarrier' then
-        if DataSrc.LastConstrTimes.Values[m.StarSystem] > m.LastUpdate then
+        if DataSrc.LastConstrTimes.Values[m.StarSystem] > m.LastDock then
           s := s + '  *';
       item.SubItems.Add(s);
       item.SubItems.Add(cMarketIgnoreInd[lev]);
@@ -301,60 +372,62 @@ begin
   if Sender is TMenuItem then action := TMenuItem(Sender).Tag;
   if action = -1 then Exit;
   mid := TBaseMarket(ListView.Selected.Data).MarketId;
-  if action = 4 then
-  begin
-    if DataSrc.GetMarketLevel(mid) = miIgnore then
-      DataSrc.SetMarketLevel(mid,miNormal)
-    else
-      DataSrc.SetMarketLevel(mid,miIgnore);
-//    ListView.Selected.SubItems[3] :=
-//      cMarketIgnoreInd[DataSrc.GetMarketLevel(mid)];
-//    ListView.Selected.SubItems[4] := '';
-  end
-  else
-  if action = 5 then
-  begin
-    lev := DataSrc.GetMarketLevel(mid);
-    if lev = miPriority then
-      lev := miNormal
-    else
-      if lev = miFavorite then
-        lev := miPriority
-      else
-        lev := miFavorite;
-    DataSrc.SetMarketLevel(mid,lev);
-//    ListView.Selected.SubItems[3] := '';
-//    ListView.Selected.SubItems[4] := cMarketFavInd[DataSrc.GetMarketLevel(mid)];
-  end
-  else
-  if action = 6 then
-  begin
-    orgs := DataSrc.MarketComments.Values[mid];
-    s := Vcl.Dialogs.InputBox(TBaseMarket(ListView.Selected.Data).StationName, 'Info', orgs);
-    if s <> orgs then
+  case action  of
+  2:
     begin
-      DataSrc.UpdateMarketComment(mid,s);
-//      ListView.Selected.SubItems[5] := s;
+      FilterEdit.Text := TBaseMarket(ListView.Selected.Data).StarSystem;
+      UpdateItems;
     end;
-  end
+  4:
+    begin
+      if DataSrc.GetMarketLevel(mid) = miIgnore then
+        DataSrc.SetMarketLevel(mid,miNormal)
+      else
+        DataSrc.SetMarketLevel(mid,miIgnore);
+     end;
+  5:
+    begin
+      lev := DataSrc.GetMarketLevel(mid);
+      if lev = miPriority then
+        lev := miNormal
+      else
+        if lev = miFavorite then
+          lev := miPriority
+        else
+          lev := miFavorite;
+      DataSrc.SetMarketLevel(mid,lev);
+    end;
+  6:
+    begin
+      orgs := DataSrc.MarketComments.Values[mid];
+      s := Vcl.Dialogs.InputBox(TBaseMarket(ListView.Selected.Data).StationName, 'Info', orgs);
+      if s <> orgs then
+      begin
+        DataSrc.UpdateMarketComment(mid,s);
+      end;
+    end;
+  11:
+    begin
+      if TBaseMarket(ListView.Selected.Data) is TConstructionDepot then
+        EDCDForm.SetDepot(mid,true);
+    end;
+  12:
+    begin
+      if TBaseMarket(ListView.Selected.Data) is TMarket then
+        EDCDForm.MarketAsDepotDlg(TMarket(ListView.Selected.Data));
+    end;
+  13:
+    begin
+      if TBaseMarket(ListView.Selected.Data) is TMarket then
+        EDCDForm.MarketAsExtCargoDlg(TMarket(ListView.Selected.Data),1);
+    end;
   else
-  if action = 2 then
-  begin
-    FilterEdit.Text := TBaseMarket(ListView.Selected.Data).StarSystem;
-    UpdateItems;
-  end
-  else
-  if action = 11 then
-  begin
-    if TBaseMarket(ListView.Selected.Data) is TConstructionDepot then
-      EDCDForm.SetDepot(mid,true);
-  end
-  else
-  begin
-    if TBaseMarket(ListView.Selected.Data) is TConstructionDepot then
-      EDCDForm.SetDepot(mid,false);
-    if TBaseMarket(ListView.Selected.Data) is TMarket then
-      EDCDForm.SetSecondaryMarket(mid);
+    begin
+      if TBaseMarket(ListView.Selected.Data) is TConstructionDepot then
+        EDCDForm.SetDepot(mid,false);
+      if TBaseMarket(ListView.Selected.Data) is TMarket then
+        EDCDForm.SetSecondaryMarket(mid);
+    end;
   end;
 
   ClickedColumn := -1;

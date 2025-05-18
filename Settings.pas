@@ -87,11 +87,14 @@ constructor TSettings.Create(fn: string);
 begin
   FDefaults := TStringList.Create;
 
+  FDefaults.Values['FontName'] := 'Bahnschrift SemiCondensed';
+  FDefaults.Values['FontSize'] := '10';
+  FDefaults.Values['Color'] := 'FFA000';
   FDefaults.Values['ShowUnderCapacity'] := '1';
   FDefaults.Values['ShowProgress'] := '1';
   FDefaults.Values['ShowFlightsLeft'] := '1';
   FDefaults.Values['ShowRecentMarket'] := '1';
-  FDefaults.Values['ShowBestMarket'] := '0';
+  FDefaults.Values['ShowBestMarket'] := '1';
   FDefaults.Values['ShowDividers'] := '1';
   FDefaults.Values['ShowIndicators'] := '1';
   FDefaults.Values['IndicatorsPadding'] := '1';
@@ -101,16 +104,18 @@ begin
   FDefaults.Values['ScanMenuKey'] := '0';
   FDefaults.Values['AlwaysOnTop'] := '2';
   FDefaults.Values['Backdrop'] := '0';
+  FDefaults.Values['AlphaBlend'] := '64';
   FDefaults.Values['AutoHeight'] := '1';
   FDefaults.Values['AutoWidth'] := '1';
-  FDefaults.Values['AutoSort'] := '1';
+  FDefaults.Values['AutoSort'] := '2';
   FDefaults.Values['IncludeFinished'] := '1';
   FDefaults.Values['KeepSelected'] := '1';
   FDefaults.Values['TrackMarkets'] := '1';
-  FDefaults.Values['ShowBestMarket'] := '1';
   FDefaults.Values['AllowMoreWindows'] := '0';
+  FDefaults.Values['MarketsDarkMode'] := '0';
   FDefaults.Values['AnyMarketAsDepot'] := '0'; //this enables using any market type as FC
   FDefaults.Values['BaseWidthText'] := '00000';
+  FDefaults.Values['FontGlow'] := '48';
   FDefaults.Values['JournalStart'] := '2025-04-14';    //trailblazers journals start
 
 

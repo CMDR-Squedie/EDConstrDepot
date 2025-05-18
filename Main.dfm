@@ -190,8 +190,7 @@ object EDCDForm: TEDCDForm
     Align = alBottom
     Brush.Style = bsClear
     Pen.Color = clDarkgoldenrod
-    ExplicitTop = 507
-    ExplicitWidth = 232
+    ExplicitTop = 513
   end
   object CloseLabel: TLabel
     Left = 220
@@ -249,24 +248,36 @@ object EDCDForm: TEDCDForm
     end
     object ExternalCargoMenu: TMenuItem
       Caption = 'Fleet Carrier'
-      object IncludeExtCargoinRequestMenuItem: TMenuItem
-        Caption = 'Include Stock in Request'
-        OnClick = IncludeExtCargoinRequestMenuItemClick
+      object LastFCMenuItem: TMenuItem
+        Caption = '(placeholder)'
+        Enabled = False
       end
-      object ToggleExtCargoMenuItem: TMenuItem
-        Caption = 'Show Stock As Cargo'
-        OnClick = ToggleExtCargoMenuItemClick
-      end
-      object AddMarketToExtCargoMenuItem: TMenuItem
-        Caption = 'Use Recent Market'
-        OnClick = AddMarketToExtCargoMenuItemClick
-      end
-      object N2: TMenuItem
-        Caption = '-'
+      object UseAsStockMenuItem: TMenuItem
+        Caption = 'Use As Stock'
+        OnClick = UseAsStockMenuItemClick
       end
       object MarketAsDepotMenuItem: TMenuItem
         Caption = 'Use as Construction Depot'
         OnClick = MarketAsDepotMenuItemClick
+      end
+      object N2: TMenuItem
+        Caption = '-'
+      end
+      object CargoExtFCMenuItem: TMenuItem
+        Caption = '(placeholder)'
+        Enabled = False
+      end
+      object ToggleExtCargoMenuItem: TMenuItem
+        Caption = 'Show Stock'
+        OnClick = ToggleExtCargoMenuItemClick
+      end
+      object IncludeExtCargoinRequestMenuItem: TMenuItem
+        Caption = 'Fulfill Request with Stock'
+        OnClick = IncludeExtCargoinRequestMenuItemClick
+      end
+      object ComparePurchaseOrderMenuItem: TMenuItem
+        Caption = 'Compare with Purchase Order'
+        OnClick = ComparePurchaseOrderMenuItemClick
       end
     end
     object AddDepotInfoMenuItem: TMenuItem
@@ -276,6 +287,10 @@ object EDCDForm: TEDCDForm
     object ManageMarketsMenuItem: TMenuItem
       Caption = 'Manage All'
       OnClick = ManageMarketsMenuItemClick
+    end
+    object SettingsMenuItem: TMenuItem
+      Caption = 'Settings'
+      OnClick = SettingsMenuItemClick
     end
     object N1: TMenuItem
       Caption = '-'
@@ -287,11 +302,6 @@ object EDCDForm: TEDCDForm
     object NewWindowMenuItem: TMenuItem
       Caption = 'New Window'
       OnClick = NewWindowMenuItemClick
-    end
-    object SettingsMenuItem: TMenuItem
-      Caption = 'Settings'
-      Visible = False
-      OnClick = SettingsMenuItemClick
     end
     object MinimizeMenuItem: TMenuItem
       Caption = 'Minimize'
