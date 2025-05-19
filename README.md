@@ -33,7 +33,7 @@ Features:
 - suggest best markets for current request; add markets to Ignored/Favorite list
 - select market to see commodity availability (double-click market name in market list)
 - select commodity to see which markets supply it (double click on commodity name)
-- visited market list, with their economies
+- list of visited markets, with their economies
 
 Indicators:
 -  □/■ - commodity available at current (or recent) market; partial/full supply*
