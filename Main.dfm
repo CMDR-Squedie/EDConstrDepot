@@ -230,6 +230,14 @@ object EDCDForm: TEDCDForm
     OnPopup = PopupMenuPopup
     Left = 152
     Top = 362
+    object CurrentTGMenuItem: TMenuItem
+      Caption = '(placeholder)'
+      Enabled = False
+      Visible = False
+    end
+    object N5: TMenuItem
+      Caption = '-'
+    end
     object SelectDepotSubMenu: TMenuItem
       Caption = 'Constructions'
       object SwitchDepotMenuItem: TMenuItem
@@ -275,6 +283,23 @@ object EDCDForm: TEDCDForm
         Caption = 'Compare with Purchase Order'
         OnClick = ComparePurchaseOrderMenuItemClick
       end
+    end
+    object TaskGroupSubMenu: TMenuItem
+      Caption = 'Task Group'
+      object TaskGroupSeparator: TMenuItem
+        Caption = '-'
+      end
+      object NewTaskGroupMenuItem: TMenuItem
+        Caption = 'New...'
+        OnClick = NewTaskGroupMenuItemClick
+      end
+      object NoTaskGroupMenuItem: TMenuItem
+        Caption = 'Clear Selection'
+        OnClick = SwitchTaskGroupMenuItemClick
+      end
+    end
+    object N4: TMenuItem
+      Caption = '-'
     end
     object AddDepotInfoMenuItem: TMenuItem
       Caption = 'Add Construction Info'

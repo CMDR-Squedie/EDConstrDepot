@@ -10,11 +10,12 @@ uses
   System.SysUtils,
   Settings in 'Settings.pas',
   DataSource in 'DataSource.pas',
-  SettingsGUI in 'SettingsGUI.pas' {SettingsForm};
+  SettingsGUI in 'SettingsGUI.pas' {SettingsForm},
+  MarketInfo in 'MarketInfo.pas' {MarketInfoForm};
 
 {$R *.res}
 
-var Layer: TForm;
+const gNiceVersion: string = 'Release 15, build 1';
 
 begin
   Application.Initialize;
@@ -30,6 +31,9 @@ begin
   Application.CreateForm(TSplashForm, SplashForm);
   Application.CreateForm(TMarketsForm, MarketsForm);
   Application.CreateForm(TSettingsForm, SettingsForm);
+  Application.CreateForm(TMarketInfoForm, MarketInfoForm);
+
+  SettingsForm.VersionLabel.Caption := gNiceVersion;
 
   Application.OnActivate :=  EDCDForm.AppActivate;
   Application.OnDeactivate :=  EDCDForm.AppDeactivate;
@@ -37,7 +41,7 @@ begin
 
   SplashForm.Show;
   SplashForm.Update;
-  DataSrc.Update;
+  DataSrc.Load;
   EDCDForm.UpdateConstrDepot;
   SplashForm.Hide;
   EDCDForm.Show;

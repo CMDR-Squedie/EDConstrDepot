@@ -22,7 +22,7 @@ type
     AddComment2: TMenuItem;
     AddToFavorite1: TMenuItem;
     Select1: TMenuItem;
-    AddToDepotGroup1: TMenuItem;
+    AddToDepotGroupMenuItem: TMenuItem;
     N1: TMenuItem;
     CopyMenuItem: TMenuItem;
     CopyAllMenuItem: TMenuItem;
@@ -31,6 +31,14 @@ type
     FleetCarrierSubMenu: TMenuItem;
     SetAsConstrDepotMenuItem: TMenuItem;
     SetAsStockMenuItem: TMenuItem;
+    TaskGroupComboBox: TComboBox;
+    Label2: TLabel;
+    TaskGroupSubMenu: TMenuItem;
+    askGroup2: TMenuItem;
+    OtherGroupMenuItem: TMenuItem;
+    N3: TMenuItem;
+    Clear1: TMenuItem;
+    MarketInfoMenuItem: TMenuItem;
     procedure ListViewColumnClick(Sender: TObject; Column: TListColumn);
     procedure ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
@@ -45,11 +53,14 @@ type
     procedure FormCreate(Sender: TObject);
     procedure ClearFilterButtonClick(Sender: TObject);
     procedure PopupMenuPopup(Sender: TObject);
+    procedure TaskGroupMenuItemClick(Sender: TObject);
+    procedure OtherGroupMenuItemClick(Sender: TObject);
   private
     { Private declarations }
     SortColumn: Integer;
     ClickedColumn: Integer;
     SortAscending: Boolean;
+    LastSelected: TBaseMarket;
   public
     { Public declarations }
     procedure OnEDDataUpdate;
@@ -61,7 +72,7 @@ var
 
 implementation
 
-uses Main,Clipbrd,Settings;
+uses Main,Clipbrd,Settings, MarketInfo;
 
 {$R *.dfm}
 
@@ -73,10 +84,42 @@ begin
   if Visible then UpdateItems;
 end;
 
+procedure TMarketsForm.OtherGroupMenuItemClick(Sender: TObject);
+var i: Integer;
+    s: string;
+begin
+  DataSrc.BeginUpdate;
+  try
+    s := Vcl.Dialogs.InputBox('Task Group', 'Name', '');;
+    for i := 0 to ListView.Items.Count -1 do
+      if ListView.Items[i].Selected then
+        DataSrc.UpdateMarketGroup(TBaseMarket(ListView.Items[i].Data).MarketID,s,false);
+  finally
+    DataSrc.EndUpdate;
+  end;
+end;
+
+procedure TMarketsForm.TaskGroupMenuItemClick(Sender: TObject);
+var i: Integer;
+    s: string;
+begin
+  DataSrc.BeginUpdate;
+  try
+    s := TMenuItem(Sender).Hint;
+    for i := 0 to ListView.Items.Count -1 do
+      if ListView.Items[i].Selected then
+        DataSrc.UpdateMarketGroup(TBaseMarket(ListView.Items[i].Data).MarketID,s,false);
+  finally
+    DataSrc.EndUpdate;
+  end;
+end;
+
 procedure TMarketsForm.PopupMenuPopup(Sender: TObject);
 var cdf,mf: Boolean;
     m: TBaseMarket;
-begin
+    sl: TStringList;
+    i: Integer;
+    mitem: TMenuItem;                   begin
   cdf := False;
   mf := False;
   m :=  TBaseMarket(ListView.Selected.Data);
@@ -86,6 +129,26 @@ begin
     mf := m is TMarket;
   end;
   FleetCarrierSubMenu.Enabled := (m<>nil) and (m.StationType='FleetCarrier');
+  AddToDepotGroupMenuItem.Enabled := cdf;
+  MarketInfoMenuItem.Enabled := mf;
+
+  for i := TaskGroupSubMenu.Count - 1 downto 0 do
+  begin
+    if TaskGroupSubMenu.Items[i].Tag > 0 then
+      TaskGroupSubMenu.Delete(i);
+  end;
+  sl := TStringList.Create;
+  DataSrc.GetUniqueGroups(sl);
+  for i := sl.Count - 1 downto 0  do
+  begin
+    mitem := TMenuItem.Create(TaskGroupSubMenu);
+    mitem.Caption := sl[i];
+    mitem.Hint := sl[i];
+    mitem.Tag := 1;
+    mitem.OnClick := TaskGroupMenuItemClick;
+    TaskGroupSubMenu.Insert(0,mitem);
+  end;
+  sl.Free;
 end;
 
 procedure TMarketsForm.MarketsCheckClick(Sender: TObject);
@@ -151,33 +214,17 @@ begin
     begin
       Color := clSilver;
       Font.Color := clBlack;
+      GridLines := True;
     end;
   end
   else
   begin
     clr := EDCDForm.TextColLabel.Font.Color;
-    {
-    for i := 0 to Panel1.ControlCount - 1 do
-    begin
-      if Panel1.Controls[i] is TLabel then
-        with TLabel(Panel1.Controls[i]) do
-        begin
-          Color := clBlack;
-          Font.Color := clr;
-        end;
-      if Panel1.Controls[i] is TCheckBox then
-        with TCheckBox(Panel1.Controls[i]) do
-        begin
-          Color := clBlack;
-          Font.Color := clr;
-        end;
-    end;
-    Panel1.Color := clBlack;
-    }
     with ListView do
     begin
-      Color := clBlack;
+      Color := $484848;
       Font.Color := clr;
+      GridLines := False;
       //GridLines := False;
     end;
 
@@ -209,6 +256,7 @@ var
   fs,cs: string;
   items: TStringList;
   lev: TMarketLevel;
+  lastm: TBaseMarket;
   ignoredf,partialf: Boolean;
 
   function CheckFilter: Boolean;
@@ -240,6 +288,10 @@ var
   end;
 
 begin
+
+  lastm := nil;
+  if ListView.Selected <> nil then
+    lastm := TBaseMarket(ListView.Selected.Data);
 
   items := TStringList.Create;
   items.Sorted := True;
@@ -284,6 +336,9 @@ begin
       item.SubItems.Add('');
       item.SubItems.Add(DataSrc.MarketComments.Values[cd.MarketID]);
       item.SubItems.Add('');
+      item.SubItems.Add(DataSrc.MarketGroups.Values[cd.MarketID]);
+      if lastm = cd then ListView.Selected := item;
+
       if not CheckFilter then item.Delete;
 
     end;
@@ -314,8 +369,10 @@ begin
 //      item.SubItems.Add(s);
       item.SubItems.Add(DataSrc.MarketComments.Values[m.MarketID]);
       item.SubItems.Add(m.Economies);
+      item.SubItems.Add(DataSrc.MarketGroups.Values[m.MarketID]);
       for j := 0 to m.Stock.Count - 1 do
         items.Add(m.Stock.Names[j]);
+      if lastm = m then ListView.Selected := item;
       if not CheckFilter then item.Delete;
 
     end;
@@ -406,6 +463,16 @@ begin
         DataSrc.UpdateMarketComment(mid,s);
       end;
     end;
+  8:
+    begin
+      orgs := DataSrc.MarketGroups.Values[mid];
+      s := Vcl.Dialogs.InputBox(TBaseMarket(ListView.Selected.Data).StationName, 'Group', orgs);
+      if s <> orgs then
+      begin
+        DataSrc.UpdateMarketGroup(mid,s,false);
+        UpdateItems;
+      end;
+    end;
   11:
     begin
       if TBaseMarket(ListView.Selected.Data) is TConstructionDepot then
@@ -420,6 +487,14 @@ begin
     begin
       if TBaseMarket(ListView.Selected.Data) is TMarket then
         EDCDForm.MarketAsExtCargoDlg(TMarket(ListView.Selected.Data),-1);
+    end;
+  14:
+    begin
+      if TBaseMarket(ListView.Selected.Data) is TMarket then
+      begin
+        MarketInfoForm.SetMarket(TMarket(ListView.Selected.Data));
+        MarketInfoForm.Show;
+      end;
     end;
   else
     begin
@@ -438,14 +513,16 @@ procedure TMarketsForm.ListViewMouseDown(Sender: TObject; Button: TMouseButton;
 var
   l: TListItem;
   i: integer;
-  w: integer;
+  w,xm: integer;
 begin
   ClickedColumn := -1;
   w := 0;
+  xm := x;
+  xm := x + GetScrollPos(ListView.Handle,SB_HORZ);
   for i := 0 to ListView.Columns.Count -1  do
   begin
     w := w + ListView.Column[i].Width;
-    if w >= X then
+    if w >= xm then
     begin
       ClickedColumn := i;
       break;

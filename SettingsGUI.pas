@@ -1,10 +1,10 @@
-unit SettingsGUI;
+﻿unit SettingsGUI;
 
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ComCtrls, Vcl.StdCtrls;
+  Winapi.Windows, Winapi.Messages, Winapi.ShellAPI, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ComCtrls, Vcl.StdCtrls, Vcl.ExtCtrls;
 
 type TUserOpt = class
   Name: string;
@@ -17,14 +17,19 @@ end;
 type
   TSettingsForm = class(TForm)
     ListView: TListView;
-    Label1: TLabel;
     FontDialog: TFontDialog;
+    Panel1: TPanel;
+    VersionLabel: TLabel;
+    UpdLinkLabel: TLinkLabel;
     procedure FormShow(Sender: TObject);
     procedure ListViewDblClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
+    procedure UpdLinkLabelLinkClick(Sender: TObject; const Link: string;
+      LinkType: TSysLinkType);
   private
     { Private declarations }
     FUserOpts: TList;
+    procedure UpdateList;
   public
     { Public declarations }
   end;
@@ -36,7 +41,7 @@ implementation
 
 {$R *.dfm}
 
-uses Settings, Main, Markets;
+uses Settings, Main, Markets, MarketInfo;
 
 procedure TSettingsForm.FormCreate(Sender: TObject);
 var i: Integer;
@@ -81,19 +86,19 @@ begin
   DefineFlag('ShowBestMarket','');
   DefineFlag('ShowDividers','');
   DefineFlag('ShowIndicators','');
+  DefineOpt('IncludeSupply','0-non-zero supply; 1-full capacity supply; 2-full request supply',0,2,'');
   DefineFlag('ShowCloseBox','');
   DefineFlag('TransparentTitle','');
   DefineFlag('MarketsDarkMode','changes market list background to dark');
 
   for i := 0 to ListView.Columns.Count - 1 do
   begin
-//    ListView.Column[i].Width := -2;
+//    ListView.Column[2].Width := -1;
   end;
-//  ListView.SortType := stText;
-
+  ListView.Column[2].Width := -1;
 end;
 
-procedure TSettingsForm.FormShow(Sender: TObject);
+procedure TSettingsForm.UpdateList;
 var i: Integer;
     item: TListItem;
     s: string;
@@ -109,7 +114,11 @@ begin
     begin
       item := ListView.Items.Add;
       item.Caption := Name;
-      item.SubItems.Add(Opts[Name]);
+      s := Opts[Name];
+      if SubType = '' then
+        if High = 1 then
+          if s = '1' then s := '✓' else s := '';
+      item.SubItems.Add(s);
       item.SubItems.Add(Desc);
     end;
     item.Data := FUserOpts[i];
@@ -118,11 +127,23 @@ begin
   sl.Free;
 end;
 
+procedure TSettingsForm.UpdLinkLabelLinkClick(Sender: TObject;
+  const Link: string; LinkType: TSysLinkType);
+begin
+  ShellExecute(0, 'open', PChar(Link), nil, nil, SW_SHOWNORMAL);
+end;
+
+procedure TSettingsForm.FormShow(Sender: TObject);
+begin
+  UpdateList;
+end;
+
 procedure TSettingsForm.ListViewDblClick(Sender: TObject);
 var opt: TUserOpt;
     i: Integer;
     s,orgs: string;
 begin
+  if ListView.Selected = nil then Exit;
   opt := TUserOpt(ListView.Selected.Data);
   if opt.SubType = '' then
     if opt.High = 1 then
@@ -154,13 +175,18 @@ begin
 
   if opt.SubType = 'font' then
   begin
+    FontDialog.Font.Name := Opts[opt.Name];
     if FontDialog.Execute then
       Opts[opt.Name] := FontDialog.Font.Name;
   end;
 
-  ListView.Selected.SubItems[0] := Opts[opt.Name];
-  EDCDForm.OnChangeSettings;
+  //ListView.Selected.SubItems[0] := Opts[opt.Name];
+  UpdateList;
+  for i := 0 to Application.ComponentCount - 1 do
+    if Application.Components[i] is TEDCDForm then
+      TEDCDForm(Application.Components[i]).OnChangeSettings;
   MarketsForm.ApplySettings;
+  MarketInfoForm.ApplySettings;
 end;
 
 end.

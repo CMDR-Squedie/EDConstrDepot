@@ -3,7 +3,7 @@ object MarketsForm: TMarketsForm
   Top = 0
   Caption = 'Manage Markets'
   ClientHeight = 555
-  ClientWidth = 968
+  ClientWidth = 1115
   Color = clBackground
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -17,7 +17,7 @@ object MarketsForm: TMarketsForm
   object ListView: TListView
     Left = 0
     Top = 41
-    Width = 968
+    Width = 1115
     Height = 514
     Align = alClient
     BevelEdges = []
@@ -52,6 +52,9 @@ object MarketsForm: TMarketsForm
       end
       item
         Caption = 'Economies'
+      end
+      item
+        Caption = 'Task Group'
       end>
     Ctl3D = False
     Font.Charset = DEFAULT_CHARSET
@@ -72,11 +75,12 @@ object MarketsForm: TMarketsForm
     OnCompare = ListViewCompare
     OnDblClick = ListViewAction
     OnMouseDown = ListViewMouseDown
+    ExplicitWidth = 968
   end
   object Panel1: TPanel
     Left = 0
     Top = 0
-    Width = 968
+    Width = 1115
     Height = 41
     Align = alTop
     BevelEdges = []
@@ -90,12 +94,21 @@ object MarketsForm: TMarketsForm
     ParentBackground = False
     ParentFont = False
     TabOrder = 1
+    ExplicitWidth = 968
     object Label1: TLabel
       Left = 8
       Top = 8
       Width = 27
       Height = 16
       Caption = 'Filter'
+    end
+    object Label2: TLabel
+      Left = 763
+      Top = 8
+      Width = 55
+      Height = 16
+      Caption = 'Task Group'
+      Visible = False
     end
     object MarketsCheck: TCheckBox
       Left = 272
@@ -163,6 +176,15 @@ object MarketsForm: TMarketsForm
       TabOrder = 5
       OnClick = ClearFilterButtonClick
     end
+    object TaskGroupComboBox: TComboBox
+      Left = 824
+      Top = 5
+      Width = 138
+      Height = 24
+      DropDownCount = 20
+      TabOrder = 6
+      Visible = False
+    end
   end
   object PopupMenu: TPopupMenu
     OnPopup = PopupMenuPopup
@@ -173,7 +195,7 @@ object MarketsForm: TMarketsForm
       Caption = 'Set As Current'
       OnClick = ListViewAction
     end
-    object AddToDepotGroup1: TMenuItem
+    object AddToDepotGroupMenuItem: TMenuItem
       Tag = 11
       Caption = 'Add To Group'
       OnClick = ListViewAction
@@ -192,6 +214,28 @@ object MarketsForm: TMarketsForm
       Tag = 4
       Caption = 'Toggle Ignore'
       OnClick = ListViewAction
+    end
+    object MarketInfoMenuItem: TMenuItem
+      Tag = 14
+      Caption = 'Market Info'
+      OnClick = ListViewAction
+    end
+    object TaskGroupSubMenu: TMenuItem
+      Caption = 'Task Group'
+      object askGroup2: TMenuItem
+        Caption = '-'
+      end
+      object OtherGroupMenuItem: TMenuItem
+        Caption = 'New...'
+        OnClick = OtherGroupMenuItemClick
+      end
+      object N3: TMenuItem
+        Caption = '-'
+      end
+      object Clear1: TMenuItem
+        Caption = 'Clear'
+        OnClick = TaskGroupMenuItemClick
+      end
     end
     object N2: TMenuItem
       Caption = '-'

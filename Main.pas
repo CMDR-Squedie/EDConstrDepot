@@ -43,6 +43,13 @@ type
     UseAsStockMenuItem: TMenuItem;
     ComparePurchaseOrderMenuItem: TMenuItem;
     N3: TMenuItem;
+    N4: TMenuItem;
+    TaskGroupSubMenu: TMenuItem;
+    NoTaskGroupMenuItem: TMenuItem;
+    TaskGroupSeparator: TMenuItem;
+    NewTaskGroupMenuItem: TMenuItem;
+    N5: TMenuItem;
+    CurrentTGMenuItem: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure UpdTimerTimer(Sender: TObject);
     procedure TextColLabelMouseMove(Sender: TObject; Shift: TShiftState; X,
@@ -77,7 +84,10 @@ type
     procedure UseAsStockMenuItemClick(Sender: TObject);
     procedure ComparePurchaseOrderMenuItemClick(Sender: TObject);
     procedure Layer1Click(Sender: TObject);
-  private
+    procedure SwitchTaskGroupMenuItemClick(Sender: TObject);
+    procedure NewTaskGroupMenuItemClick(Sender: TObject);
+    procedure MarketInfoMenuItemClick(Sender: TObject);
+private
     { Private declarations }
     FSelectedConstructions: TStringList;
     FCurrentDepot: TConstructionDepot;
@@ -86,6 +96,7 @@ type
     FWorkingDir,FJournalDir: string;
 //    FSettings: TSettings;
     FTransColor: TColor;
+    FGlowChanges: Integer;
     FLastActiveWnd: HWND;
     FTable: array [colReq..colStatus] of TLabel;
     FBackdrop: Boolean;
@@ -96,6 +107,7 @@ type
     procedure ApplySettings;
     procedure UpdateBackdrop;
     procedure SetupLayers;
+    procedure ArrangeLayers;
     function FindBestMarket(reqList: TStringList; prevMarket: TMarket): TMarket;
     function GetItemMarketIndicators(normItem: string; reqQty: Integer; cargo: Integer; bestMarket: TMarket): string;
   public
@@ -116,7 +128,7 @@ implementation
 
 {$R *.dfm}
 
-uses Splash, Markets, SettingsGUI;
+uses Splash, Markets, SettingsGUI, MarketInfo;
 
 var gLastCursorPos: TPoint;
 
@@ -255,7 +267,7 @@ end;
 function TEDCDForm.FindBestMarket(reqList: TStringList; prevMarket: TMarket): TMarket;
 var i,mi,score,maxscore,reqQty,shipQty,stock,totAvail,lowCnt: Integer;
     m: TMarket;
-    s: string;
+    s,tg: string;
     testf: Boolean;
     mlev: TMarketLevel;
 begin
@@ -268,6 +280,9 @@ begin
     if m.MarketID = DataSrc.Market.MarketID then testf := false;
     if (prevMarket <> nil) and (m.MarketID = prevMarket.MarketID) then testf := false;
     mlev := DataSrc.GetMarketLevel(m.MarketID);
+    tg := DataSrc.MarketGroups.Values[m.MarketID];
+    if tg <> '' then
+      if (DataSrc.TaskGroup <> '') and (DataSrc.TaskGroup <> tg) then testf := false;
     if mlev = miIgnore then testf := false;
     if testf then
     begin
@@ -428,7 +443,12 @@ procedure TEDCDForm.OnChangeSettings;
 begin
   cIndPad := '';
   ApplySettings;
+{
+  if FLayer1 <> nil then
+    Flayer1.BringToFront;
   self.BringToFront; //send all layers to back?
+}
+  ArrangeLayers;
   UpdateConstrDepot;
 end;
 
@@ -783,8 +803,25 @@ begin
     end
 end;
 
+procedure TEDCDForm.ArrangeLayers;
+var t: DWORD;
+begin
+  if FLayer1 = nil then Exit;
+//  if FLayer1.FormStyle = fsStayOnTop then Exit;
+  t := HWND_TOP;
+  if self.FormStyle = fsStayOnTop then
+    t := HWND_TOPMOST;
+  SetWindowPos(FLayer1.Handle, t, 0, 0 , 0, 0, SWP_NOACTIVATE or SWP_NOMOVE or SWP_NOSIZE);
+  SetWindowPos(self.Handle, t, 0, 0 , 0, 0, SWP_NOACTIVATE or SWP_NOMOVE or SWP_NOSIZE);
+end;
+
 procedure TEDCDForm.UpdTimerTimer(Sender: TObject);
 var orgactivewnd: HWND;
+    c,orgc: TColor;
+    clr: System.UITypes.TColorRec;
+    p: TPoint;
+    sdc: HDC;
+    i,avg: Integer;
 begin
   if Opts['AlwaysOnTop'] = '2' then
     ResetAlwaysOnTop;
@@ -803,6 +840,33 @@ begin
       if orgactivewnd = self.Handle then
         PopupMenu.Popup(self.Left,self.Top);
     end;
+  if Opts.Flags['AutoFontGlow']  then
+  begin
+{
+    FGlowChanges := FGlowChanges - 1;
+    if FGlowChanges > 0 then Exit;
+    FGlowChanges := 1000 div UpdTimer.InterVal; //only one change per second
+}
+    orgc := self.Color;
+    p := FLayer1.ClientToScreen(TPoint.Create(0,0));
+    sdc:= GetDC(0);
+    c := GetPixel(sdc,p.X,p.Y);
+    clr.Color := c;
+    avg := 48 + (((clr.R + clr.G + clr.B) div 3) div 64) * 48; //4 levels only
+    clr.R := avg;
+    clr.G := avg;
+    clr.B := avg;
+    c := clr.Color;
+    ReleaseDC(0,sdc);
+    if c <> orgc then
+    begin
+      self.Color := c;
+      self.TransparentColorValue := c;
+
+      //changing transp.color rearranges layers!
+       ArrangeLayers;
+    end;
+  end;
 end;
 
 
@@ -1061,6 +1125,17 @@ begin
   Application.Minimize;
 end;
 
+procedure TEDCDForm.NewTaskGroupMenuItemClick(Sender: TObject);
+var s,orgs: string;
+begin
+  s := '';
+  if DataSrc.MarketGroups.Count = 0 then
+    s := '(just visiting)';
+  if Vcl.Dialogs.InputQuery('New Task Group','Name',s) then
+    if s <> '' then
+      DataSrc.TaskGroup := s;
+end;
+
 procedure TEDCDForm.NewWindowMenuItemClick(Sender: TObject);
 begin
   with TEDCDForm.Create(Application) do
@@ -1069,6 +1144,7 @@ begin
     Show;
     UpdateConstrDepot;
   end;
+  AppActivate(nil);
 end;
 
 procedure TEDCDForm.AddRecentMarketMenuItemClick(Sender: TObject);
@@ -1136,6 +1212,23 @@ begin
     MarketAsExtCargoDlg(TMarket(DataSrc.RecentMarkets.Objects[idx]),-1);
 end;
 
+procedure TEDCDForm.SwitchTaskGroupMenuItemClick(Sender: TObject);
+begin
+  if DataSrc.TaskGroup = TMenuItem(Sender).Hint then
+    DataSrc.TaskGroup := ''
+  else
+    DataSrc.TaskGroup := TMenuItem(Sender).Hint;
+end;
+
+procedure TEDCDForm.MarketInfoMenuItemClick(Sender: TObject);
+begin
+  if FSecondaryMarket <> nil then
+  begin
+    MarketInfoForm.SetMarket(FSecondaryMarket);
+    MarketInfoForm.Show;
+  end;
+end;
+
 procedure TEDCDForm.PopupMenuPopup(Sender: TObject);
 var
   i,j,idx: Integer;
@@ -1150,15 +1243,14 @@ begin
   ToggleExtCargoMenuItem.Checked := Opts['UseExtCargo'] = '1';
   IncludeExtCargoinRequestMenuItem.Checked := Opts['UseExtCargo'] = '2';
   ComparePurchaseOrderMenuItem.Checked := Opts['UseExtCargo'] = '3';
+  CurrentTGMenuItem.Caption := 'Task Group: ' + DataSrc.TaskGroup;
+  CurrentTGMenuItem.Visible := DataSrc.TaskGroup <> '';
 
   SelectDepotSubMenu.Clear;
   activef := False;
 
   sl := TStringList.Create;
   try
-
-//stress test
-//  for j := 0 to 10 do
 
   sl.Clear;
   for i := 0 to DataSrc.Constructions.Count - 1 do
@@ -1215,6 +1307,11 @@ begin
     m := TMarket(DataSrc.RecentMarkets.Objects[i]);
     if m.Status = '' then continue; //docked but no depot info?
     if DataSrc.GetMarketLevel(m.MarketID) = miIgnore then continue;
+    if DataSrc.TaskGroup <> '' then
+    begin
+      s := DataSrc.MarketGroups.Values[m.MarketID];
+      if (s <> '') and (DataSrc.TaskGroup <> s) then continue;
+    end;
     sl.AddObject(m.LastUpdate,m);
   end;
   sl.Sort;
@@ -1257,6 +1354,11 @@ begin
   if FSecondaryMarket <> nil then
   begin
     mitem := TMenuItem.Create(SelectMarketSubMenu);
+    mitem.Caption := 'Market Info';
+    mitem.OnClick := MarketInfoMenuItemClick;
+    SelectMarketSubMenu.Add(mitem);
+
+    mitem := TMenuItem.Create(SelectMarketSubMenu);
     mitem.Caption := 'Ignore Selected Market';
     mitem.OnClick := IgnoreMarketMenuItemClick;
     SelectMarketSubMenu.Add(mitem);
@@ -1291,6 +1393,27 @@ begin
     FleetCarrierSubMenu.Insert(idx,mitem);
     MarketAsDepotMenuItem.Enabled := True;
     idx := idx + 1;
+  end;
+
+  for i := TaskGroupSubMenu.Count - 1 downto 0 do
+  begin
+    if TaskGroupSubMenu.Items[i].Tag > 0 then
+      TaskGroupSubMenu.Delete(i);
+  end;
+  if DataSrc.MarketGroups.Count > 0 then
+  begin
+    DataSrc.GetUniqueGroups(sl);
+    for i := sl.Count - 1 downto 0 do
+    begin
+      mitem := TMenuItem.Create(TaskGroupSubMenu);
+      mitem.Caption := sl[i];
+      mitem.Hint := sl[i];
+      mitem.Tag := 1;
+      mitem.OnClick := SwitchTaskGroupMenuItemClick;
+      mitem.Checked := (sl[i] = DataSrc.TaskGroup);
+      TaskGroupSubMenu.Insert(0,mitem);
+    end;
+    TaskGroupSeparator.Visible := (sl.Count>0);
   end;
 
   finally
@@ -1374,11 +1497,7 @@ begin
       with TEDCDForm(Application.Components[i]) do
       begin
         ToggleTitleBar(true);
-        if FLayer1 <> nil then
-        begin
-          FLayer1.BringToFront;
-          self.BringToFront;
-        end;
+        ArrangeLayers;
       end;
 end;
 

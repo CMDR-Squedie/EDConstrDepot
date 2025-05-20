@@ -2,8 +2,8 @@ object SettingsForm: TSettingsForm
   Left = 0
   Top = 0
   Caption = 'Settings'
-  ClientHeight = 427
-  ClientWidth = 585
+  ClientHeight = 476
+  ClientWidth = 623
   Color = clSilver
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -14,22 +14,11 @@ object SettingsForm: TSettingsForm
   OnCreate = FormCreate
   OnShow = FormShow
   TextHeight = 16
-  object Label1: TLabel
-    Left = 0
-    Top = 411
-    Width = 585
-    Height = 16
-    Align = alBottom
-    Caption = ' * option requires restart'
-    Visible = False
-    ExplicitTop = 359
-    ExplicitWidth = 127
-  end
   object ListView: TListView
     Left = 0
     Top = 0
-    Width = 585
-    Height = 411
+    Width = 623
+    Height = 455
     Align = alClient
     BevelEdges = []
     BevelInner = bvNone
@@ -41,11 +30,12 @@ object SettingsForm: TSettingsForm
         Width = 150
       end
       item
+        Alignment = taCenter
         Caption = 'Value'
       end
       item
-        AutoSize = True
         Caption = 'Comment'
+        Width = 350
       end>
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
@@ -59,8 +49,49 @@ object SettingsForm: TSettingsForm
     TabOrder = 0
     ViewStyle = vsReport
     OnDblClick = ListViewDblClick
-    ExplicitTop = 6
-    ExplicitHeight = 359
+    ExplicitWidth = 585
+    ExplicitHeight = 424
+  end
+  object Panel1: TPanel
+    Left = 0
+    Top = 455
+    Width = 623
+    Height = 21
+    Align = alBottom
+    BevelOuter = bvNone
+    ParentBackground = False
+    TabOrder = 1
+    ExplicitTop = 424
+    ExplicitWidth = 585
+    object VersionLabel: TLabel
+      Left = 0
+      Top = 0
+      Width = 145
+      Height = 21
+      Align = alLeft
+      AutoSize = False
+      Color = clBtnFace
+      ParentColor = False
+      ExplicitTop = 3
+      ExplicitHeight = 16
+    end
+    object UpdLinkLabel: TLinkLabel
+      Left = 310
+      Top = 0
+      Width = 313
+      Height = 21
+      Align = alRight
+      Alignment = taRightJustify
+      AutoSize = False
+      Caption = 
+        '<a href="https://github.com/CMDR-Squedie/EDConstrDepot/releases/' +
+        'latest">Check for updates...</a>'
+      TabOrder = 0
+      OnLinkClick = UpdLinkLabelLinkClick
+      ExplicitLeft = 272
+      ExplicitTop = 3
+      ExplicitHeight = 17
+    end
   end
   object FontDialog: TFontDialog
     Font.Charset = DEFAULT_CHARSET
@@ -68,6 +99,7 @@ object SettingsForm: TSettingsForm
     Font.Height = -12
     Font.Name = 'Segoe UI'
     Font.Style = []
+    Options = [fdNoSizeSel, fdNoStyleSel]
     Left = 392
     Top = 296
   end

@@ -71,6 +71,7 @@ type TEDDataSource = class (TDataModule)
     FMarket: TMarket;
     FMarketComments: TStringList;
     FMarketLevels: TStringList;
+    FMarketGroups: TStringList;
     FWorkingDir,FJournalDir: string;
     FMarketJSON,FCargoJSON,FModuleInfoJSON: string;
     FCapacity: Integer;
@@ -78,6 +79,7 @@ type TEDDataSource = class (TDataModule)
     FDataChanged: Boolean;
     FLoadCategories: Boolean;
     FLastFC: string;
+    FTaskGroup: string;
     procedure SetDataChanged;
     function CheckLoadFromFile(var sl: TStringList; fn: string): Boolean;
     procedure MarketFromJSON(m: TMarket; js: string);
@@ -89,18 +91,22 @@ type TEDDataSource = class (TDataModule)
     procedure UpdateSimDepot;
     procedure UpdateFromJournal(fn: string; jrnl: TStringList);
     procedure NotifyListeners;
+    procedure Update;
+    procedure SetTaskGroup(s: string);
   public
     property Constructions: TStringList read FConstructions;
     property RecentMarkets: TStringList read FRecentMarkets;
     property LastConstrTimes: TStringList read FLastConstrTimes;
     property MarketComments: TStringList read FMarketComments;
     property MarketLevels: TStringList read FMarketLevels;
+    property MarketGroups: TStringList read FMarketGroups;
     property Market: TMarket read FMarket;
     property ItemNames: TStringList read FItemNames;
     property ItemCategories: TStringList read FItemCategories;
     property Cargo: TStock read FCargo;
     property CargoExt: TMarket read FCargoExt;
     property Capacity: Integer read FCapacity;
+    property TaskGroup: string read FTaskGroup write SetTaskGroup;
     procedure MarketToSimDepot(mID: string);
     procedure MarketToCargoExt(mID: string);
     function MarketFromID(id: string): TMarket;
@@ -111,10 +117,14 @@ type TEDDataSource = class (TDataModule)
     procedure SetMarketLevel(mID: string; level: TMarketLevel);
     function GetMarketLevel(mID: string): TMarketLevel;
     procedure UpdateMarketComment(mID: string; s: string);
+    procedure UpdateMarketGroup(mID: string; s: string; delf: Boolean);
     procedure AddListener(Sender: IEDDataListener);
     procedure RemoveListener(Sender: IEDDataListener);
+    procedure GetUniqueGroups(sl: TStringList);
 //    property DataChanged: Boolean read FDataChanged;
-    procedure Update; //for forced updates only
+    procedure Load;
+    procedure BeginUpdate;
+    procedure EndUpdate;
     constructor Create(Owner: TComponent); override;
 end;
 
@@ -396,6 +406,8 @@ var j: TJSONObject;
         Result.MarketID := mID;
         Result.StationName := '#' + mID;
         midx := FConstructions.AddObject(mID,Result);
+        if FTaskGroup <> '' then
+          UpdateMarketGroup(mID,FTaskGroup,false);
       end;
       Result := TConstructionDepot(FConstructions.Objects[midx]);
     end;
@@ -411,6 +423,8 @@ var j: TJSONObject;
         Result.MarketID := mID;
         Result.StationName := '#' + mID;
         midx := FRecentMarkets.AddObject(mID,Result);
+        if FTaskGroup <> '' then
+          UpdateMarketGroup(mID,FTaskGroup,false);
       end;
       Result := TMarket(FRecentMarkets.Objects[midx]);
     end;
@@ -835,6 +849,22 @@ begin
 //  ShowMessage(IntToStr(GetTickCount-tc));
 end;
 
+procedure TEDDataSource.Load;
+begin
+  DataSrc.Update;
+  //automatic task group for new stations - after historical data is loaded
+  FTaskGroup := Opts['SelectedTaskGroup'];
+end;
+
+procedure TEDDataSource.BeginUpdate;
+begin
+end;
+
+procedure TEDDataSource.EndUpdate;
+begin
+  NotifyListeners;
+end;
+
 procedure TEDDataSource.MarketToSimDepot(mID: string);
 var midx: Integer;
 begin
@@ -893,6 +923,38 @@ begin
   NotifyListeners;
 end;
 
+procedure TEDDataSource.UpdateMarketGroup(mID: string; s: string; delf: Boolean);
+begin
+  FMarketGroups.Values[mID] := s;
+  try FMarketGroups.SaveToFile(FWorkingDir + 'market_groups.txt'); except end;
+//  SetDataChanged;
+//  NotifyListeners;
+end;
+
+procedure TEDDataSource.GetUniqueGroups(sl: TStringList);
+var i: Integer;
+    s: string;
+begin
+  sl.Clear;
+  sl.Sorted := True;
+  sl.Duplicates := dupIgnore;
+  for i := 0 to FMarketGroups.Count - 1 do
+  begin
+    s := FMarketGroups.ValueFromIndex[i];
+    if s <> '' then sl.Add(s);
+  end;
+  if FTaskGroup <> '' then
+    sl.Add(FTaskGroup);
+end;
+
+procedure TEDDataSource.SetTaskGroup(s: string);
+begin
+  FTaskGroup := s;
+  Opts['SelectedTaskGroup'] := s;
+  Opts.Save;
+  NotifyListeners;
+end;
+
 constructor TEDDataSource.Create(Owner: TComponent);
 begin
   inherited Create(Owner);
@@ -911,6 +973,7 @@ begin
   FRecentMarkets := TStringList.Create;
   FMarketComments := TStringList.Create;
   FMarketLevels := TStringList.Create;
+  FMarketGroups := TStringList.Create;
   FItemCategories := TStringList.Create;
   FItemNames := TStringList.Create;
   FLastJrnlTimeStamps := TStringList.Create;
@@ -935,8 +998,10 @@ begin
   FCargoJSON := FJournalDir + 'cargo.json';
   FModuleInfoJSON := FJournalDir + 'modulesinfo.json';
 
+  //todo: combine into one file and add attributes to TMarket
   try FMarketComments.LoadFromFile(FWorkingDir + 'market_info.txt') except end;
   try FMarketLevels.LoadFromFile(FWorkingDir + 'market_level.txt') except end;
+  try FMarketGroups.LoadFromFile(FWorkingDir + 'market_groups.txt') except end;
 
 
 //  UpdTimer.Enabled := True;
