@@ -34,6 +34,8 @@ Features:
 - select market to see commodity availability (double-click market name in market list)
 - select commodity to see which markets supply it (double click on commodity name)
 - list of visited markets, with their economies
+- list of commodities sold in market
+- task groups - group markets and depots by context (personal projects/galaxy location etc.)
 
 Indicators:
 -  □/■ - commodity available at current (or recent) market; partial/full supply*
