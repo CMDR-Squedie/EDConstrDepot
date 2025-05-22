@@ -569,14 +569,17 @@ begin
         if event = 'ColonisationConstructionDepot' then
         begin
           cd := DepotForMarketId(mID);
-          cd.Status := jrnl[i];
-          cd.LastUpdate := tms;
-          s := j.GetValue<string>('ConstructionComplete');
-          if s = 'true' then
+          if not cd.Finished then
           begin
-            cd.Finished := true;
-            if FLastConstrTimes.Values[cd.StarSystem] < tms  then
-              FLastConstrTimes.Values[cd.StarSystem] := tms;
+            cd.Status := jrnl[i];
+            cd.LastUpdate := tms;
+            s := j.GetValue<string>('ConstructionComplete');
+            if s = 'true' then
+            begin
+              cd.Finished := true;
+              if FLastConstrTimes.Values[cd.StarSystem] < tms  then
+                FLastConstrTimes.Values[cd.StarSystem] := tms;
+            end;
           end;
         end;
 
@@ -597,6 +600,13 @@ begin
             else
               m.Stock.Qty['$' + s] := m.Stock.Qty['$' + s] - q;
             m.LastUpdate := tms;
+
+            if FMarket.MarketID = mID then
+            begin
+              FMarket.Stock.Assign(m.Stock);
+              FMarket.LastUpdate := tms;
+            end;
+
 
 //            if FCargoExt.MarketID = mID then
 //              FCargoExt.Stock.Qty[s] := FCargoExt.Stock.Qty[s] + q;

@@ -75,6 +75,8 @@ begin
   DefineOpt('FontGlow','0-255 transition between font color and background',0,255,'');
   DefineOpt('Backdrop','0-transparent; 1-opaque; 2-shadowed',0,2,'');
   DefineOpt('AlphaBlend','0-255 shadow intensity if Backdrop=2',0,255,'');
+  DefineFlag('ClickThrough','transparent to in-game clicks (Alt-Tab/Menu key to re-activate)');
+  DefineFlag('ScanMenuKey','when in-game, press and hold Quick Menu key to activate');
   DefineOpt('AlwaysOnTop','0-not on top; 1-always on top; 2-on top of E:D window only',0,2,'');
   DefineOpt('AutoSort','0-alphabetical; 1-by market availability; 2-by category and availability',0,2,'');
   DefineFlag('TrackMarkets','automatically track visited markets');
@@ -85,8 +87,8 @@ begin
   DefineFlag('ShowRecentMarket','');
   DefineFlag('ShowBestMarket','');
   DefineFlag('ShowDividers','');
-  DefineFlag('ShowIndicators','');
-  DefineOpt('IncludeSupply','0-non-zero supply; 1-full capacity supply; 2-full request supply',0,2,'');
+  DefineOpt('ShowIndicators','0-no indicators; 1-solid/hollow indicators; 2-hollow indicators only',0,2,'');
+  DefineOpt('IncludeSupply','0-no supply hint; 1-full capacity supply; 2-full request supply',0,2,'');
   DefineFlag('ShowCloseBox','');
   DefineFlag('TransparentTitle','');
   DefineFlag('MarketsDarkMode','changes market list background to dark');

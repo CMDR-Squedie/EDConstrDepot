@@ -96,7 +96,7 @@ begin
   FDefaults.Values['ShowRecentMarket'] := '1';
   FDefaults.Values['ShowBestMarket'] := '1';
   FDefaults.Values['ShowDividers'] := '1';
-  FDefaults.Values['ShowIndicators'] := '1';
+  FDefaults.Values['ShowIndicators'] := '2';
   FDefaults.Values['IndicatorsPadding'] := '1';
   FDefaults.Values['IncludeSupply'] := '1';
   FDefaults.Values['ShowCloseBox'] := '0';
@@ -105,6 +105,7 @@ begin
   FDefaults.Values['AlwaysOnTop'] := '2';
   FDefaults.Values['Backdrop'] := '2';
   FDefaults.Values['AlphaBlend'] := '64';
+  FDefaults.Values['ClickThrough'] := '0';
   FDefaults.Values['AutoHeight'] := '1';
   FDefaults.Values['AutoWidth'] := '1';
   FDefaults.Values['AutoSort'] := '2';

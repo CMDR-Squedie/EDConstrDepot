@@ -75,7 +75,6 @@ object MarketsForm: TMarketsForm
     OnCompare = ListViewCompare
     OnDblClick = ListViewAction
     OnMouseDown = ListViewMouseDown
-    ExplicitWidth = 968
   end
   object Panel1: TPanel
     Left = 0
@@ -94,7 +93,6 @@ object MarketsForm: TMarketsForm
     ParentBackground = False
     ParentFont = False
     TabOrder = 1
-    ExplicitWidth = 968
     object Label1: TLabel
       Left = 8
       Top = 8

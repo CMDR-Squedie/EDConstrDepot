@@ -5,7 +5,7 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, Winapi.PsAPI, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, System.JSON, System.IOUtils, System.Math,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, System.JSON, System.IOUtils, System.Math, System.StrUtils,
   Vcl.ExtCtrls, Vcl.Menus, Vcl.ComCtrls, Settings, DataSource;
 
 type TCDCol = (colReq,colText,colStock,colStatus);
@@ -15,7 +15,6 @@ type
     TextColLabel: TLabel;
     ReqQtyColLabel: TLabel;
     StockColLabel: TLabel;
-    StatusColLabel: TLabel;
     PopupMenu: TPopupMenu;
     N1: TMenuItem;
     ExitMenuItem: TMenuItem;
@@ -38,7 +37,7 @@ type
     UpdTimer: TTimer;
     ManageMarketsMenuItem: TMenuItem;
     SettingsMenuItem: TMenuItem;
-    IndicatorsPaintBox: TPaintBox;
+    StatusPaintBox: TPaintBox;
     IncludeExtCargoinRequestMenuItem: TMenuItem;
     UseAsStockMenuItem: TMenuItem;
     ComparePurchaseOrderMenuItem: TMenuItem;
@@ -79,7 +78,7 @@ type
     procedure AutoSelectMarketMenuItemClick(Sender: TObject);
     procedure TitleLabelDblClick(Sender: TObject);
     procedure TextColLabelDblClick(Sender: TObject);
-    procedure IndicatorsPaintBoxPaint(Sender: TObject);
+    procedure StatusPaintBoxPaint(Sender: TObject);
     procedure IncludeExtCargoinRequestMenuItemClick(Sender: TObject);
     procedure UseAsStockMenuItemClick(Sender: TObject);
     procedure ComparePurchaseOrderMenuItemClick(Sender: TObject);
@@ -98,16 +97,18 @@ private
     FTransColor: TColor;
     FGlowChanges: Integer;
     FLastActiveWnd: HWND;
-    FTable: array [colReq..colStatus] of TLabel;
+    FEliteWnd: HWND;
     FBackdrop: Boolean;
     FItemsShown: Integer;
     FLayer0: TForm;
     FLayer1: TForm;
+    FIndicators: TStringList;
     procedure ResetAlwaysOnTop;
     procedure ApplySettings;
     procedure UpdateBackdrop;
     procedure SetupLayers;
     procedure ArrangeLayers;
+    procedure UpdateTransparency;
     function FindBestMarket(reqList: TStringList; prevMarket: TMarket): TMarket;
     function GetItemMarketIndicators(normItem: string; reqQty: Integer; cargo: Integer; bestMarket: TMarket): string;
   public
@@ -265,7 +266,7 @@ end;
 
 
 function TEDCDForm.FindBestMarket(reqList: TStringList; prevMarket: TMarket): TMarket;
-var i,mi,score,maxscore,reqQty,shipQty,stock,totAvail,lowCnt: Integer;
+var i,mi,score,maxscore,reqQty,shipQty,stock,totAvail,lowCnt,uniqueCnt: Integer;
     m: TMarket;
     s,tg: string;
     testf: Boolean;
@@ -298,6 +299,7 @@ begin
 
 
         lowCnt := 0;
+        uniqueCnt := 0;
         stock := m.Stock[s];
         if stock > 0 then
         begin
@@ -307,7 +309,11 @@ begin
           if (prevMarket <> nil) and (prevMarket.Stock[s] < shipQty) then
           begin
             score := score + 20;
-            if stock >= shipQty then score := score + 40;
+            if stock >= shipQty then
+            begin
+              score := score + 40;   //40
+              uniqueCnt := uniqueCnt + 1;
+            end;
           end;
 //or, a penalty  for stocking same items as pre-selected market
 {
@@ -353,7 +359,10 @@ begin
         score := score - 30 * lowCnt;
 //        score := score div 2;
         score := score * 2 div 3; //33% penalty
-      end;
+      end
+      else
+//bonus for unique items for last market only
+        score := score + uniqueCnt * 1000;
 
 //bonus for favorite market
       if score > 0 then
@@ -374,10 +383,9 @@ begin
   end;
 end;
 
-var cIndPad: string = '';
-
 function TEDCDForm.GetItemMarketIndicators(normItem: string; reqQty: Integer; cargo: Integer; bestMarket: TMarket): string;
 var stock,maxQty: Integer;
+    indPad: string;
     s: string;
     procedure AddMarker(q: Integer; const a: string; const b: string);
     begin
@@ -389,17 +397,13 @@ var stock,maxQty: Integer;
           s := s + b;
       end
       else
-        s := s + cIndPad; //todo: calculate spaces!
+        s := s + indPad;
     end;
 begin
   Result := '';
 
-  if Opts.Flags['IndicatorsPadding'] then
-    if cIndPad = '' then
-    begin
-      while (Length(cIndPad) < 5) and (self.Canvas.TextWidth(cIndPad) < self.Canvas.TextWidth('■')) do
-        cIndPad := cIndPad + ' ' ;
-    end;
+  indPad := '';
+  if Opts.Flags['IndicatorsPadding'] then indPad := ' ';
 
   stock := DataSrc.Market.Stock[normItem];
   maxQty := reqQty;
@@ -413,7 +417,7 @@ begin
     if bestMarket <> nil then
       AddMarker(bestMarket.Stock[normItem],'○','○');
     if FSecondaryMarket <> nil then
-      AddMarker(FSecondaryMarket.Stock[normItem],'∆','∆');
+      AddMarker(FSecondaryMarket.Stock[normItem],'△','△');
   end
   else
   begin
@@ -421,7 +425,7 @@ begin
     if bestMarket <> nil then
       AddMarker(bestMarket.Stock[normItem],'●','○');
     if FSecondaryMarket <> nil then
-      AddMarker(FSecondaryMarket.Stock[normItem],'▲','∆');
+      AddMarker(FSecondaryMarket.Stock[normItem],'▲','△');
   end;
   Result := s;
 end;
@@ -441,13 +445,7 @@ end;
 
 procedure TEDCDForm.OnChangeSettings;
 begin
-  cIndPad := '';
   ApplySettings;
-{
-  if FLayer1 <> nil then
-    Flayer1.BringToFront;
-  self.BringToFront; //send all layers to back?
-}
   ArrangeLayers;
   UpdateConstrDepot;
 end;
@@ -683,8 +681,8 @@ begin
           s := GetItemMarketIndicators(normItem,reqQty,cargo,bestMarket);
         if cargo > 0 then
         begin
-          if cargo = reqQty then s := '✓';           //■□↑↓▼▲▪▫+∆◊♦○●✓✋⚠⛔
-          if cargo > reqQty then s := '✓+'; //'≠ ' + s;
+          if cargo = reqQty then s := '✓';           //■□▼▲◊♦○●✓✋⚠⛔
+          if cargo > reqQty then s := '✓+';
 //          if cargo < reqQty then
 //            if cargo < DataSrc.Capacity then s := '< ' + s;
         end;
@@ -717,9 +715,13 @@ begin
         a[colText] := a[colText] + s + Chr(13);
       end;
       if Opts.Flags['ShowFlightsLeft'] and (DataSrc.Capacity > 0) then
-        a[colText] := a[colText] + 'Flights left: ' +
-          FloatToStrF((totReqQty-totDelQty)/DataSrc.Capacity,ffFixed,7,2) +
-          ' (' + IntToStr(DataSrc.Capacity) + 't)' + Chr(13);
+      begin
+        reqQty := totReqQty-totDelQty;
+        s := FloatToStrF(reqQty/DataSrc.Capacity,ffFixed,7,2);
+        if RightStr(s,2) = '00' then
+          if reqQty/DataSrc.Capacity <> reqQty div DataSrc.Capacity then s := s + '+';
+        a[colText] := a[colText] + 'Flights left: ' + s + ' (' + IntToStr(DataSrc.Capacity) + 't)' + Chr(13);
+      end;
       if Opts.Flags['ShowIndicators'] then
       begin
         if Opts.Flags['ShowRecentMarket'] then
@@ -728,12 +730,15 @@ begin
         if bestMarket <> nil then
           a[colText] := a[colText] + '○ ' + bestMarket.FullName + Chr(13);
         if FSecondaryMarket <> nil then
-          a[colText] := a[colText] + '∆ ' + FSecondaryMarket.FullName + Chr(13);
+          a[colText] := a[colText] + '△ ' + FSecondaryMarket.FullName + Chr(13);
       end;
     end;
 
-    for col := colReq to colStatus do
-      FTable[col].Caption := a[col];
+    ReqQtyColLabel.Caption := a[colReq];
+    TextColLabel.Caption := a[colText];
+    StockColLabel.Caption := a[colStock];
+    FIndicators.Text := a[colStatus];
+    StatusPaintBox.Invalidate;
 
     if cnames = '' then
       TitleLabel.Caption := '(no active constructions)'
@@ -791,6 +796,7 @@ begin
         begin
           if FLayer1 <> nil then FLayer1.FormStyle := fsStayOnTop;
           self.FormStyle := fsStayOnTop;
+          FEliteWnd := wnd;
         end
         else
         begin
@@ -803,10 +809,30 @@ begin
     end
 end;
 
+procedure TEDCDForm.UpdateTransparency;
+begin
+  if Opts.Flags['ClickThrough'] then
+    if Application.Active then
+    begin
+      SetWindowLong(FLayer1.Handle,GWL_EXSTYLE ,
+        GetWindowLong(FLayer1.Handle, GWL_EXSTYLE) and not WS_EX_TRANSPARENT);
+      SetWindowLong(self.Handle,GWL_EXSTYLE ,
+        GetWindowLong(self.Handle, GWL_EXSTYLE) and not WS_EX_TRANSPARENT);
+    end
+    else
+    begin
+      SetWindowLong(FLayer1.Handle,GWL_EXSTYLE ,
+        GetWindowLong(FLayer1.Handle, GWL_EXSTYLE) or WS_EX_TRANSPARENT);
+      SetWindowLong(self.Handle,GWL_EXSTYLE ,
+        GetWindowLong(self.Handle, GWL_EXSTYLE) or WS_EX_TRANSPARENT);
+    end;
+end;
+
 procedure TEDCDForm.ArrangeLayers;
 var t: DWORD;
 begin
   if FLayer1 = nil then Exit;
+  UpdateTransparency;
 //  if FLayer1.FormStyle = fsStayOnTop then Exit;
   t := HWND_TOP;
   if self.FormStyle = fsStayOnTop then
@@ -826,20 +852,21 @@ begin
   if Opts['AlwaysOnTop'] = '2' then
     ResetAlwaysOnTop;
 
-//experimental
   if Opts.Flags['ScanMenuKey'] and (self = EDCDForm) then
     if GetKeyState(VK_APPS) < 0 then
     begin
       orgactivewnd := GetForegroundWindow;
-      Application.BringToFront;
-      self.BringToFront;
-      self.Activate;
-      FBackdrop := True;
-      UpdateBackdrop;
-      FBackdrop := false;
-      if orgactivewnd = self.Handle then
-        PopupMenu.Popup(self.Left,self.Top);
+      if orgactivewnd = FEliteWnd then
+      begin
+        Application.BringToFront;
+        //self.BringToFront;
+        //self.Activate;
+        //if orgactivewnd = self.Handle then
+        //  PopupMenu.Popup(self.Left,self.Top);
+      end;
     end;
+
+//experimental - single pixel only
   if Opts.Flags['AutoFontGlow']  then
   begin
 {
@@ -850,7 +877,8 @@ begin
     orgc := self.Color;
     p := FLayer1.ClientToScreen(TPoint.Create(0,0));
     sdc:= GetDC(0);
-    c := GetPixel(sdc,p.X,p.Y);
+    c := orgc;
+    try c := GetPixel(sdc,p.X,p.Y); except end;
     clr.Color := c;
     avg := 48 + (((clr.R + clr.G + clr.B) div 3) div 64) * 48; //4 levels only
     clr.R := avg;
@@ -864,7 +892,7 @@ begin
       self.TransparentColorValue := c;
 
       //changing transp.color rearranges layers!
-       ArrangeLayers;
+      ArrangeLayers;
     end;
   end;
 end;
@@ -977,6 +1005,7 @@ begin
 
   FLayer1.Visible := False;
 
+
   //  FLayer1.SetBounds(0,0,self.ClientWidth,self.ClientHeight);
 //  FLayer1.Show;
 
@@ -1007,12 +1036,16 @@ begin
     self.Font.Size := fs;
     self.Font.Name := fn;
     for i := 0 to self.ControlCount - 1 do
+    begin
       if self.Controls[i] is TLabel then
         with TLabel(self.Controls[i]) do
         begin
           Font.Size := fs;
           Font.Name := fn;
         end;
+    end;
+    StatusPaintBox.Font.Size := fs;
+    StatusPaintBox.Font.Name := fn;
   except
   end;
 
@@ -1036,14 +1069,14 @@ begin
     basew := self.Canvas.TextWidth(Opts['BaseWidthText']);
 
     ReqQtyColLabel.Width := basew;
-    StatusColLabel.Visible := Opts.Flags['ShowIndicators'];
+    StatusPaintBox.Visible := Opts.Flags['ShowIndicators'];
     if not Opts.Flags['ShowIndicators'] then
     begin
       self.Width := basew * 7;
     end
     else
     begin
-      StatusColLabel.Width := basew;
+      StatusPaintBox.Width := basew;
       self.Width := basew * 8;
     end;
     StockColLabel.Width := basew;
@@ -1187,17 +1220,43 @@ begin
   UpdateConstrDepot;
 end;
 
-procedure TEDCDForm.IndicatorsPaintBoxPaint(Sender: TObject);
+procedure TEDCDForm.StatusPaintBoxPaint(Sender: TObject);
 var r: TRect;
+    i,j,y,dx,dy,dx2: Integer;
+    s,orgs: string;
+    supplyhintf: Boolean;
 begin
-{
-  with IndicatorsPaintBox do
+  supplyhintf := (Opts['ShowIndicators'] = '2') and Opts.Flags['IncludeSupply'];
+  with StatusPaintBox.Canvas do
   begin
-    Canvas.Brush.Style := bsClear;
+    Brush.Style := bsClear;
+    Font.Color := clSilver;
     r := ClientRect;
-    Canvas.TextRect(r,0,0,StatusColLabel.Caption)
+    dx := TextWidth('W') + 1;
+//    dx2 := (dx - TextWidth('_')) div 2;
+    dy := TextHeight('Wq');
+    y := 0;
+    for i  := 0 to FIndicators.Count - 1 do
+    begin
+      for j := 1 to Length(FIndicators[i]) do
+      begin
+        s := Copy(FIndicators[i],j,1);    //■●▲  □○△
+        if supplyhintf then
+        begin
+          if (s = '△') or (s = '○') or (s = '□') then
+            Font.Color := TColor($23238E) //clFireBrick
+          else
+            Font.Color := clSilver;
+            //Canvas.TextRect(r,(j-1)*dx + 2 + dx2,y+1,'_');
+          if s = '▲' then s := '△';
+          if s = '●' then s := '○';
+          if s = '■' then s := '□';
+        end;
+        TextRect(r,(j-1)*dx + 2,y,s);
+      end;
+      y := y + dy;
+    end;
   end;
-}
 end;
 
 procedure TEDCDForm.SwitchFleetCarrierMenuItemClick(Sender: TObject);
@@ -1454,10 +1513,7 @@ end;
 procedure TEDCDForm.FormCreate(Sender: TObject);
 var s: string;
 begin
-  FTable[colReq] := ReqQtyColLabel;
-  FTable[colText] := TextColLabel;
-  FTable[colStock] := StockColLabel;
-  FTable[colStatus] := StatusColLabel;
+  FIndicators := TStringList.Create;
 
   DataSrc.AddListener(self);
 
@@ -1506,9 +1562,11 @@ var i: Integer;
 begin
   for i := 0 to Application.ComponentCount - 1 do
     if Application.Components[i] is TEDCDForm then
+    with TEDCDForm(Application.Components[i]) do
     begin
-      TEDCDForm(Application.Components[i]).UpdateBackdrop;
-      TEDCDForm(Application.Components[i]).ToggleTitleBar(false);
+      UpdateBackdrop;
+      ToggleTitleBar(false);
+      UpdateTransparency;
     end;
 end;
 

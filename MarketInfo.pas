@@ -156,7 +156,7 @@ begin
     clr := EDCDForm.TextColLabel.Font.Color;
     with ListView do
     begin
-      Color := $484848;
+      Color := $585140; //$6B5E4F; //$484848;
       Font.Color := clr;
     end;
   end;

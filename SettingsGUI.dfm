@@ -2,7 +2,7 @@ object SettingsForm: TSettingsForm
   Left = 0
   Top = 0
   Caption = 'Settings'
-  ClientHeight = 476
+  ClientHeight = 514
   ClientWidth = 623
   Color = clSilver
   Font.Charset = DEFAULT_CHARSET
@@ -18,7 +18,7 @@ object SettingsForm: TSettingsForm
     Left = 0
     Top = 0
     Width = 623
-    Height = 455
+    Height = 493
     Align = alClient
     BevelEdges = []
     BevelInner = bvNone
@@ -49,20 +49,18 @@ object SettingsForm: TSettingsForm
     TabOrder = 0
     ViewStyle = vsReport
     OnDblClick = ListViewDblClick
-    ExplicitWidth = 585
-    ExplicitHeight = 424
+    ExplicitHeight = 455
   end
   object Panel1: TPanel
     Left = 0
-    Top = 455
+    Top = 493
     Width = 623
     Height = 21
     Align = alBottom
     BevelOuter = bvNone
     ParentBackground = False
     TabOrder = 1
-    ExplicitTop = 424
-    ExplicitWidth = 585
+    ExplicitTop = 455
     object VersionLabel: TLabel
       Left = 0
       Top = 0
@@ -88,9 +86,6 @@ object SettingsForm: TSettingsForm
         'latest">Check for updates...</a>'
       TabOrder = 0
       OnLinkClick = UpdLinkLabelLinkClick
-      ExplicitLeft = 272
-      ExplicitTop = 3
-      ExplicitHeight = 17
     end
   end
   object FontDialog: TFontDialog

@@ -49,9 +49,6 @@ object MarketInfoForm: TMarketInfoForm
     TabOrder = 0
     ViewStyle = vsReport
     OnDblClick = ListViewDblClick
-    ExplicitTop = 41
-    ExplicitWidth = 624
-    ExplicitHeight = 400
   end
   object Panel1: TPanel
     Left = 0

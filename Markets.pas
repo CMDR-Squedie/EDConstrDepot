@@ -222,7 +222,7 @@ begin
     clr := EDCDForm.TextColLabel.Font.Color;
     with ListView do
     begin
-      Color := $484848;
+      Color := $4A4136; //$484848;
       Font.Color := clr;
       GridLines := False;
       //GridLines := False;

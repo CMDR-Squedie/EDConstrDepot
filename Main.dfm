@@ -63,7 +63,7 @@ object EDCDForm: TEDCDForm
     AlignWithMargins = True
     Left = 40
     Top = 18
-    Width = 143
+    Width = 136
     Height = 493
     Margins.Left = 2
     Margins.Top = 0
@@ -73,7 +73,7 @@ object EDCDForm: TEDCDForm
     AutoSize = False
     Caption = 'No construction depot found'
     Color = 3158064
-    Font.Charset = EASTEUROPE_CHARSET
+    Font.Charset = DEFAULT_CHARSET
     Font.Color = 41215
     Font.Height = -13
     Font.Name = 'Bahnschrift SemiCondensed'
@@ -106,7 +106,7 @@ object EDCDForm: TEDCDForm
     Alignment = taRightJustify
     AutoSize = False
     Color = 3158064
-    Font.Charset = EASTEUROPE_CHARSET
+    Font.Charset = DEFAULT_CHARSET
     Font.Color = clKhaki
     Font.Height = -13
     Font.Name = 'Bahnschrift Condensed'
@@ -123,7 +123,7 @@ object EDCDForm: TEDCDForm
   end
   object StockColLabel: TLabel
     AlignWithMargins = True
-    Left = 187
+    Left = 180
     Top = 18
     Width = 24
     Height = 493
@@ -135,10 +135,10 @@ object EDCDForm: TEDCDForm
     Alignment = taRightJustify
     AutoSize = False
     Color = 3158064
-    Font.Charset = EASTEUROPE_CHARSET
+    Font.Charset = DEFAULT_CHARSET
     Font.Color = clYellowgreen
     Font.Height = -13
-    Font.Name = 'Bahnschrift Condensed'
+    Font.Name = 'Bahnschrift SemiCondensed'
     Font.Style = [fsBold]
     ParentColor = False
     ParentFont = False
@@ -146,37 +146,6 @@ object EDCDForm: TEDCDForm
     StyleElements = [seFont, seClient]
     OnMouseDown = TextColLabelMouseDown
     OnMouseMove = TextColLabelMouseMove
-    ExplicitLeft = 158
-    ExplicitTop = 23
-    ExplicitHeight = 494
-  end
-  object StatusColLabel: TLabel
-    AlignWithMargins = True
-    Left = 215
-    Top = 18
-    Width = 14
-    Height = 493
-    Margins.Left = 2
-    Margins.Top = 0
-    Margins.Right = 2
-    Margins.Bottom = 1
-    Align = alRight
-    AutoSize = False
-    Color = 3158064
-    Font.Charset = EASTEUROPE_CHARSET
-    Font.Color = clSilver
-    Font.Height = -13
-    Font.Name = 'Courier New'
-    Font.Style = [fsBold]
-    ParentColor = False
-    ParentFont = False
-    Transparent = True
-    StyleElements = [seFont, seClient]
-    OnMouseDown = TextColLabelMouseDown
-    OnMouseMove = TextColLabelMouseMove
-    ExplicitLeft = 219
-    ExplicitTop = 17
-    ExplicitHeight = 494
   end
   object DividerBottom: TShape
     Left = 0
@@ -212,21 +181,24 @@ object EDCDForm: TEDCDForm
     Transparent = False
     OnClick = ExitMenuItemClick
   end
-  object IndicatorsPaintBox: TPaintBox
-    Left = 185
-    Top = 23
+  object StatusPaintBox: TPaintBox
+    Left = 206
+    Top = 18
     Width = 25
-    Height = 164
+    Height = 494
+    Align = alRight
     Font.Charset = DEFAULT_CHARSET
-    Font.Color = clRed
+    Font.Color = clSilver
     Font.Height = -13
     Font.Name = 'Bahnschrift SemiCondensed'
     Font.Style = []
     ParentFont = False
-    Visible = False
-    OnPaint = IndicatorsPaintBoxPaint
+    OnPaint = StatusPaintBoxPaint
+    ExplicitLeft = 209
+    ExplicitTop = 15
   end
   object PopupMenu: TPopupMenu
+    OwnerDraw = True
     OnPopup = PopupMenuPopup
     Left = 152
     Top = 362
