@@ -36,6 +36,7 @@ type TBaseMarket = class
   LastDock: string;
   Status: string;
   Stock: TStock;
+  DistFromStar: Integer;
   function FullName: string;
   procedure Clear;
   constructor Create;
@@ -178,6 +179,7 @@ end;
 constructor TBaseMarket.Create;
 begin
   Stock := TStock.Create;
+  DistFromStar := -1;
 end;
 
 destructor TBaseMarket.Destroy;
@@ -526,6 +528,9 @@ begin
               s := Copy(s,cpos+2,200);
             cd.StationName := s;
             cd.StarSystem := j.GetValue<string>('StarSystem');
+            try 
+              cd.DistFromStar := Trunc(j.GetValue<single>('DistFromStarLS')); 
+            except end;
             cd.LastDock := tms;
             cd.LastUpdate := tms;
           end
@@ -539,17 +544,19 @@ begin
               begin
 
 
-                if m.Status = '' then //markets with no stored data
+                if (m.Status = '') or (tms > m.LastUpdate) then //markets with no stored data
                 begin
+                  m.StationType := j.GetValue<string>('StationType');
+                  m.StarSystem := j.GetValue<string>('StarSystem');
                   s := '';
                   try s := j.GetValue<string>('StationName_Localised'); except end;
                   if s = '' then s := j.GetValue<string>('StationName');
                   m.StationName := s;
-                  m.StationType := j.GetValue<string>('StationType');
-                  m.StarSystem := j.GetValue<string>('StarSystem');
-                  //m.LastUpdate := tms;
                 end;
 
+                try
+                  m.DistFromStar := Trunc(j.GetValue<single>('DistFromStarLS'));
+                except end;
                 m.LastDock := tms;
                 m.Economies := '';
                 jarr := j.GetValue<TJSONArray>('StationEconomies');

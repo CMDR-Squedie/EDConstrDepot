@@ -76,14 +76,14 @@ begin
   DefineOpt('Backdrop','0-transparent; 1-opaque; 2-shadowed',0,2,'');
   DefineOpt('AlphaBlend','0-255 shadow intensity if Backdrop=2',0,255,'');
   DefineFlag('ClickThrough','transparent to in-game clicks (Alt-Tab/Menu key to re-activate)');
-  DefineFlag('ScanMenuKey','when in-game, press and hold Quick Menu key to activate');
+  DefineFlag('ScanMenuKey','when in-game, press and hold Quick Menu key to activate the app');
   DefineOpt('AlwaysOnTop','0-not on top; 1-always on top; 2-on top of E:D window only',0,2,'');
   DefineOpt('AutoSort','0-alphabetical; 1-by market availability; 2-by category and availability',0,2,'');
   DefineFlag('TrackMarkets','automatically track visited markets');
 //  DefineFlag('IncludeFinished','* allow finished constructions for selection');
   DefineFlag('ShowUnderCapacity','');
-  DefineFlag('ShowProgress','');
-  DefineFlag('ShowFlightsLeft','');
+  DefineOpt('ShowProgress','0-no info; 1-beneath the list; 2-in the title bar',0,2,'');
+  DefineOpt('ShowFlightsLeft','0-no info; 1-beneath the list; 2-in the title bar',0,2,'');
   DefineFlag('ShowRecentMarket','');
   DefineFlag('ShowBestMarket','');
   DefineFlag('ShowDividers','');

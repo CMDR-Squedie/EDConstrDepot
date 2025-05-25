@@ -30,31 +30,44 @@ object MarketsForm: TMarketsForm
       end
       item
         Caption = 'Station Type'
+        Tag = 1
       end
       item
         Caption = 'System'
+        Tag = 2
       end
       item
         Caption = 'Last Visit (UTC)'
+        Tag = 3
+      end
+      item
+        Alignment = taRightJustify
+        Caption = 'Dist. (Ls)'
+        Tag = 9
       end
       item
         Alignment = taCenter
         Caption = 'Ign.'
         MaxWidth = 50
+        Tag = 4
       end
       item
         Alignment = taCenter
         Caption = 'Fav.'
         MaxWidth = 50
+        Tag = 5
       end
       item
         Caption = 'Comment'
+        Tag = 6
       end
       item
         Caption = 'Economies'
+        Tag = 14
       end
       item
         Caption = 'Task Group'
+        Tag = 8
       end>
     Ctl3D = False
     Font.Charset = DEFAULT_CHARSET
@@ -261,6 +274,11 @@ object MarketsForm: TMarketsForm
     object CopyAllMenuItem: TMenuItem
       Caption = 'Copy All'
       OnClick = CopyMenuItemClick
+    end
+    object CopySystemNameMenuItem: TMenuItem
+      Tag = 15
+      Caption = 'Copy System Name'
+      OnClick = ListViewAction
     end
   end
 end

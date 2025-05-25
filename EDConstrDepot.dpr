@@ -15,7 +15,7 @@ uses
 
 {$R *.res}
 
-const gNiceVersion: string = 'Release 16, build 1';
+const gNiceVersion: string = 'Release 17, build 1';
 
 begin
   Application.Initialize;
@@ -39,7 +39,7 @@ begin
   Application.OnDeactivate :=  EDCDForm.AppDeactivate;
 
 
-  SplashForm.Show;
+  SplashForm.ShowInfo('Reading journal files...',0);
   SplashForm.Update;
   DataSrc.Load;
   EDCDForm.UpdateConstrDepot;

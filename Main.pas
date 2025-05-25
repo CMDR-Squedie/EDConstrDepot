@@ -129,7 +129,7 @@ implementation
 
 {$R *.dfm}
 
-uses Splash, Markets, SettingsGUI, MarketInfo;
+uses Splash, Markets, SettingsGUI, MarketInfo, Clipbrd;
 
 var gLastCursorPos: TPoint;
 
@@ -138,7 +138,7 @@ const cDefaultCapacity: Integer = 784;
 procedure TEDCDForm.TextColLabelDblClick(Sender: TObject);
 var sl: TStringList;
     pt: TPoint;
-    idx,p: Integer;
+    idx,p,px: Integer;
     s: string;
 begin
    pt := Mouse.CursorPos;
@@ -153,11 +153,22 @@ begin
        if idx >= FItemsShown then
        begin
          p := Pos('/',s);
+         px := self.Canvas.TextWidth(Copy(s,1,p));
+
+         if (p > 0) and (pt.X > px) then
+         begin
+           s := Copy(s,p+1,200);
+           Clipboard.SetTextBuf(PChar(s));
+           SplashForm.ShowInfo('System name copied...',1000);
+           Exit;
+         end;
+
          if p > 0 then
            s := Copy(s,3,p-3)
          else
            Exit;
        end;
+       MarketsForm.MarketsCheck.Checked := True;
        MarketsForm.FilterEdit.Text := s;
        if MarketsForm.Visible then
          MarketsForm.UpdateItems
@@ -266,7 +277,7 @@ end;
 
 
 function TEDCDForm.FindBestMarket(reqList: TStringList; prevMarket: TMarket): TMarket;
-var i,mi,score,maxscore,reqQty,shipQty,stock,totAvail,lowCnt,uniqueCnt: Integer;
+var i,mi,score,maxscore,reqQty,shipQty,stock,totAvail,lowCnt,uniqueCnt,bonus: Integer;
     m: TMarket;
     s,tg: string;
     testf: Boolean;
@@ -361,16 +372,34 @@ begin
         score := score * 2 div 3; //33% penalty
       end
       else
-//bonus for unique items for last market only
+//bonus for unique items, applied only when at full capacity, for last market only
         score := score + uniqueCnt * 1000;
+
+//bonus/penalty for distance from star
+      if score > 0 then
+      begin
+        if m.DistFromStar <= 3000  then
+        begin
+          bonus := 3000 - m.DistFromStar;
+          bonus := 15 * (bonus * bonus) div (3000*3000); //15% bonus dimnishing with square of distance
+          score := score * (100 + bonus + 1) div 100
+        end
+        else
+        if m.DistFromStar > 100000  then
+          score := score * 50 div 100  //-50% penalty
+        else
+        if m.DistFromStar > 10000  then
+          score := score * 90 div 100  //-10% penalty
+        ;
+      end;
 
 //bonus for favorite market
       if score > 0 then
       begin
         if mlev = miFavorite then
-          score := score * 5 div 4;  //25% bonus
+          score := score * 125 div 100;  //25% bonus
         if mlev = miPriority then
-          score := score * 3 div 2;  //50% bonus
+          score := score * 150 div 100;  //50% bonus
       end;
 
       if score > maxscore then
@@ -456,8 +485,8 @@ procedure TEDCDForm.UpdateConstrDepot;
 var j: TJSONObject;
     jarr,resReq: TJSONArray;
     sl: TStringList;
-    js,s,s2,fn,cnames,lastUpdate,itemName,normItem: string;
-    i,ci,res,lastWIP,h,sortPrefixLen: Integer;
+    js,s,s2,fn,cnames,cprogress,lastUpdate,itemName,normItem: string;
+    i,ci,res,lastWIP,h,q,prec,sortPrefixLen: Integer;
     fa: DWord;
     reqQty,delQty,cargo,stock,prevQty,maxQty: Integer;
     totReqQty,totDelQty,validCargo: Integer;
@@ -501,6 +530,7 @@ begin
       end;
 
     cnames := '';
+    cprogress := '';
     FItemsShown := 0;
 
     for ci := 0 to DataSrc.Constructions.Count - 1 do
@@ -689,38 +719,75 @@ begin
         a[colStatus] := a[colStatus] + s + Chr(13);
       end;
 
-      if Opts.Flags['ShowUnderCapacity'] then
+      if (Opts.Flags['ShowUnderCapacity']) and (DataSrc.Capacity > 0) then
         if (validCargo < DataSrc.Capacity) and (totDelQty + validCargo < totReqQty) then
         begin
+          if Opts['ShowFlightsLeft'] = '2' then
+          begin
+            reqQty := totReqQty-totDelQty;
+            q := reqQty - (reqQty div DataSrc.Capacity) * DataSrc.Capacity - validCargo;
+            if q > 0 then
+            begin
+              s := IntToStr(q);
+              a[colReq] := a[colReq] + '(' + s + ')' + Chr(13);
+            end;
+          end;
+
           a[colText] := a[colText] + '⚠ UNDER CAPACITY' + Chr(13);
           a[colStock] := a[colStock] + '(' + IntToStr(DataSrc.Capacity-validCargo) + ')' + Chr(13);
           a[colStatus] := a[colStatus] + '' + Chr(13);
         end;
       if (FCurrentDepot <> nil) and Opts.Flags['ShowProgress'] then
       begin
-        if FCurrentDepot.Simulated then
+        if Opts['ShowProgress'] = '1' then
         begin
-          s := 'Update: ' + Copy(FCurrentDepot.LastUpdate,1,16);
-        end
-        else
-        begin
-          s := 'Progress: ';
-          if FCurrentDepot.Finished then
-            s := s + 'DONE'
+          if FCurrentDepot.Simulated then
+          begin
+            s := 'Update: ' + Copy(FCurrentDepot.LastUpdate,1,16);
+          end
           else
-            s := s + IntToStr((100*totDelQty) div totReqQty) + '%';
+          begin
+            s := 'Progress: ';
+            if FCurrentDepot.Finished then
+              s := s + 'DONE'
+            else
+              s := s + IntToStr((100*totDelQty) div totReqQty) + '%';
+          end;
+          a[colText] := a[colText] + s + Chr(13);
         end;
-//        if FCurrentDepot <> nil then
-//          s := s + ' (' + Copy(FCurrentDepot.LastUpdate,1,10) + ')';
-        a[colText] := a[colText] + s + Chr(13);
+        if Opts['ShowProgress'] = '2' then
+        begin
+          if not FCurrentDepot.Simulated then
+            if FCurrentDepot.Finished then
+              cprogress := '✓ '
+            else
+              cprogress := '' + IntToStr((100*totDelQty) div totReqQty) + '% ';  //⏩
+        end;
       end;
       if Opts.Flags['ShowFlightsLeft'] and (DataSrc.Capacity > 0) then
       begin
         reqQty := totReqQty-totDelQty;
-        s := FloatToStrF(reqQty/DataSrc.Capacity,ffFixed,7,2);
-        if RightStr(s,2) = '00' then
-          if reqQty/DataSrc.Capacity <> reqQty div DataSrc.Capacity then s := s + '+';
-        a[colText] := a[colText] + 'Flights left: ' + s + ' (' + IntToStr(DataSrc.Capacity) + 't)' + Chr(13);
+        if Opts['ShowFlightsLeft'] = '2' then
+        begin
+          q := reqQty div DataSrc.Capacity;
+          if reqQty/DataSrc.Capacity <> reqQty div DataSrc.Capacity then q := q + 1;
+          s := IntToStr(q);
+          cprogress := cprogress + '' + s + '⭮ ' //⏳ ⭮⮀
+        end
+        else
+        begin
+          prec := 1;
+          s := FloatToStrF(reqQty/DataSrc.Capacity,ffFixed,7,prec);
+          if RightStr(s,prec) = LeftStr('00000',prec) then
+          begin
+            s := Copy(s,1,Length(s)-prec-1);
+            if reqQty/DataSrc.Capacity <> reqQty div DataSrc.Capacity then
+              s := s + '+';
+          end;
+          q := reqQty - (reqQty div DataSrc.Capacity) * DataSrc.Capacity;
+          s2 := IntToStr(q) + '/' + IntToStr(DataSrc.Capacity);
+          a[colText] := a[colText] + 'Flights left: ' + s + ' (' + s2 + 't)' + Chr(13);
+        end;
       end;
       if Opts.Flags['ShowIndicators'] then
       begin
@@ -743,7 +810,7 @@ begin
     if cnames = '' then
       TitleLabel.Caption := '(no active constructions)'
     else
-      TitleLabel.Caption := cnames;
+      TitleLabel.Caption := cprogress + cnames;
 
     if Opts.Flags['AutoHeight'] then
     begin
@@ -916,7 +983,17 @@ begin
       if i >= 0 then FSelectedConstructions.Delete(i);
     end
     else
-      FSelectedConstructions.Add(cd.MarketId);
+    begin
+      if GetKeyState(VK_CONTROL) < 0 then
+      begin
+        if FCurrentDepot <> nil then
+          if FSelectedConstructions.Count = 0 then
+            FSelectedConstructions.Add(FCurrentDepot.MarketId);
+        FSelectedConstructions.Add(cd.MarketId)
+      end
+      else
+        FSelectedConstructions.Text := cd.MarketId;
+    end;
   end;
   UpdateConstrDepot;
 end;
@@ -930,7 +1007,12 @@ begin
     if i >= 0 then
       FSelectedConstructions.Delete(i)
     else
+    begin
+      if FCurrentDepot <> nil then
+        if FSelectedConstructions.Count = 0 then
+            FSelectedConstructions.Add(FCurrentDepot.MarketId);
       FSelectedConstructions.Add(mID);
+    end;
   end
   else
     FSelectedConstructions.Text := mID;
@@ -957,7 +1039,10 @@ begin
   idx := TMenuItem(Sender).Tag;
   if idx >= DataSrc.RecentMarkets.Count then Exit;
   if not TMenuItem(Sender).Checked or (idx = -1) then
-    FSecondaryMarket := nil
+  begin
+    FSecondaryMarket := nil;
+    Opts['SelectedMarket'] := '';
+  end
   else
     FSecondaryMarket := TMarket(DataSrc.RecentMarkets.Objects[idx]);
   UpdateConstrDepot;
@@ -1351,6 +1436,11 @@ begin
   mitem.OnClick := SwitchDepotMenuItemClick;
   SelectDepotSubMenu.Insert(0,mitem);
 
+  mitem := TMenuItem.Create(SelectDepotSubMenu);
+  mitem.Caption := '( Press and hold CTRL key to group depots )';
+  mitem.Enabled := False;
+  SelectDepotSubMenu.Add(mitem);
+
 
   SelectMarketSubMenu.Clear;
   mitem := TMenuItem.Create(SelectMarketSubMenu);
@@ -1547,7 +1637,7 @@ procedure TEDCDForm.AppActivate(Sender: TObject);
 var i: Integer;
     fs: TFormStyle;
 begin
-
+  if Application.Terminated then Exit;
   for i := 0 to Application.ComponentCount - 1 do
     if Application.Components[i] is TEDCDForm then
       with TEDCDForm(Application.Components[i]) do
@@ -1560,6 +1650,7 @@ end;
 procedure TEDCDForm.AppDeactivate(Sender: TObject);
 var i: Integer;
 begin
+  if Application.Terminated then Exit;
   for i := 0 to Application.ComponentCount - 1 do
     if Application.Components[i] is TEDCDForm then
     with TEDCDForm(Application.Components[i]) do

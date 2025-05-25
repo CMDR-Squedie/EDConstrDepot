@@ -32,4 +32,9 @@ object SplashForm: TSplashForm
     Transparent = False
     StyleElements = [seFont, seClient]
   end
+  object HideTimer: TTimer
+    OnTimer = HideTimerTimer
+    Left = 176
+    Top = 8
+  end
 end

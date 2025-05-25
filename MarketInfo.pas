@@ -85,7 +85,8 @@ begin
 
   MarketNameLabel.Caption := m.StationName + '/' + m.StarSystem + ' (' + m.StationType +')';
   MarketEconomyLabel.Caption := m.Economies;
-  LastUpdateLabel.Caption := 'Last Update: ' + Copy(m.LastUpdate,1,10) + ' ' + Copy(m.LastUpdate,12,8);
+  LastUpdateLabel.Caption := 'Last Update: ' +
+    Copy(m.LastUpdate,1,10) + ' ' + Copy(m.LastUpdate,12,8) + ' UTC';
   MarketIDLabel.Caption := '#' + m. MarketID;
 
 

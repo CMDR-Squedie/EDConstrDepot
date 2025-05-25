@@ -41,11 +41,12 @@ object MarketInfoForm: TMarketInfoForm
         Alignment = taRightJustify
         AutoSize = True
         Caption = '+/- of mean'
-        MaxWidth = 50
+        MaxWidth = 120
       end>
     GridLines = True
     GroupView = True
     ReadOnly = True
+    SortType = stText
     TabOrder = 0
     ViewStyle = vsReport
     OnDblClick = ListViewDblClick

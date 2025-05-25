@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.ComCtrls, DataSource,
-  Vcl.StdCtrls, Vcl.Menus;
+  Vcl.StdCtrls, Vcl.Menus, System.Math;
 
 type
   TMarketsForm = class(TForm, IEDDataListener)
@@ -39,6 +39,7 @@ type
     N3: TMenuItem;
     Clear1: TMenuItem;
     MarketInfoMenuItem: TMenuItem;
+    CopySystemNameMenuItem: TMenuItem;
     procedure ListViewColumnClick(Sender: TObject; Column: TListColumn);
     procedure ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
@@ -72,7 +73,7 @@ var
 
 implementation
 
-uses Main,Clipbrd,Settings, MarketInfo;
+uses Main,Clipbrd,Settings, MarketInfo, Splash;
 
 {$R *.dfm}
 
@@ -332,6 +333,10 @@ begin
       s := cd.LastDock;
       if s < cd.LastUpdate then s := cd.LastUpdate;
       item.SubItems.Add(niceTime(s));
+      s := '';
+      if cd.DistFromStar >= 0 then
+        s := Format('%.0n', [double(cd.DistFromStar)]);
+      item.SubItems.Add(s);
       item.SubItems.Add(cMarketIgnoreInd[DataSrc.GetMarketLevel(cd.MarketId)]);
       item.SubItems.Add('');
       item.SubItems.Add(DataSrc.MarketComments.Values[cd.MarketID]);
@@ -363,6 +368,10 @@ begin
       if m.StationType <> 'FleetCarrier' then
         if DataSrc.LastConstrTimes.Values[m.StarSystem] > m.LastDock then
           s := s + '  *';
+      item.SubItems.Add(s);
+      s := '';
+      if m.DistFromStar >= 0 then
+        s := Format('%.0n', [double(m.DistFromStar)]);
       item.SubItems.Add(s);
       item.SubItems.Add(cMarketIgnoreInd[lev]);
       item.SubItems.Add(cMarketFavInd[lev]);
@@ -409,9 +418,12 @@ begin
   end
   else
   begin
-    Compare := CompareText(
-      Item1.SubItems[SortColumn-1] + '    ' + Item1.Caption,
-      Item2.SubItems[SortColumn-1] + '    ' + Item2.Caption);
+    if SortColumn = 4 then
+      Compare := CompareValue(TBaseMarket(Item1.Data).DistFromStar,TBaseMarket(Item2.Data).DistFromStar)
+    else
+      Compare := CompareText(
+        Item1.SubItems[SortColumn-1] + '    ' + Item1.Caption,
+        Item2.SubItems[SortColumn-1] + '    ' + Item2.Caption);
   end;
 
   if not SortAscending then Compare := -Compare;
@@ -425,7 +437,11 @@ var mid: string;
 begin
   if ListView.Selected = nil then Exit;
   action := -1;
-  if Sender is TListView then action := ClickedColumn;
+  if Sender is TListView then
+  begin
+    if ClickedColumn = -1 then Exit;
+    action := ListView.Columns[ClickedColumn].Tag;
+  end;
   if Sender is TMenuItem then action := TMenuItem(Sender).Tag;
   if action = -1 then Exit;
   mid := TBaseMarket(ListView.Selected.Data).MarketId;
@@ -496,12 +512,23 @@ begin
         MarketInfoForm.Show;
       end;
     end;
+  15:
+    begin
+      with TBaseMarket(ListView.Selected.Data) do
+        Clipboard.SetTextBuf(PChar(StarSystem));
+    end;
   else
     begin
       if TBaseMarket(ListView.Selected.Data) is TConstructionDepot then
+      begin
         EDCDForm.SetDepot(mid,false);
+        SplashForm.ShowInfo('Switching construction depot...',1000);
+      end;
       if TBaseMarket(ListView.Selected.Data) is TMarket then
+      begin
         EDCDForm.SetSecondaryMarket(mid);
+        SplashForm.ShowInfo('Switching market...',1000);
+      end;
     end;
   end;
 
