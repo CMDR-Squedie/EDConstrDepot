@@ -11,6 +11,7 @@ object MarketsForm: TMarketsForm
   Font.Name = 'Segoe UI'
   Font.Style = []
   Position = poScreenCenter
+  OnClose = FormClose
   OnCreate = FormCreate
   OnShow = FormShow
   TextHeight = 15
@@ -106,20 +107,13 @@ object MarketsForm: TMarketsForm
     ParentBackground = False
     ParentFont = False
     TabOrder = 1
+    ExplicitTop = -6
     object Label1: TLabel
       Left = 8
       Top = 8
       Width = 27
       Height = 16
       Caption = 'Filter'
-    end
-    object Label2: TLabel
-      Left = 763
-      Top = 8
-      Width = 55
-      Height = 16
-      Caption = 'Task Group'
-      Visible = False
     end
     object MarketsCheck: TCheckBox
       Left = 272
@@ -187,21 +181,40 @@ object MarketsForm: TMarketsForm
       TabOrder = 5
       OnClick = ClearFilterButtonClick
     end
-    object TaskGroupComboBox: TComboBox
-      Left = 824
-      Top = 5
-      Width = 138
-      Height = 24
-      DropDownCount = 20
+    object InclSnapshotsCheck: TCheckBox
+      Left = 743
+      Top = 8
+      Width = 129
+      Height = 17
+      Caption = 'Include Snapshots'
       TabOrder = 6
+      OnClick = MarketsCheckClick
+    end
+    object CompareCheck: TCheckBox
+      Left = 987
+      Top = 8
+      Width = 111
+      Height = 17
+      Caption = 'Alt. Select Mode'
+      TabOrder = 7
+      OnClick = CompareCheckClick
+    end
+    object Button1: TButton
+      Left = 961
+      Top = 4
+      Width = 20
+      Height = 24
+      Caption = 'OK'
+      TabOrder = 8
       Visible = False
+      OnClick = CompareMarketsMenuItemClick
     end
   end
   object PopupMenu: TPopupMenu
     OnPopup = PopupMenuPopup
     Left = 648
     Top = 232
-    object Select1: TMenuItem
+    object SelectCurrentMenuItem: TMenuItem
       Tag = 1
       Caption = 'Set As Current'
       OnClick = ListViewAction
@@ -211,25 +224,56 @@ object MarketsForm: TMarketsForm
       Caption = 'Add To Group'
       OnClick = ListViewAction
     end
-    object AddComment1: TMenuItem
+    object EditCommentMenuItem: TMenuItem
       Tag = 6
       Caption = 'Edit Comment'
       OnClick = ListViewAction
     end
-    object AddToFavorite1: TMenuItem
+    object ToggleFavoriteMenuItem: TMenuItem
       Tag = 5
       Caption = 'Toggle Favorite'
       OnClick = ListViewAction
     end
-    object AddComment2: TMenuItem
+    object ToggleIgnoredMenuItem: TMenuItem
       Tag = 4
       Caption = 'Toggle Ignore'
       OnClick = ListViewAction
+    end
+    object N4: TMenuItem
+      Caption = '-'
     end
     object MarketInfoMenuItem: TMenuItem
       Tag = 14
       Caption = 'Market Info'
       OnClick = ListViewAction
+    end
+    object MarketSnapshotMenuItem: TMenuItem
+      Caption = 'Create Snapshot'
+      OnClick = MarketSnapshotMenuItemClick
+    end
+    object RemoveSnapshotMenuItem: TMenuItem
+      Caption = 'Remove Snapshot'
+      OnClick = RemoveSnapshotMenuItemClick
+    end
+    object CompareMarketsMenuItem: TMenuItem
+      Caption = 'Compare Markets'
+      OnClick = CompareMarketsMenuItemClick
+    end
+    object N2: TMenuItem
+      Caption = '-'
+    end
+    object FleetCarrierSubMenu: TMenuItem
+      Caption = 'Fleet Carrier'
+      object SetAsStockMenuItem: TMenuItem
+        Tag = 13
+        Caption = 'Set As Active'
+        OnClick = ListViewAction
+      end
+      object SetAsConstrDepotMenuItem: TMenuItem
+        Tag = 12
+        Caption = 'Set As Construction Depot'
+        OnClick = ListViewAction
+      end
     end
     object TaskGroupSubMenu: TMenuItem
       Caption = 'Task Group'
@@ -246,22 +290,6 @@ object MarketsForm: TMarketsForm
       object Clear1: TMenuItem
         Caption = 'Clear'
         OnClick = TaskGroupMenuItemClick
-      end
-    end
-    object N2: TMenuItem
-      Caption = '-'
-    end
-    object FleetCarrierSubMenu: TMenuItem
-      Caption = 'Fleet Carrier'
-      object SetAsStockMenuItem: TMenuItem
-        Tag = 13
-        Caption = 'Set As Active'
-        OnClick = ListViewAction
-      end
-      object SetAsConstrDepotMenuItem: TMenuItem
-        Tag = 12
-        Caption = 'Set As Construction Depot'
-        OnClick = ListViewAction
       end
     end
     object N1: TMenuItem

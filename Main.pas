@@ -252,6 +252,7 @@ procedure TEDCDForm.MarketAsExtCargoDlg(m: TMarket; mode: Integer);
 begin
   if m = nil then Exit;
   if m.MarketID = '' then Exit;
+  if m.Snapshot then Exit;
   if m.StationType <> 'FleetCarrier' then
     if Opts['AnyMarketAsDepot'] <> '1' then
     begin
@@ -933,6 +934,8 @@ begin
       end;
     end;
 
+  MarketInfoForm.SyncComparison;
+
 //experimental - single pixel only
   if Opts.Flags['AutoFontGlow']  then
   begin
@@ -1021,8 +1024,9 @@ end;
 
 procedure TEDCDForm.SetSecondaryMarket(mID: string);
 begin
-  FAutoSelectMarket := False;
   FSecondaryMarket := DataSrc.MarketFromID(mID);
+  if FSecondaryMarket <> nil then
+    FAutoSelectMarket := False;
   UpdateConstrDepot;
 end;
 
@@ -1214,6 +1218,7 @@ procedure TEDCDForm.MarketAsDepotDlg(m: TMarket);
 begin
   if m = nil then Exit;
   if m.MarketId = '' then Exit;
+  if m.Snapshot then Exit;
   if m.StationType <> 'FleetCarrier' then
     if Opts['AnyMarketAsDepot'] <> '1' then
     begin
@@ -1454,7 +1459,7 @@ begin
   for i := 0 to DataSrc.RecentMarkets.Count - 1 do
   begin
     m := TMarket(DataSrc.RecentMarkets.Objects[i]);
-    if m.Status = '' then continue; //docked but no depot info?
+    if (m.Status = '') and (m.Stock.Count = 0)then continue; //docked but no depot info?
     if DataSrc.GetMarketLevel(m.MarketID) = miIgnore then continue;
     if DataSrc.TaskGroup <> '' then
     begin
@@ -1518,6 +1523,20 @@ begin
     SelectMarketSubMenu.Add(mitem);
   end;
 
+  sl.Clear;
+  for i := 0 to DataSrc.RecentMarkets.Count - 1 do
+  begin
+    m := TMarket(DataSrc.RecentMarkets.Objects[i]);
+    if m.StationType <> 'FleetCarrier' then continue;
+    if DataSrc.GetMarketLevel(m.MarketID) = miIgnore then continue;
+    if DataSrc.TaskGroup <> '' then
+    begin
+      s := DataSrc.MarketGroups.Values[m.MarketID];
+      if (s <> '') and (DataSrc.TaskGroup <> s) then continue;
+    end;
+    sl.AddObject(m.LastUpdate,m);
+  end;
+  sl.Sort;
   for i := FleetCarrierSubMenu.Count - 1 downto 0 do
   begin
     if FleetCarrierSubMenu.Items[i].Tag > 0 then
@@ -1529,7 +1548,6 @@ begin
   begin
     if i < 0 then break;
     m := TMarket(sl.Objects[i]);
-    if m.StationType <> 'FleetCarrier' then continue;
     mitem := TMenuItem.Create(FleetCarrierSubMenu);
     mitem.Caption := m.StationName;
     s := DataSrc.MarketComments.Values[m.MarketID];

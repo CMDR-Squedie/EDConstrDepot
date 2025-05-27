@@ -18,10 +18,10 @@ type
     FilterEdit: TComboBox;
     InclPartialCheck: TCheckBox;
     PopupMenu: TPopupMenu;
-    AddComment1: TMenuItem;
-    AddComment2: TMenuItem;
-    AddToFavorite1: TMenuItem;
-    Select1: TMenuItem;
+    EditCommentMenuItem: TMenuItem;
+    ToggleIgnoredMenuItem: TMenuItem;
+    ToggleFavoriteMenuItem: TMenuItem;
+    SelectCurrentMenuItem: TMenuItem;
     AddToDepotGroupMenuItem: TMenuItem;
     N1: TMenuItem;
     CopyMenuItem: TMenuItem;
@@ -31,8 +31,6 @@ type
     FleetCarrierSubMenu: TMenuItem;
     SetAsConstrDepotMenuItem: TMenuItem;
     SetAsStockMenuItem: TMenuItem;
-    TaskGroupComboBox: TComboBox;
-    Label2: TLabel;
     TaskGroupSubMenu: TMenuItem;
     askGroup2: TMenuItem;
     OtherGroupMenuItem: TMenuItem;
@@ -40,6 +38,13 @@ type
     Clear1: TMenuItem;
     MarketInfoMenuItem: TMenuItem;
     CopySystemNameMenuItem: TMenuItem;
+    N4: TMenuItem;
+    CompareMarketsMenuItem: TMenuItem;
+    MarketSnapshotMenuItem: TMenuItem;
+    InclSnapshotsCheck: TCheckBox;
+    RemoveSnapshotMenuItem: TMenuItem;
+    CompareCheck: TCheckBox;
+    Button1: TButton;
     procedure ListViewColumnClick(Sender: TObject; Column: TListColumn);
     procedure ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
@@ -56,12 +61,20 @@ type
     procedure PopupMenuPopup(Sender: TObject);
     procedure TaskGroupMenuItemClick(Sender: TObject);
     procedure OtherGroupMenuItemClick(Sender: TObject);
+    procedure CompareMarketsMenuItemClick(Sender: TObject);
+    procedure MarketSnapshotMenuItemClick(Sender: TObject);
+    procedure RemoveSnapshotMenuItemClick(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure CompareCheckClick(Sender: TObject);
   private
     { Private declarations }
     SortColumn: Integer;
     ClickedColumn: Integer;
     SortAscending: Boolean;
-    LastSelected: TBaseMarket;
+    FSelectedItems: TStringList;
+    function IsSelected(item: TListItem): Boolean;
+    procedure SaveSelection;
+    procedure RestoreSelection;
   public
     { Public declarations }
     procedure OnEDDataUpdate;
@@ -93,7 +106,7 @@ begin
   try
     s := Vcl.Dialogs.InputBox('Task Group', 'Name', '');;
     for i := 0 to ListView.Items.Count -1 do
-      if ListView.Items[i].Selected then
+      if IsSelected(ListView.Items[i]) then
         DataSrc.UpdateMarketGroup(TBaseMarket(ListView.Items[i].Data).MarketID,s,false);
   finally
     DataSrc.EndUpdate;
@@ -108,7 +121,7 @@ begin
   try
     s := TMenuItem(Sender).Hint;
     for i := 0 to ListView.Items.Count -1 do
-      if ListView.Items[i].Selected then
+      if IsSelected(ListView.Items[i]) then
         DataSrc.UpdateMarketGroup(TBaseMarket(ListView.Items[i].Data).MarketID,s,false);
   finally
     DataSrc.EndUpdate;
@@ -116,22 +129,36 @@ begin
 end;
 
 procedure TMarketsForm.PopupMenuPopup(Sender: TObject);
-var cdf,mf: Boolean;
+var cdf,mf,snapf: Boolean;
     m: TBaseMarket;
     sl: TStringList;
     i: Integer;
-    mitem: TMenuItem;                   begin
+    mitem: TMenuItem;
+begin
   cdf := False;
   mf := False;
-  m :=  TBaseMarket(ListView.Selected.Data);
-  if m <> nil then
+  snapf := False;
+  m := nil;
+  if ListView.Selected <> nil then
   begin
+    m :=  TBaseMarket(ListView.Selected.Data);
     cdf := m is TConstructionDepot;
-    mf := m is TMarket;
+    mf := (m is TMarket) and not TMarket(m).Snapshot;
+    snapf := (m is TMarket) and TMarket(m).Snapshot;
   end;
-  FleetCarrierSubMenu.Enabled := (m<>nil) and (m.StationType='FleetCarrier');
+  EditCommentMenuItem.Enabled := m <> nil;
+  SelectCurrentMenuItem.Enabled := mf or cdf;
+  FleetCarrierSubMenu.Enabled := (m <> nil) and (m.StationType = 'FleetCarrier');
+  TaskGroupSubMenu.Enabled := mf or cdf;
   AddToDepotGroupMenuItem.Enabled := cdf;
-  MarketInfoMenuItem.Enabled := mf;
+  MarketInfoMenuItem.Enabled := mf or snapf;
+  MarketSnapshotMenuItem.Enabled := mf;
+  RemoveSnapshotMenuItem.Enabled := snapf;
+  CompareMarketsMenuItem.Enabled := mf or snapf;
+  ToggleFavoriteMenuItem.Enabled := mf or cdf;
+  ToggleIgnoredMenuItem.Enabled := mf or cdf;
+  CopyMenuItem.Enabled := m <> nil;
+  CopySystemNameMenuItem.Enabled := m <> nil;
 
   for i := TaskGroupSubMenu.Count - 1 downto 0 do
   begin
@@ -152,15 +179,88 @@ var cdf,mf: Boolean;
   sl.Free;
 end;
 
+procedure TMarketsForm.RemoveSnapshotMenuItemClick(Sender: TObject);
+var mid: string;
+begin
+  if ListView.Selected = nil then Exit;
+  if not (TBaseMarket(ListView.Selected.Data) is TMarket) then Exit;
+  if not TMarket(ListView.Selected.Data).Snapshot then Exit;
+
+  if Vcl.Dialogs.MessageDlg('Are you sure you want to delete this snapshot?',
+    mtConfirmation, [mbYes, mbNo], 0, mbNo) = mrNo then Exit;
+
+  mid := TBaseMarket(ListView.Selected.Data).MarketId;
+  DataSrc.RemoveMarketSnapshot(mid);
+//  UpdateItems;
+end;
+
 procedure TMarketsForm.MarketsCheckClick(Sender: TObject);
 begin
   UpdateItems;
+end;
+
+procedure TMarketsForm.MarketSnapshotMenuItemClick(Sender: TObject);
+var mid: string;
+begin
+  if ListView.Selected = nil then Exit;
+  if not (TBaseMarket(ListView.Selected.Data) is TMarket) then Exit;
+  if TMarket(ListView.Selected.Data).Snapshot then Exit;
+  mid := TBaseMarket(ListView.Selected.Data).MarketId;
+  InclSnapshotsCheck.Checked := True;
+  DataSrc.CreateMarketSnapshot(mid);
+//  UpdateItems;
 end;
 
 procedure TMarketsForm.ClearFilterButtonClick(Sender: TObject);
 begin
    FilterEdit.Text := '';
    UpdateItems;
+end;
+
+procedure TMarketsForm.CompareCheckClick(Sender: TObject);
+begin
+  ListView.Checkboxes := CompareCheck.Checked;
+end;
+
+function TMarketsForm.IsSelected(item: TListItem): Boolean;
+begin
+  if CompareCheck.Checked then
+    Result := item.Checked
+  else
+    Result := item.Selected;
+end;
+
+procedure TMarketsForm.CompareMarketsMenuItemClick(Sender: TObject);
+var i,cw,x: Integer;
+    mi: TMarketInfoForm;
+begin
+  MarketInfoForm.CloseComparison;
+  x := 0;
+  mi := nil;
+  for i := 0 to ListView.Items.Count -1 do
+    if IsSelected(ListView.Items[i]) then
+      if TBaseMarket(ListView.Items[i].Data) is TMarket then
+      begin
+        if mi <> nil then mi.CloseComparisonButton.Visible := False;
+
+
+        mi := TMarketInfoForm.Create(Application);
+        mi.Comparing := True;
+        mi.SetMarket(TMarket(ListView.Items[i].Data));
+        mi.FormStyle := fsStayOnTop;
+        mi.Position := poDesigned;
+        mi.BorderStyle := bsNone;
+        mi.Left := x;
+        mi.Top := 0;
+        mi.Height := Screen.Height - 40;
+        mi.CloseComparisonButton.Visible := true;
+        mi.VertDivider1.Visible := True;
+        mi.VertDivider2.Visible := True;
+        mi.Show;
+        mi.BringToFront;
+        x := x + mi.Width;
+        if (x + mi.Width) > Screen.Width then Exit;
+      end;
 end;
 
 procedure TMarketsForm.CopyMenuItemClick(Sender: TObject);
@@ -189,7 +289,7 @@ begin
   for i := 0 to ListView.Items.Count -1 do
   begin
     if selonlyf then
-      if not ListView.Items[i].Selected then continue;
+      if not IsSelected(ListView.Items[i]) then continue;
     s := s + ListView.Items[i].Caption + Chr(9);
     for j := 0 to ListView.Items[i].SubItems.Count - 1 do
       if j < ListView.Columns.Count - 1 then
@@ -233,18 +333,57 @@ begin
 
 end;
 
+procedure TMarketsForm.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  Opts['Markets.Left'] := IntToStr(self.Left);
+  Opts['Markets.Top'] := IntToStr(self.Top);
+  Opts['Markets.Height'] := IntToStr(self.Height);
+  Opts['Markets.Width'] := IntToStr(self.Width);
+  Opts.Save;
+
+end;
+
 procedure TMarketsForm.FormCreate(Sender: TObject);
 begin
-  SortColumn := 3;
+  SortColumn := 3; //last visit
   SortAscending := False;
+  FSelectedItems := TStringList.Create;
 
   DataSrc.AddListener(self);
   ApplySettings;
+
+  self.Width := StrToIntDef(Opts['Markets.Width'],self.Width);
+  self.Height := StrToIntDef(Opts['Markets.Height'],self.Height);
+  self.Left := StrToIntDef(Opts['Markets.Left'],Screen.Width - self.Width);
+  self.Top := StrToIntDef(Opts['Markets.Top'],(Screen.Height - self.Height) div 2);
+
 end;
 
 procedure TMarketsForm.FormShow(Sender: TObject);
 begin
   UpdateItems;
+end;
+
+procedure TMarketsForm.SaveSelection;
+var i: Integer;
+begin
+  FSelectedItems.Clear;
+  for i := 0 to ListView.Items.Count - 1 do
+    if IsSelected(ListView.Items[i]) then
+      FSelectedItems.Add(TBaseMarket(ListView.Items[i].Data).MarketID);
+end;
+
+procedure TMarketsForm.RestoreSelection;
+var i: Integer;
+begin
+  for i := 0 to ListView.Items.Count - 1 do
+  begin
+    if FSelectedItems.IndexOf(TBaseMarket(ListView.Items[i].Data).MarketID) > -1 then
+      if CompareCheck.Checked then
+        ListView.Items[i].Checked := True
+      else
+        ListView.Items[i].Selected := True;
+  end;
 end;
 
 procedure TMarketsForm.UpdateItems;
@@ -257,7 +396,6 @@ var
   fs,cs: string;
   items: TStringList;
   lev: TMarketLevel;
-  lastm: TBaseMarket;
   ignoredf,partialf: Boolean;
 
   function CheckFilter: Boolean;
@@ -290,9 +428,7 @@ var
 
 begin
 
-  lastm := nil;
-  if ListView.Selected <> nil then
-    lastm := TBaseMarket(ListView.Selected.Data);
+  SaveSelection;
 
   items := TStringList.Create;
   items.Sorted := True;
@@ -342,7 +478,6 @@ begin
       item.SubItems.Add(DataSrc.MarketComments.Values[cd.MarketID]);
       item.SubItems.Add('');
       item.SubItems.Add(DataSrc.MarketGroups.Values[cd.MarketID]);
-      if lastm = cd then ListView.Selected := item;
 
       if not CheckFilter then item.Delete;
 
@@ -381,11 +516,29 @@ begin
       item.SubItems.Add(DataSrc.MarketGroups.Values[m.MarketID]);
       for j := 0 to m.Stock.Count - 1 do
         items.Add(m.Stock.Names[j]);
-      if lastm = m then ListView.Selected := item;
       if not CheckFilter then item.Delete;
 
     end;
 
+    if MarketsCheck.Checked and InclSnapshotsCheck.Checked then
+    for i := 0 to DataSrc.MarketSnapshots.Count - 1 do
+    begin
+      m := TMarket(DataSrc.MarketSnapshots.Objects[i]);
+      item := ListView.Items.Add;
+      item.Data := m;
+      item.Caption := m.StationName;
+      item.SubItems.Add(m.StationType);
+      item.SubItems.Add(m.StarSystem);
+      s := niceTime(m.LastUpdate);
+      item.SubItems.Add(s);
+      item.SubItems.Add('');
+      item.SubItems.Add('');
+      item.SubItems.Add('');
+      item.SubItems.Add(DataSrc.MarketComments.Values[m.MarketID]);
+      item.SubItems.Add(m.Economies);
+      item.SubItems.Add(DataSrc.MarketGroups.Values[m.MarketID]);
+      if not CheckFilter then item.Delete;
+    end;
 
     FilterEdit.Items.AddStrings(items);
 
@@ -393,6 +546,8 @@ begin
        ListView.Column[i].Width := -2;
     ListView.SortType := stText;
     ListView.Items.EndUpdate;
+
+    RestoreSelection;
   finally
     items.Free;
   end;
@@ -508,8 +663,13 @@ begin
     begin
       if TBaseMarket(ListView.Selected.Data) is TMarket then
       begin
-        MarketInfoForm.SetMarket(TMarket(ListView.Selected.Data));
-        MarketInfoForm.Show;
+//        with MarketInfoForm do
+        with TMarketInfoForm.Create(Application) do
+        begin
+          SetMarket(TMarket(self.ListView.Selected.Data));
+          FormStyle := fsStayOnTop;
+          Show;
+        end;
       end;
     end;
   15:
@@ -525,10 +685,11 @@ begin
         SplashForm.ShowInfo('Switching construction depot...',1000);
       end;
       if TBaseMarket(ListView.Selected.Data) is TMarket then
-      begin
-        EDCDForm.SetSecondaryMarket(mid);
-        SplashForm.ShowInfo('Switching market...',1000);
-      end;
+        if not TMarket(ListView.Selected.Data).Snapshot then
+        begin
+          EDCDForm.SetSecondaryMarket(mid);
+          SplashForm.ShowInfo('Switching market...',1000);
+        end;
     end;
   end;
 
