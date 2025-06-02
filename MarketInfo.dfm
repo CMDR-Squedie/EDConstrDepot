@@ -82,7 +82,7 @@ object MarketInfoForm: TMarketInfoForm
     object MarketNameLabel: TLabel
       Left = 8
       Top = 2
-      Width = 385
+      Width = 351
       Height = 16
       AutoSize = False
       Font.Charset = DEFAULT_CHARSET
@@ -95,7 +95,7 @@ object MarketInfoForm: TMarketInfoForm
     object MarketEconomyLabel: TLabel
       Left = 8
       Top = 19
-      Width = 385
+      Width = 355
       Height = 16
       AutoSize = False
     end
@@ -162,6 +162,7 @@ object MarketInfoForm: TMarketInfoForm
     end
     object ShowDifferencesSubMenu: TMenuItem
       Caption = 'Show Differences'
+      Visible = False
       object ShowDiffIgnoreStockLevel2MenuItem: TMenuItem
         Tag = 2
         Caption = 'Ignore Stock Level'

@@ -92,6 +92,7 @@ private
     FCurrentDepot: TConstructionDepot;
     FSecondaryMarket: TMarket;
     FAutoSelectMarket: Boolean;
+    FUseEmptyDepot: Boolean;
     FWorkingDir,FJournalDir: string;
 //    FSettings: TSettings;
     FTransColor: TColor;
@@ -170,10 +171,8 @@ begin
        end;
        MarketsForm.MarketsCheck.Checked := True;
        MarketsForm.FilterEdit.Text := s;
-       if MarketsForm.Visible then
-         MarketsForm.UpdateItems
-       else
-         MarketsForm.Show;
+       MarketsForm.UpdateAndShow;
+
      end;
    finally
      sl.Free;
@@ -497,6 +496,7 @@ var j: TJSONObject;
     cd: TConstructionDepot;
     col: TCDCol;
     bestMarket: TMarket;
+label LSkipDepotSelection;
 begin
 
   sl := TStringList.Create;
@@ -512,11 +512,37 @@ begin
 
   try
 
+    for col := colReq to colStatus do a[col] := '';
+    FItemsShown := 0;
     totReqQty := 0;
     totDelQty := 0;
-
     lastWIP := -1;
     lastUpdate := '';
+    useExtCargo := -1;
+    cnames := '';
+    cprogress := '';
+
+    if FUseEmptyDepot then
+    begin
+      cnames := 'Cargo';
+      cargo := 0;
+      for i := 0 to DataSrc.Cargo.Count -1 do
+      begin
+        s := DataSrc.ItemNames.Values[DataSrc.Cargo.Names[i]];
+        a[colText] := a[colText] + s + Chr(13);
+        s := DataSrc.Cargo.ValueFromIndex[i];
+        a[colStock] := a[colStock] + s +  Chr(13);
+        cargo := cargo + StrToIntDef(s,0);
+        FItemsShown := FItemsShown + 1;
+      end;
+      if cargo < DataSrc.Capacity then
+      begin
+        a[colText] := a[colText] + '(Unused)' + Chr(13);
+        a[colStock] := a[colStock] + '(' + IntToStr(DataSrc.Capacity-cargo) + ')' + Chr(13);
+      end;
+      goto LSkipDepotSelection;
+    end;
+
     if FSelectedConstructions.Count = 0 then
       for ci := 0 to DataSrc.Constructions.Count - 1 do
       begin
@@ -529,10 +555,6 @@ begin
               lastUpdate := cd.LastUpdate;
             end;
       end;
-
-    cnames := '';
-    cprogress := '';
-    FItemsShown := 0;
 
     for ci := 0 to DataSrc.Constructions.Count - 1 do
     begin
@@ -600,6 +622,14 @@ begin
       except
         __log_except('UpdateConstrDepot','');
       end;
+    end;
+
+//invalid cargo (todo: show on option only)
+    for i := 0 to DataSrc.Cargo.Count -1 do
+    begin
+      s := DataSrc.ItemNames.Values[DataSrc.Cargo.Names[i]];
+      if (s <> '') and (sl.IndexOfName(s) = -1) then
+        sl.AddPair(s,'');
     end;
 
 //fleet carrier used to fullfill request
@@ -671,12 +701,10 @@ begin
     if Opts.Flags['AutoSort'] then
       sl.Sort;
 
-    for col := colReq to colStatus do a[col] := '';
 
     if totReqQty > 0  then
     begin
       validCargo := 0;
-      useExtCargo := -1;
       if DataSrc.CargoExt <> nil then
         useExtCargo := StrToInt(Opts['UseExtCargo']);
       for i := 0 to sl.Count - 1 do
@@ -684,23 +712,36 @@ begin
         itemName := Copy(sl.Names[i],1+sortPrefixLen,200);
         normItem := LowerCase(itemName);
 
+        reqQty := StrToIntDef(sl.ValueFromIndex[i],0);
         cargo := StrToIntDef(DataSrc.Cargo.Values[normItem],0);
-        if cargo > 0 then validCargo := validCargo + cargo;
+        if cargo > 0 then
+          if reqQty > 0 then
+            validCargo := validCargo + cargo;
         if useExtCargo = 1 then
           cargo := cargo + StrToIntDef(DataSrc.CargoExt.Stock.Values[normItem],0);
         if useExtCargo = 3 then
           cargo := cargo + StrToIntDef(DataSrc.CargoExt.Stock.Values['$' + normItem],0);
 
+{
+        if not FCurrentDepot.Finished and (cargo = 0) and (FItemsShown > 3) and (i < sl.Count - 3) then
+        begin
+          a[colText] := a[colText] + '...' + Chr(13);
+          a[colReq] := a[colReq] + Chr(13);
+       a[colStock] := a[colStock]  + Chr(13);
+       a[colStatus] := a[colStatus]  + Chr(13);
+          break;
+        end;
+}
+
         a[colText] := a[colText] + itemName + Chr(13);
         a[colReq] := a[colReq] + sl.ValueFromIndex[i] + Chr(13);
         FItemsShown := FItemsShown + 1;
 
-        reqQty := StrToIntDef(sl.ValueFromIndex[i],0);
         s := '';
         if cargo > 0 then
         begin
           s := IntToStr(cargo);
-          if not Opts.Flags['ShowIndicators'] then
+          if (reqQty > 0) and not Opts.Flags['ShowIndicators'] then
           begin
             if cargo = reqQty then s := '✓ ' + s;
             if cargo > reqQty then s := '+ ' + s;
@@ -714,6 +755,7 @@ begin
         begin
           if cargo = reqQty then s := '✓';           //■□▼▲◊♦○●✓✋⚠⛔
           if cargo > reqQty then s := '✓+';
+          if reqQty = 0 then s := '⛔';
 //          if cargo < reqQty then
 //            if cargo < DataSrc.Capacity then s := '< ' + s;
         end;
@@ -723,17 +765,18 @@ begin
       if (Opts.Flags['ShowUnderCapacity']) and (DataSrc.Capacity > 0) then
         if (validCargo < DataSrc.Capacity) and (totDelQty + validCargo < totReqQty) then
         begin
+          s := '';
           if Opts['ShowFlightsLeft'] = '2' then
           begin
             reqQty := totReqQty-totDelQty;
             q := reqQty - (reqQty div DataSrc.Capacity) * DataSrc.Capacity - validCargo;
             if q > 0 then
             begin
-              s := IntToStr(q);
-              a[colReq] := a[colReq] + '(' + s + ')' + Chr(13);
+              s := '('+ IntToStr(q) + ')';
+
             end;
           end;
-
+          a[colReq] := a[colReq] + s + Chr(13);
           a[colText] := a[colText] + '⚠ UNDER CAPACITY' + Chr(13);
           a[colStock] := a[colStock] + '(' + IntToStr(DataSrc.Capacity-validCargo) + ')' + Chr(13);
           a[colStatus] := a[colStatus] + '' + Chr(13);
@@ -754,6 +797,7 @@ begin
             else
               s := s + IntToStr((100*totDelQty) div totReqQty) + '%';
           end;
+          a[colReq] := a[colReq] + Chr(13);
           a[colText] := a[colText] + s + Chr(13);
         end;
         if Opts['ShowProgress'] = '2' then
@@ -787,20 +831,39 @@ begin
           end;
           q := reqQty - (reqQty div DataSrc.Capacity) * DataSrc.Capacity;
           s2 := IntToStr(q) + '/' + IntToStr(DataSrc.Capacity);
-          a[colText] := a[colText] + 'Flights left: ' + s + ' (' + s2 + 't)' + Chr(13);
+         a[colReq] := a[colReq] + Chr(13);
+         a[colText] := a[colText] + 'Flights left: ' + s + ' (' + s2 + 't)' + Chr(13);
         end;
       end;
       if Opts.Flags['ShowIndicators'] then
       begin
         if Opts.Flags['ShowRecentMarket'] then
           if DataSrc.Market.Stock.Count > 0 then
+          begin
+            a[colReq] := a[colReq] + Chr(13);
             a[colText] := a[colText] + '□ ' + DataSrc.Market.FullName + Chr(13);
+          end;
         if bestMarket <> nil then
-          a[colText] := a[colText] + '○ ' + bestMarket.FullName + Chr(13);
+          begin
+            a[colReq] := a[colReq] + Chr(13);
+            a[colText] := a[colText] + '○ ' + bestMarket.FullName + Chr(13);
+          end;
         if FSecondaryMarket <> nil then
+        begin
+          s := '';
+          if not FAutoSelectMarket then
+            s := '🤚';  //👉☝🤚
+
+          a[colReq] := a[colReq] + s + Chr(13);
           a[colText] := a[colText] + '△ ' + FSecondaryMarket.FullName + Chr(13);
+        end;
       end;
     end;
+
+   if useExtCargo <> -1 then cprogress := cprogress + '🠵 ' ;
+
+
+LSkipDepotSelection:;
 
     ReqQtyColLabel.Caption := a[colReq];
     TextColLabel.Caption := a[colText];
@@ -812,6 +875,7 @@ begin
       TitleLabel.Caption := '(no active constructions)'
     else
       TitleLabel.Caption := cprogress + cnames;
+
 
     if Opts.Flags['AutoHeight'] then
     begin
@@ -973,29 +1037,40 @@ var cd: TConstructionDepot;
     i: Integer;
 begin
   if TMenuItem(Sender).Tag >= DataSrc.Constructions.Count then Exit;
-  if TMenuItem(Sender).Tag = -1 then //recent active
+
+  if TMenuItem(Sender).Tag = -2 then //empty
   begin
     FSelectedConstructions.Clear;
+    FCurrentDepot := nil;
+    FUseEmptyDepot := not FUseEmptyDepot;
   end
   else
   begin
-    cd := TConstructionDepot(DataSrc.Constructions.Objects[TMenuItem(Sender).Tag]);
-    if not TMenuItem(Sender).Checked then
+    FUseEmptyDepot := false;
+    if TMenuItem(Sender).Tag = -1 then //recent active
     begin
-      i := FSelectedConstructions.IndexOf(cd.MarketId);
-      if i >= 0 then FSelectedConstructions.Delete(i);
+      FSelectedConstructions.Clear;
     end
     else
     begin
-      if GetKeyState(VK_CONTROL) < 0 then
+      cd := TConstructionDepot(DataSrc.Constructions.Objects[TMenuItem(Sender).Tag]);
+      if not TMenuItem(Sender).Checked then
       begin
-        if FCurrentDepot <> nil then
-          if FSelectedConstructions.Count = 0 then
-            FSelectedConstructions.Add(FCurrentDepot.MarketId);
-        FSelectedConstructions.Add(cd.MarketId)
+        i := FSelectedConstructions.IndexOf(cd.MarketId);
+        if i >= 0 then FSelectedConstructions.Delete(i);
       end
       else
-        FSelectedConstructions.Text := cd.MarketId;
+      begin
+        if GetKeyState(VK_CONTROL) < 0 then
+        begin
+          if FCurrentDepot <> nil then
+            if FSelectedConstructions.Count = 0 then
+              FSelectedConstructions.Add(FCurrentDepot.MarketId);
+          FSelectedConstructions.Add(cd.MarketId)
+        end
+        else
+          FSelectedConstructions.Text := cd.MarketId;
+      end;
     end;
   end;
   UpdateConstrDepot;
@@ -1211,7 +1286,7 @@ end;
 
 procedure TEDCDForm.ManageMarketsMenuItemClick(Sender: TObject);
 begin
-  MarketsForm.Show;
+  MarketsForm.UpdateAndShow;
 end;
 
 procedure TEDCDForm.MarketAsDepotDlg(m: TMarket);
@@ -1373,7 +1448,7 @@ procedure TEDCDForm.MarketInfoMenuItemClick(Sender: TObject);
 begin
   if FSecondaryMarket <> nil then
   begin
-    MarketInfoForm.SetMarket(FSecondaryMarket);
+    MarketInfoForm.SetMarket(FSecondaryMarket,false);
     MarketInfoForm.Show;
   end;
 end;
@@ -1417,7 +1492,7 @@ begin
     if i < 0 then break;
     cd := TConstructionDepot(sl.Objects[i]);
     mitem := TMenuItem.Create(SelectDepotSubMenu);
-    mitem.Caption := cd.StationName + '/' + cd.StarSystem;
+    mitem.Caption := cd.FullName;
     s := DataSrc.MarketComments.Values[cd.MarketID];
     if s <> '' then
       mitem.Caption := mitem.Caption + ' (' + Copy(s,1,20) + ')';
@@ -1435,11 +1510,19 @@ begin
 
   mitem := TMenuItem.Create(SelectDepotSubMenu);
   mitem.Caption := '( Recent construction in progress )';
-  mitem.Checked := (FSelectedConstructions.Count = 0); //not activef;
+  mitem.Checked := (FSelectedConstructions.Count = 0) and not FUseEmptyDepot; //not activef;
 //  mitem.Enabled := activef;
   mitem.Tag := -1;
   mitem.OnClick := SwitchDepotMenuItemClick;
   SelectDepotSubMenu.Insert(0,mitem);
+
+  mitem := TMenuItem.Create(SelectDepotSubMenu);
+  mitem.Caption := '(No depot, show ship cargo only)';
+  mitem.Tag := -2;
+  mitem.Checked := FUseEmptyDepot;
+  mitem.OnClick := SwitchDepotMenuItemClick;
+  SelectDepotSubMenu.Add(mitem);
+
 
   mitem := TMenuItem.Create(SelectDepotSubMenu);
   mitem.Caption := '( Press and hold CTRL key to group depots )';
@@ -1474,7 +1557,7 @@ begin
     if i < 0 then break;
     m := TMarket(sl.Objects[i]);
     mitem := TMenuItem.Create(SelectMarketSubMenu);
-    mitem.Caption := m.StationName + '/' + m.StarSystem;
+    mitem.Caption := m.FullName;
 //    if DataSrc.GetMarketLevel(m.MarketID) = miIgnore then
 //       mitem.Caption := '[IGNORED] ' + mitem.Caption;
     s := DataSrc.MarketComments.Values[m.MarketID];

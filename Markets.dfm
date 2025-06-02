@@ -107,7 +107,6 @@ object MarketsForm: TMarketsForm
     ParentBackground = False
     ParentFont = False
     TabOrder = 1
-    ExplicitTop = -6
     object Label1: TLabel
       Left = 8
       Top = 8

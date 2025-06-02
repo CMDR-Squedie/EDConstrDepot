@@ -46,14 +46,14 @@ type
     FSharedItems: TStringList;
     FSelectedCommodities: TStringList;
     FLastScrollBarPos: Integer;
+    Comparing: Boolean;
     procedure Update;
     procedure InternalSetCategory(s: string; sl: TStringList; clearself: Boolean);
     procedure FillCommodities(sl: TStringList);
     procedure SetCategory(s: string;  sl: TStringList; clearself: Boolean);
   public
     { Public declarations }
-    Comparing: Boolean;
-    procedure SetMarket(m: TMarket);
+    procedure SetMarket(m: TMarket; comparef: Boolean);
     procedure ApplySettings;
     procedure OnEDDataUpdate;
     procedure CloseComparison;
@@ -85,6 +85,8 @@ end;
 procedure TMarketInfoForm.FormCreate(Sender: TObject);
 begin
   FSelectedCommodities := TStringList.Create;
+  FSelectedCommodities.Sorted := True;
+  FSelectedCommodities.Duplicates := dupIgnore;
   FSharedItems := TStringList.Create;
   DataSrc.AddListener(self);
   ApplySettings;
@@ -123,10 +125,7 @@ begin
   begin
     MarketsForm.MarketsCheck.Checked := True;
     MarketsForm.FilterEdit.Text := LowerCase(ListView.Selected.Caption);
-    if MarketsForm.Visible then
-      MarketsForm.UpdateItems
-    else
-      MarketsForm.Show;
+    MarketsForm.UpdateAndShow;
   end
   else
   begin
@@ -163,6 +162,7 @@ begin
   CompareAllMenuItem.Visible := Comparing;
   CompareSelectedMenuItem.Checked := FCompareSelected;
   RemoveAllFiltersMenuItem.Visible := Comparing;
+  ShowDifferencesSubMenu.Visible := Comparing;
 end;
 
 procedure TMarketInfoForm.RemoveAllFiltersMenuItemClick(Sender: TObject);
@@ -171,8 +171,9 @@ begin
     SetCategory('',nil,true);
 end;
 
-procedure TMarketInfoForm.SetMarket(m: TMarket);
+procedure TMarketInfoForm.SetMarket(m: TMarket; comparef: Boolean);
 begin
+  Comparing := comparef;
   FCurrentMarket := m.MarketId;
   FCurrentCategory := '';
   FSelectedCommodities.Clear;
@@ -261,8 +262,8 @@ begin
     Exit;
   end;
 
-  MarketNameLabel.Caption := m.StationName + '/' + m.StarSystem + ' (' + m.StationType +')';
-  MarketEconomyLabel.Caption := m.Economies;
+  MarketNameLabel.Caption := m.FullName + ' (' + m.StationType +')';
+  MarketEconomyLabel.Caption := m.MarketEconomies;
   LastUpdateLabel.Caption := 'Last Update: ' +
     Copy(m.LastUpdate,1,10) + ' ' + Copy(m.LastUpdate,12,8) + ' UTC';
   MarketIDLabel.Caption := '#' + m. MarketID;
@@ -289,6 +290,7 @@ begin
     group := ListView.Groups.Add;
     group.Header := sl[i];
     group.GroupID := i;
+    //listview API returns invisible group headers too, need to know which one is empty
     group.Subtitle := '(empty)';
   end;
 

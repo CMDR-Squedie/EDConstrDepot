@@ -112,6 +112,7 @@ begin
   FDefaults.Values['IncludeFinished'] := '1';
   FDefaults.Values['KeepSelected'] := '1';
   FDefaults.Values['TrackMarkets'] := '1';
+  FDefaults.Values['AutoSnapshots'] := '0';
   FDefaults.Values['AllowMoreWindows'] := '0';
   FDefaults.Values['MarketsDarkMode'] := '0';
   FDefaults.Values['AnyMarketAsDepot'] := '0'; //this enables using any market type as FC

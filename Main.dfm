@@ -139,7 +139,7 @@ object EDCDForm: TEDCDForm
     Font.Color = clYellowgreen
     Font.Height = -13
     Font.Name = 'Bahnschrift SemiCondensed'
-    Font.Style = [fsBold]
+    Font.Style = []
     ParentColor = False
     ParentFont = False
     Transparent = True

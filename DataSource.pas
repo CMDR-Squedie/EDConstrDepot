@@ -38,13 +38,16 @@ type TBaseMarket = class
   Stock: TStock;
   DistFromStar: Integer;
   function FullName: string;
+  function StarSystem_nice: string;
   procedure Clear;
   constructor Create;
   destructor Destroy;
 end;
 
 type TMarket = class (TBaseMarket)
-  Economies: string;
+  Economies: string; //this changes on dock
+  MarketEconomies: string; //this changes on market visit
+  HoldSnapshots: Boolean;
   Snapshot: Boolean;
 end;
 
@@ -93,7 +96,7 @@ type TEDDataSource = class (TDataModule)
     FCapacity: Integer;
     FLastJrnlTimeStamps: TStringList;
     FDataChanged: Boolean;
-    FLoadCategories: Boolean;
+    FInitialLoad: Boolean;
     FLastFC: string;
     FTaskGroup: string;
     procedure SetDataChanged;
@@ -103,7 +106,7 @@ type TEDDataSource = class (TDataModule)
     procedure LoadAllMarkets;
     procedure UpdateCargo;
     procedure UpdateMarket;
-    procedure UpdateCapacity;    //not used
+    procedure UpdateCapacity;
     procedure UpdateSimDepot;
     procedure UpdateFromJournal(fn: string; jrnl: TStringList);
     procedure NotifyListeners;
@@ -191,7 +194,16 @@ end;
 
 function TBaseMarket.FullName: string;
 begin
-  Result := StationName + '/' + StarSystem;
+  Result := StationName + '/' + StarSystem_nice;
+end;
+
+function TBaseMarket.StarSystem_nice: string;
+var p: Integer;
+begin
+  Result := StarSystem;
+//looks nice... but not just yet
+//  p := Pos('Col 285 Sector ',Result); //custom list here
+//  if p > 0 then Result := Copy(Result,p+15,200);
 end;
 
 constructor TBaseMarket.Create;
@@ -225,16 +237,15 @@ begin
   end;
 end;
 
-
-//not used
 procedure TEDDataSource.UpdateCapacity;
 var j: TJSONObject;
     jarr: TJSONArray;
     sl: TStringList;
     s: string;
-    i: Integer;
+    i,orgCapacity: Integer;
 begin
   if CheckLoadFromFile(sl,FModuleInfoJSON) = false then Exit;
+  orgCapacity := FCapacity;
   FCapacity := 0;
   try
     j := TJSONObject.ParseJSONValue(sl.Text) as TJSONObject;
@@ -250,7 +261,7 @@ begin
     end;
     j.Free;
   except
-    FCapacity := cDefaultCapacity;
+    FCapacity := orgCapacity;
   end;
   sl.Free;
 end;
@@ -296,6 +307,7 @@ begin
     j := TJSONObject.ParseJSONValue(js) as TJSONObject;
     try
       m.MarketID := j.GetValue<string>('MarketID');
+
       if Pos('.',m.MarketID) > 0 then m.Snapshot := True;
 
       m.Status := js;
@@ -325,7 +337,8 @@ begin
              m.Stock.AddPair('$' + LowerCase(jarr.Items[i].GetValue<string>('Name_Localised')), s);
           end;
 
-          if FLoadCategories then
+          //if FInitialLoad then
+          if True then //illegals are only listed on selected markets
           begin
             s := LowerCase(jarr.Items[i].GetValue<string>('Name_Localised'));
             FItemNames.Values[s] := jarr.Items[i].GetValue<string>('Name_Localised');
@@ -355,7 +368,6 @@ begin
     UpdateSecondaryMarket(false);
   except
   end;
-//  FLoadCategories := false;
   SetDataChanged;
   sl.Free;
 end;
@@ -423,6 +435,7 @@ var j: TJSONObject;
     i,i2,cpos,q: Integer;
     cd: TConstructionDepot;
     m: TMarket;
+label LUpdateTms;
 
     function DepotForMarketId(mID: string): TConstructionDepot;
     var midx: Integer;
@@ -513,7 +526,10 @@ begin
 
 //        event := j.GetValue<string>('event');
         if event = 'Loadout' then
+        begin
           FCapacity := j.GetValue<Integer>('CargoCapacity');
+          goto LUpdateTms;
+        end;
 
         if event = 'FSDJump' then
         begin
@@ -567,7 +583,7 @@ begin
               s := Copy(s,cpos+2,200);
             cpos := Pos('_ColonisationShip; ',s);
             if cpos > 0 then
-              s := Copy(s,cpos+19,200) + ' (Primary Port)';
+              s := Copy(s,cpos+19,200) + '/Primary';
             cd.StationName := s;
             cd.StarSystem := j.GetValue<string>('StarSystem');
             try
@@ -590,24 +606,34 @@ begin
                 begin
                   m.StationType := j.GetValue<string>('StationType');
                   m.StarSystem := j.GetValue<string>('StarSystem');
-                  s := '';
-                  try s := j.GetValue<string>('StationName_Localised'); except end;
-                  if s = '' then s := j.GetValue<string>('StationName');
-                  m.StationName := s;
+                  if m.StationType <> 'FleetCarrier' then //FC names are in SupercruiseDestinationDrop only
+                  begin
+                    s := '';
+                    try s := j.GetValue<string>('StationName_Localised'); except end;
+                    if s = '' then s := j.GetValue<string>('StationName');
+                    m.StationName := s;
+                  end;
                 end;
 
                 try
                   m.DistFromStar := Trunc(j.GetValue<single>('DistFromStarLS'));
                 except end;
                 m.LastDock := tms;
-                m.Economies := '';
+                s := '';
                 jarr := j.GetValue<TJSONArray>('StationEconomies');
                 for i2 := 0 to jarr.Count - 1 do
                 begin
-                  m.Economies := m.Economies +
+                  s := s +
                     Copy(jarr.Items[i2].GetValue<string>('Name_Localised'),1,4) + ' ' +
                     Copy(jarr.Items[i2].GetValue<string>('Proportion'),1,4) + '; ';
                 end;
+                m.Economies := s;
+                if tms <= m.LastUpdate then
+                  m.MarketEconomies := s;
+
+                if FMarket.MarketID = mID then
+                  FMarket.MarketEconomies := s;
+
               end;
             except
 
@@ -724,7 +750,7 @@ begin
           end;
         end;
 
-
+LUpdateTms:;
         FLastJrnlTimeStamps.Values[fn] := entryId;
         SetDataChanged;
       except
@@ -768,13 +794,17 @@ begin
         begin
           idx := FRecentMarkets.IndexOf(m.MarketID);
           if idx = -1 then
-            FRecentMarkets.AddObject(m.MarketID,m)
+          begin
+            m.MarketEconomies := m.Economies;
+            FRecentMarkets.AddObject(m.MarketID,m);
+          end
           else
           begin
             with TMarket(FRecentMarkets.Objects[idx]) do
             begin
               Status := m.Status;
               LastUpdate := m.LastUpdate;
+              MarketEconomies := Economies; //copy from station
               Stock.Assign(m.Stock);
             end;
             m.Free;
@@ -794,13 +824,31 @@ end;
 
 procedure TEDDataSource.UpdateSecondaryMarket(forcef: Boolean);
 var fn: string;
+    ams: TMarket;
 begin
-//  if  FRecentMarkets.IndexOf(FMarket.MarketID) >= 0 then Exit;
+  if FInitialLoad then Exit;
+
+  ams := nil;
+  if Opts.Flags['AutoSnapshots'] then
+  begin
+    ams := MarketFromId(FMarket.MarketID);
+    if ams <> nil then
+//      if DataSrc.LastConstrTimes.Values[m.StarSystem] > m.LastUpdate then
+      if not ams.HoldSnapshots and (ams.MarketEconomies <> '') and (ams.Economies <> ams.MarketEconomies) then
+      begin
+        ams.HoldSnapshots := True; //prevent further auto snapshots in case market update fails
+        CreateMarketSnapshot(ams.MarketId);
+      end;
+  end;
+
   fn := FWorkingDir + 'markets\' + FMarket.MarketID + '.json';
   if forcef or FileExists(fn) or Opts.Flags['TrackMarkets'] then
   begin
     CopyFile(PChar(FMarketJSON),PChar(fn),false);
     LoadMarket(fn);
+    if ams <> nil then
+      if ams.MarketEconomies = ams.Economies then
+        ams.HoldSnapshots := False;
     SetDataChanged;
   end;
 end;
@@ -852,7 +900,6 @@ begin
   end;
   FindClose(srec);
 
-  FLoadCategories := false;
 end;
 
 procedure TEDDataSource.Update;
@@ -876,7 +923,7 @@ var sl: TStringList;
 
 begin
 
-  tc := GetTickCount;
+//  tc := GetTickCount;
 
   sl := TStringList.Create;
 
@@ -884,43 +931,42 @@ begin
 
   try
 
-//  UpdateCapacity;
-  UpdateCargo;
-  UpdateMarket;
+    UpdateCargo;
+    UpdateMarket;
 
-  fn := '';
-  res := FindFirst(FJournalDir + 'journal.*.log', faAnyFile, srec);
-  while res = 0 do
-  begin
-    if LowerCase(srec.Name) >= ('journal.' + Opts['JournalStart']) then
+    fn := '';
+    res := FindFirst(FJournalDir + 'journal.*.log', faAnyFile, srec);
+    while res = 0 do
     begin
-      fa := srec.FindData.ftLastWriteTime.dwLowDateTime;  //optimistically assuming it changes :)
-      if FFileDates.Values[srec.Name] <> IntToStr(fa) then
+      if LowerCase(srec.Name) >= ('journal.' + Opts['JournalStart']) then
       begin
-        sl.Clear;
-        try _share_LoadFromFile(sl,FJournalDir + srec.Name); except end;
-        UpdateFromJournal(srec.Name,sl);
-        FFileDates.Values[srec.Name] := IntToStr(fa);
-//        SetDataChanged;
+        fa := srec.FindData.ftLastWriteTime.dwLowDateTime;  //optimistically assuming it changes :)
+        if FFileDates.Values[srec.Name] <> IntToStr(fa) then
+        begin
+          sl.Clear;
+          try _share_LoadFromFile(sl,FJournalDir + srec.Name); except end;
+          UpdateFromJournal(srec.Name,sl);
+          FFileDates.Values[srec.Name] := IntToStr(fa);
+  //        SetDataChanged;
+        end;
       end;
+      res := FindNext(srec);
     end;
-    res := FindNext(srec);
-  end;
-  FindClose(srec);
+    FindClose(srec);
 
-  UpdateSimDepot;
-
+    UpdateSimDepot;
+    //UpdateCapacity; //if Loadout event turns out to be not enough
 
   finally
     sl.Free;
   end;
 
-//  ShowMessage(IntToStr(GetTickCount-tc));
 end;
 
 procedure TEDDataSource.Load;
 begin
   DataSrc.Update;
+  FInitialLoad := False;
   //automatic task group for new stations - after historical data is loaded
   FTaskGroup := Opts['SelectedTaskGroup'];
 end;
@@ -988,11 +1034,11 @@ begin
         Copy(s,p,Length(s));
       sl.Text := s;
       sl.SaveToFile(fn2);
+      LoadMarket(fn2);
+      SetDataChanged;
     finally
       sl.Free;
     end;
-    LoadMarket(fn2);
-    SetDataChanged;
   end;
 end;
 
@@ -1108,7 +1154,7 @@ begin
   FLastJrnlTimeStamps := TStringList.Create;
   FDataChanged := false;
 
-  FLoadCategories := true; //categories are updated once from all market data
+  FInitialLoad := true;
 
   LoadAllMarkets;
   if Opts['SimDepot'] <> '' then

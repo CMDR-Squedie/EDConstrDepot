@@ -79,6 +79,7 @@ type
     { Public declarations }
     procedure OnEDDataUpdate;
     procedure ApplySettings;
+    procedure UpdateAndShow;
   end;
 
 var
@@ -96,6 +97,16 @@ const cMarketFavInd: array [miNormal..miLast] of string = ('','','','●','●�
 procedure TMarketsForm.OnEDDataUpdate;
 begin
   if Visible then UpdateItems;
+end;
+
+
+procedure TMarketsForm.UpdateAndShow;
+begin
+  if Visible then
+    UpdateItems
+  else
+    Show;
+  if WindowState = wsMinimized then WindowState := wsNormal;
 end;
 
 procedure TMarketsForm.OtherGroupMenuItemClick(Sender: TObject);
@@ -245,8 +256,7 @@ begin
 
 
         mi := TMarketInfoForm.Create(Application);
-        mi.Comparing := True;
-        mi.SetMarket(TMarket(ListView.Items[i].Data));
+         mi.SetMarket(TMarket(ListView.Items[i].Data),true);
         mi.FormStyle := fsStayOnTop;
         mi.Position := poDesigned;
         mi.BorderStyle := bsNone;
@@ -357,6 +367,11 @@ begin
   self.Left := StrToIntDef(Opts['Markets.Left'],Screen.Width - self.Width);
   self.Top := StrToIntDef(Opts['Markets.Top'],(Screen.Height - self.Height) div 2);
 
+  if Opts['Markets.AlphaBlend'] <> '' then
+  begin
+    AlphaBlendValue := StrToIntDef(Opts['Markets.AlphaBlend'],255);
+    AlphaBlend := True;
+  end;
 end;
 
 procedure TMarketsForm.FormShow(Sender: TObject);
@@ -465,7 +480,7 @@ begin
           item.SubItems.Add('SimulatedDepot')
         else
           item.SubItems.Add('ConstructionDepot');
-      item.SubItems.Add(cd.StarSystem);
+      item.SubItems.Add(cd.StarSystem_nice);
       s := cd.LastDock;
       if s < cd.LastUpdate then s := cd.LastUpdate;
       item.SubItems.Add(niceTime(s));
@@ -496,7 +511,7 @@ begin
       item.Data := m;
       item.Caption := m.StationName;
       item.SubItems.Add(m.StationType);
-      item.SubItems.Add(m.StarSystem);
+      item.SubItems.Add(m.StarSystem_nice);
       s := m.LastDock;
       if s < m.LastUpdate then s := m.LastUpdate;
       s := niceTime(s);
@@ -528,7 +543,7 @@ begin
       item.Data := m;
       item.Caption := m.StationName;
       item.SubItems.Add(m.StationType);
-      item.SubItems.Add(m.StarSystem);
+      item.SubItems.Add(m.StarSystem_nice);
       s := niceTime(m.LastUpdate);
       item.SubItems.Add(s);
       item.SubItems.Add('');
@@ -603,7 +618,7 @@ begin
   case action  of
   2:
     begin
-      FilterEdit.Text := TBaseMarket(ListView.Selected.Data).StarSystem;
+      FilterEdit.Text := TBaseMarket(ListView.Selected.Data).StarSystem_nice;
       UpdateItems;
     end;
   4:
@@ -666,7 +681,7 @@ begin
 //        with MarketInfoForm do
         with TMarketInfoForm.Create(Application) do
         begin
-          SetMarket(TMarket(self.ListView.Selected.Data));
+          SetMarket(TMarket(self.ListView.Selected.Data),false);
           FormStyle := fsStayOnTop;
           Show;
         end;
