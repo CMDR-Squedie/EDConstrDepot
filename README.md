@@ -35,6 +35,7 @@ Features:
 - select commodity to see which markets supply it (double click on commodity name)
 - list of visited markets, with their economies
 - list of commodities sold in market
+- track colony market history with snapshots (manual or automatic)
 - compare markets or snapshots of same market (eg. after strong/weak links were added) [details](https://github.com/CMDR-Squedie/EDConstrDepot/releases/tag/release.v18)
 - task groups - group markets and depots by context (personal projects/location in galaxy etc.)
 
