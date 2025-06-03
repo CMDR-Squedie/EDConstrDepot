@@ -12,7 +12,7 @@ The most recent active construction depot is selected by default, regardless of 
 Use the popup menu (right mouse button) to select specific construction depot, switch markets or use Fleet Carrier options.
 You can use **Add Construction Info** command to enter your own short text about each construction (eg. there is no construction type in journal, use this command if you need it).
 
-_Markets are only updated if you actually visit them (merely docking is not sufficient). _
+Markets are only updated if you actually visit them (merely docking is not sufficient).
 
 You can manage all your visited markets and constructions in one place using the **Manage All** command. This tool lets you filter data, search for commodities, quickly set active market or construction, ignore/forget selected markets, check market economies, compare markets or their historical snapshots etc.
 
