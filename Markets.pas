@@ -66,6 +66,10 @@ type
     procedure RemoveSnapshotMenuItemClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure CompareCheckClick(Sender: TObject);
+    procedure Panel1MouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    procedure Panel1MouseMove(Sender: TObject; Shift: TShiftState; X,
+      Y: Integer);
   private
     { Private declarations }
     SortColumn: Integer;
@@ -136,6 +140,25 @@ begin
         DataSrc.UpdateMarketGroup(TBaseMarket(ListView.Items[i].Data).MarketID,s,false);
   finally
     DataSrc.EndUpdate;
+  end;
+end;
+
+procedure TMarketsForm.Panel1MouseDown(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+begin
+  gLastCursorPos := Mouse.CursorPos;
+end;
+
+procedure TMarketsForm.Panel1MouseMove(Sender: TObject; Shift: TShiftState; X,
+  Y: Integer);
+var pt: TPoint;
+begin
+  if ssLeft in Shift then
+  begin
+    pt := Mouse.CursorPos;
+    self.Left := self.Left + pt.X - gLastCursorPos.X;
+    self.Top := self.Top + pt.Y - gLastCursorPos.Y;
+    gLastCursorPos := pt;
   end;
 end;
 
@@ -472,11 +495,11 @@ begin
         if lev = miIgnore then continue;
       item := ListView.Items.Add;
       item.Data := cd;
-      item.Caption := cd.StationName;
+      item.Caption := cd.StationName_full;
       if cd.Finished then
         item.SubItems.Add('FinishedConstruction')
       else
-        if cd.StationType = 'FleetCarrier' then
+        if cd.Simulated then
           item.SubItems.Add('SimulatedDepot')
         else
           item.SubItems.Add('ConstructionDepot');
@@ -509,7 +532,7 @@ begin
         if lev = miIgnore then continue;
       item := ListView.Items.Add;
       item.Data := m;
-      item.Caption := m.StationName;
+      item.Caption := m.StationName_full;
       item.SubItems.Add(m.StationType);
       item.SubItems.Add(m.StarSystem_nice);
       s := m.LastDock;

@@ -125,14 +125,13 @@ private
 
 var
   EDCDForm: TEDCDForm;
+ gLastCursorPos: TPoint;
 
 implementation
 
 {$R *.dfm}
 
 uses Splash, Markets, SettingsGUI, MarketInfo, Clipbrd;
-
-var gLastCursorPos: TPoint;
 
 const cDefaultCapacity: Integer = 784;
 
@@ -230,7 +229,7 @@ begin
   if FCurrentDepot = nil then Exit;
 
   orgs := DataSrc.MarketComments.Values[FCurrentDepot.MarketID];
-  s := Vcl.Dialogs.InputBox(FCurrentDepot.StationName, 'Info', orgs);
+  s := Vcl.Dialogs.InputBox(FCurrentDepot.StationName_full, 'Info', orgs);
   if s <> orgs then
     DataSrc.UpdateMarketComment(FCurrentDepot.MarketID,s);
 end;
@@ -495,7 +494,7 @@ var j: TJSONObject;
     a: array [colReq..colStatus] of string;
     cd: TConstructionDepot;
     col: TCDCol;
-    bestMarket: TMarket;
+    m,bestMarket: TMarket;
 label LSkipDepotSelection;
 begin
 
@@ -562,7 +561,7 @@ begin
       if (FSelectedConstructions.IndexOf(cd.MarketID) = -1) and (ci <> lastWIP) then continue;
       FCurrentDepot := cd;
       if cnames <> '' then cnames := cnames + ', ';
-      cnames := cnames + cd.StationName;
+      cnames := cnames + cd.StationName_full;
       if DataSrc.MarketComments.Values[cd.MarketID] <> '' then
         cnames := cnames + ' (' + DataSrc.MarketComments.Values[cd.MarketID] + ')';
       js := cd.Status;
@@ -841,7 +840,13 @@ begin
           if DataSrc.Market.Stock.Count > 0 then
           begin
             a[colReq] := a[colReq] + Chr(13);
-            a[colText] := a[colText] + '□ ' + DataSrc.Market.FullName + Chr(13);
+            s := DataSrc.Market.FullName;
+            if DataSrc.Market.StationType = 'FleetCarrier' then
+            begin
+              m := DataSrc.MarketFromId(DataSrc.Market.MarketId);
+              if m <> nil then s := m.FullName;
+            end;
+            a[colText] := a[colText] + '□ ' + s + Chr(13);
           end;
         if bestMarket <> nil then
           begin
@@ -976,6 +981,7 @@ end;
 procedure TEDCDForm.UpdTimerTimer(Sender: TObject);
 var orgactivewnd: HWND;
     c,orgc: TColor;
+    samples: array [0..3] of TColor;
     clr: System.UITypes.TColorRec;
     p: TPoint;
     sdc: HDC;
@@ -1303,7 +1309,7 @@ begin
 
 
   if Vcl.Dialogs.MessageDlg('Are you sure you want to use ' +
-    m.StationName + ' as simulated Construction Depot?',
+    m.StationName_full + ' as simulated Construction Depot?',
     mtConfirmation, [mbYes, mbNo], 0, mbNo) = mrNo then Exit;
 
   DataSrc.MarketToSimDepot(m.MarketId);
@@ -1351,12 +1357,12 @@ begin
 
   if DataSrc.RecentMarkets.IndexOf(DataSrc.Market.MarketID) >= 0 then
   begin
-    ShowMessage(DataSrc.Market.StationName + Chr(13) + 'Market is already available for selection.');
+    ShowMessage(DataSrc.Market.StationName_full + Chr(13) + 'Market is already available for selection.');
     Exit;
   end;
 
   if Vcl.Dialogs.MessageDlg('Are you sure you want add ' +
-    DataSrc.Market.StationName + ' to market list?',
+    DataSrc.Market.StationName_full + ' to market list?',
     mtConfirmation, [mbYes, mbNo], 0, mbNo) = mrNo then Exit;
 
   DataSrc.UpdateSecondaryMarket(true);
@@ -1368,7 +1374,7 @@ begin
   if FSecondaryMarket = nil then Exit;
 
   if Vcl.Dialogs.MessageDlg('Are you sure you want remove ' +
-    FSecondaryMarket.StationName + ' from market list?',
+    FSecondaryMarket.StationName_full + ' from market list?',
     mtConfirmation, [mbYes, mbNo], 0, mbNo) = mrNo then Exit;
 
   DataSrc.RemoveSecondaryMarket(FSecondaryMarket);
@@ -1632,7 +1638,7 @@ begin
     if i < 0 then break;
     m := TMarket(sl.Objects[i]);
     mitem := TMenuItem.Create(FleetCarrierSubMenu);
-    mitem.Caption := m.StationName;
+    mitem.Caption := m.StationName_full;
     s := DataSrc.MarketComments.Values[m.MarketID];
     if s <> '' then
       mitem.Caption := mitem.Caption + ' (' + Copy(s,1,20) + ')';
@@ -1686,7 +1692,10 @@ begin
     Opts['Left'] := IntToStr(self.Left);
     Opts['Top'] := IntToStr(self.Top);
     if Opts.Flags['KeepSelected'] then
-      Opts['SelectedDepots'] := FSelectedConstructions.CommaText;
+      if FUseEmptyDepot then
+        Opts['SelectedDepots'] := 'cargo'
+      else
+        Opts['SelectedDepots'] := FSelectedConstructions.CommaText;
     if FAutoSelectMarket then
       Opts['SelectedMarket'] := 'auto'
     else
@@ -1711,7 +1720,10 @@ begin
   FSelectedConstructions := TStringList.Create;
 
   if Opts.Flags['KeepSelected'] then
-    FSelectedConstructions.CommaText := Opts['SelectedDepots'];
+    if Opts['SelectedDepots'] = 'cargo' then
+      FUseEmptyDepot := True
+    else
+      FSelectedConstructions.CommaText := Opts['SelectedDepots'];
 
   FTransColor := self.Color;
 

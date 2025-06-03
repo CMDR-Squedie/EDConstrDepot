@@ -13,6 +13,7 @@ object MarketInfoForm: TMarketInfoForm
   Position = poScreenCenter
   OnClose = FormClose
   OnCreate = FormCreate
+  OnMouseWheel = FormMouseWheel
   TextHeight = 16
   object VertDivider2: TShape
     Left = 367

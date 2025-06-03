@@ -38,6 +38,8 @@ type
     procedure CompareAllMenuItemClick(Sender: TObject);
     procedure CopyMenuItemClick(Sender: TObject);
     procedure ShowDifferences1MenuItemClick(Sender: TObject);
+    procedure FormMouseWheel(Sender: TObject; Shift: TShiftState;
+      WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
   private
     { Private declarations }
     FCurrentMarket: string;
@@ -90,6 +92,13 @@ begin
   FSharedItems := TStringList.Create;
   DataSrc.AddListener(self);
   ApplySettings;
+end;
+
+procedure TMarketInfoForm.FormMouseWheel(Sender: TObject; Shift: TShiftState;
+  WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
+begin
+  if not self.Active then
+    self.BringToFront;
 end;
 
 procedure TMarketInfoForm.ListViewDblClick(Sender: TObject);
@@ -347,9 +356,13 @@ begin
         s := jarr.Items[i].GetValue<string>('SellPrice');
         p := StrToInt(s);
         item.SubItems.Add(Format('%.0n', [double(p)]));
-        mean := StrToInt(jarr.Items[i].GetValue<string>('MeanPrice'));
-        s := IntToStr((100*(p-mean) div mean)) + '%';
-        if p > mean then s := '+' + s;
+        s := '';
+        try
+          mean := StrToInt(jarr.Items[i].GetValue<string>('MeanPrice'));
+          s := IntToStr((100*(p-mean) div mean)) + '%';
+          if p > mean then s := '+' + s;
+        except
+        end;
         item.SubItems.Add(s);
         s := '';
         if FSelectedCommodities.IndexOf(item.Caption) > -1 then

@@ -30,6 +30,7 @@ end;
 type TBaseMarket = class
   MarketID: string;
   StationName: string;
+  StationName2: string; //eg. full name for carriers
   StationType: string;
   StarSystem: string;
   LastUpdate: string;
@@ -38,6 +39,7 @@ type TBaseMarket = class
   Stock: TStock;
   DistFromStar: Integer;
   function FullName: string;
+  function StationName_full: string;
   function StarSystem_nice: string;
   procedure Clear;
   constructor Create;
@@ -56,18 +58,34 @@ type TConstructionDepot = class (TBaseMarket)
   Simulated: Boolean;
 end;
 
-{
+
 type TStarSystem = class
   StarSystem: string;
   SystemAddress: string;
-  StarPosX: string;
-  StarPosY: string;
-  StarPosZ: string;
+  StarPosX: Double;
+  StarPosY: Double;
+  StarPosZ: Double;
   SystemSecurity: string;
-  Population: string;
+  Population: Int64;
+  PopHistory: TStringList;
   Status: string;
+  FSSData: string;
+  Architect: string;
+  function DistanceTo(s: TStarSystem): Double;
+  function PopForTimeStamp(tms: string): Int64;
+  procedure AddPopToHistory(tms: string; pop: Int64);
+  constructor Create;
+  destructor Destroy;
 end;
-}
+
+type TSystemList = class (TStringList)
+  function GetSystemByName(const Name: string): TStarSystem;
+  function GetSystemByIdx(const idx: Integer): TStarSystem;
+public
+  property SystemByName[const Name: string]: TStarSystem read GetSystemByName;
+  property SystemByIdx[const idx: Integer]: TStarSystem read GetSystemByIdx; default;
+//  property SystemByAddr[const Addr: string]: TStarSystem read GetSystemByAddr;
+end;
 
 //not used
 const cDefaultCapacity: Integer = 784;
@@ -91,6 +109,7 @@ type TEDDataSource = class (TDataModule)
     FMarketComments: TStringList;
     FMarketLevels: TStringList;
     FMarketGroups: TStringList;
+    FStarSystems: TSystemList;
     FWorkingDir,FJournalDir: string;
     FMarketJSON,FCargoJSON,FModuleInfoJSON: string;
     FCapacity: Integer;
@@ -113,7 +132,9 @@ type TEDDataSource = class (TDataModule)
     procedure Update;
     procedure SetTaskGroup(s: string);
   public
+    //todo: switch to TDictionary
     property Constructions: TStringList read FConstructions;
+    property StarSystems: TSystemList read FStarSystems;
     property RecentMarkets: TStringList read FRecentMarkets;
     property MarketSnapshots: TStringList read FMarketSnapshots;
     property LastConstrTimes: TStringList read FLastConstrTimes;
@@ -194,7 +215,7 @@ end;
 
 function TBaseMarket.FullName: string;
 begin
-  Result := StationName + '/' + StarSystem_nice;
+  Result := StationName_full + '/' + StarSystem_nice;
 end;
 
 function TBaseMarket.StarSystem_nice: string;
@@ -204,6 +225,12 @@ begin
 //looks nice... but not just yet
 //  p := Pos('Col 285 Sector ',Result); //custom list here
 //  if p > 0 then Result := Copy(Result,p+15,200);
+end;
+
+function TBaseMarket.StationName_full: string;
+begin
+  Result := StationName;
+  if StationName2 <> '' then Result := StationName2;
 end;
 
 constructor TBaseMarket.Create;
@@ -217,6 +244,57 @@ begin
   Stock.Free;
 end;
 
+function TStarSystem.DistanceTo(s: TStarSystem): Double;
+begin
+  Result := Sqrt(Sqr(StarPosX-s.StarPosX) + Sqr(StarPosY-s.StarPosY) + Sqr(StarPosZ-s.StarPosZ));
+end;
+
+function TStarSystem.PopForTimeStamp(tms: string): Int64;
+var i: Integer;
+begin
+  Result := Population;
+  for i := PopHistory.Count - 1 downto 0 do
+  begin
+    if PopHistory.Names[i] <= tms then
+    begin
+      Result := StrToInt64(PopHistory.ValueFromIndex[i]);
+      break;
+    end;
+  end;
+end;
+
+procedure TStarSystem.AddPopToHistory(tms: string; pop: Int64);
+var i: Integer;
+begin
+  if PopHistory.Count > 0 then
+    if pop = StrToInt64(PopHistory.ValueFromIndex[PopHistory.Count-1]) then Exit;
+  PopHistory.AddPair(tms,IntToStr(pop));
+end;
+
+constructor TStarSystem.Create;
+begin
+  PopHistory := TStringList.Create;
+end;
+
+destructor TStarSystem.Destroy;
+begin
+  PopHistory.Free;
+end;
+
+function TSystemList.GetSystemByName(const Name: string): TStarSystem;
+var idx: Integer;
+begin
+  Result := nil;
+  idx := IndexOf(Name);
+  if idx > -1 then
+    Result := TStarSystem(Objects[idx]);
+end;
+
+function TSystemList.GetSystemByIdx(const idx: Integer): TStarSystem;
+var i: Integer;
+begin
+  Result := TStarSystem(Objects[idx]);
+end;
 
 function TEDDataSource.CheckLoadFromFile(var sl: TStringList; fn: string): Boolean;
 var fa: Integer;
@@ -319,7 +397,11 @@ begin
         m.StarSystem := j.GetValue<string>('StarSystem');
         try
           s := j.GetValue<string>('sEconomies'); //snapshots
-          if s <> '' then m.Economies := s;
+          if s <> '' then 
+          begin
+            m.Economies := s;
+            m.MarketEconomies := s;
+          end;
         except end;
         m.LastUpdate := j.GetValue<string>('timestamp');
         m.Stock.Clear;
@@ -384,6 +466,7 @@ begin
   if FSimDepot.LastUpdate = m.LastUpdate then Exit;
   FSimDepot.Stock.Clear; //temporary updates
   FSimDepot.StationName := m.StationName;
+  FSimDepot.StationName2 := m.StationName2;
   FSimDepot.StarSystem := m.StarSystem;
   FSimDepot.Status := m.Status;
   FSimDepot.LastUpdate := m.LastUpdate;
@@ -518,6 +601,10 @@ begin
             then continue;
         event := s;
 
+//        if not FInitialLoad then
+//          System.IOUtils.TFile.AppendAllText(
+//            DataSrc.FWorkingDir + 'journal_backup.log',js+Chr(13),TEncoding.ASCII);
+
         j := TJSONObject.ParseJSONValue(jrnl[i]) as TJSONObject;
         tms := j.GetValue<string>('timestamp');
         //line index should be enough to track new events, tms is added to be 100% sure...
@@ -560,9 +647,9 @@ begin
             s := j.GetValue<string>('Type');
             if s <> '' then
             begin
-              m.StationName := s;
+              m.StationName2 := s;
               if FSimDepot.MarketID = mID then
-                FSimDepot.StationName := m.StationName;
+                FSimDepot.StationName2 := m.StationName2;
             end;
           end;
         end;
@@ -606,13 +693,10 @@ begin
                 begin
                   m.StationType := j.GetValue<string>('StationType');
                   m.StarSystem := j.GetValue<string>('StarSystem');
-                  if m.StationType <> 'FleetCarrier' then //FC names are in SupercruiseDestinationDrop only
-                  begin
-                    s := '';
-                    try s := j.GetValue<string>('StationName_Localised'); except end;
-                    if s = '' then s := j.GetValue<string>('StationName');
-                    m.StationName := s;
-                  end;
+                  s := '';
+                  try s := j.GetValue<string>('StationName_Localised'); except end;
+                  if s = '' then s := j.GetValue<string>('StationName');
+                  m.StationName := s;
                 end;
 
                 try
@@ -747,6 +831,12 @@ begin
               except
               end;
             end;
+            if FMarket.MarketID = mID then
+            begin
+              FMarket.Stock.Assign(m.Stock);
+              FMarket.LastUpdate := tms;
+            end;
+
           end;
         end;
 
@@ -1030,7 +1120,7 @@ begin
       p := Pos(', "StationName"',s);
       if p = 0 then raise Exception.Create('Unable to modify MarketID');
       s := Copy(s,1,p-1) + '.' + IntToStr(snr) +
-        ', "sEconomies":"' + m.Economies + '"' +
+        ', "sEconomies":"' + m.MarketEconomies + '"' +
         Copy(s,p,Length(s));
       sl.Text := s;
       sl.SaveToFile(fn2);
@@ -1149,6 +1239,7 @@ begin
   FMarketComments := TStringList.Create;
   FMarketLevels := TStringList.Create;
   FMarketGroups := TStringList.Create;
+  FStarSystems := TSystemList.Create;
   FItemCategories := TStringList.Create;
   FItemNames := TStringList.Create;
   FLastJrnlTimeStamps := TStringList.Create;

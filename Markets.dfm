@@ -17,9 +17,9 @@ object MarketsForm: TMarketsForm
   TextHeight = 15
   object ListView: TListView
     Left = 0
-    Top = 41
+    Top = 34
     Width = 1115
-    Height = 514
+    Height = 521
     Align = alClient
     BevelEdges = []
     BevelInner = bvNone
@@ -89,12 +89,14 @@ object MarketsForm: TMarketsForm
     OnCompare = ListViewCompare
     OnDblClick = ListViewAction
     OnMouseDown = ListViewMouseDown
+    ExplicitTop = 41
+    ExplicitHeight = 514
   end
   object Panel1: TPanel
     Left = 0
     Top = 0
     Width = 1115
-    Height = 41
+    Height = 34
     Align = alTop
     BevelEdges = []
     BevelOuter = bvNone
@@ -107,6 +109,8 @@ object MarketsForm: TMarketsForm
     ParentBackground = False
     ParentFont = False
     TabOrder = 1
+    OnMouseDown = Panel1MouseDown
+    OnMouseMove = Panel1MouseMove
     object Label1: TLabel
       Left = 8
       Top = 8
