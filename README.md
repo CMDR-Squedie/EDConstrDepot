@@ -6,6 +6,8 @@ A minimalistic transparent overlay tool to track construction depots in Elite Da
 The overlay feature only works in **Borderless/Windowed** mode in Elite.
 You need to dock to construction depot to start tracking (sorry, this is how player journals work), so consider hauling Steel or other popular bulk quantity commodity already on your first visit.
 
+To change font, transparency levels, click-through features, hide info you don't need or change other visuals, use the **Settings** command.
+
 The most recent active construction depot is selected by default, regardless of the owner.
 Use the popup menu (right mouse button) to select specific construction depot, switch markets or use Fleet Carrier options.
 You can use **Add Construction Info** command to enter your own short text about each construction (eg. there is no construction type in journal, use this command if you need it).
