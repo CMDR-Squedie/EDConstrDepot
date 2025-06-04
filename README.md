@@ -63,8 +63,6 @@ Advanced Features (.ini file only):
  - display multiple overlays, each with its own construction depot. Either run multiple copies of the app, or use **AllowMoreWindows** option and New Window command (this option is experimental and will not save your workspace though).
  - run the app on a PC tablet next to your main screen (old tablets with Win10 32-bit will do). You need to share your ED Saved Games folder for that and use **JournalDir** option to enter full UNC path.
 
-Extra fonts: [link](https://edassets.org/#/fonts) 
-
 o7, CMDRs!
 
 
