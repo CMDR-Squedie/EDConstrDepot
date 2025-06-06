@@ -39,6 +39,7 @@ Features:
 - list of commodities sold in market
 - track colony market history with snapshots (manual or automatic)
 - compare markets or snapshots of same market (eg. after strong/weak links were added) [details](https://github.com/CMDR-Squedie/EDConstrDepot/releases/tag/release.v18)
+- delivery time left, average dock-to-dock time and most recent time; delivery history with recent markets [details](https://github.com/CMDR-Squedie/EDConstrDepot/releases/tag/release.v21)
 - task groups - group markets and depots by context (personal projects/location in galaxy etc.)
 
 Indicators:
