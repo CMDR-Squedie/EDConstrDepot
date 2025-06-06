@@ -93,8 +93,10 @@ begin
   FDefaults.Values['ShowUnderCapacity'] := '1';
   FDefaults.Values['ShowProgress'] := '1';
   FDefaults.Values['ShowFlightsLeft'] := '1';
+  FDefaults.Values['ShowDelTime'] := '0';
   FDefaults.Values['ShowRecentMarket'] := '1';
   FDefaults.Values['ShowBestMarket'] := '1';
+  FDefaults.Values['SelectedMarket'] := 'auto';
   FDefaults.Values['ShowDividers'] := '1';
   FDefaults.Values['ShowIndicators'] := '2';
   FDefaults.Values['IndicatorsPadding'] := '1';

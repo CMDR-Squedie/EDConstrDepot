@@ -49,6 +49,9 @@ type
     NewTaskGroupMenuItem: TMenuItem;
     N5: TMenuItem;
     CurrentTGMenuItem: TMenuItem;
+    ResetDockTimeMenuItem: TMenuItem;
+    FlightHistoryMenuItem: TMenuItem;
+    DeliveriesSubMenu: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure UpdTimerTimer(Sender: TObject);
     procedure TextColLabelMouseMove(Sender: TObject; Shift: TShiftState; X,
@@ -86,6 +89,8 @@ type
     procedure SwitchTaskGroupMenuItemClick(Sender: TObject);
     procedure NewTaskGroupMenuItemClick(Sender: TObject);
     procedure MarketInfoMenuItemClick(Sender: TObject);
+    procedure ResetDockTimeMenuItemClick(Sender: TObject);
+    procedure FlightHistoryMenuItemClick(Sender: TObject);
 private
     { Private declarations }
     FSelectedConstructions: TStringList;
@@ -93,6 +98,7 @@ private
     FSecondaryMarket: TMarket;
     FAutoSelectMarket: Boolean;
     FUseEmptyDepot: Boolean;
+    FFlightHistory: Boolean;
     FWorkingDir,FJournalDir: string;
 //    FSettings: TSettings;
     FTransColor: TColor;
@@ -299,6 +305,8 @@ begin
     begin
       score := 0;
       totAvail := 0;
+      lowCnt := 0;
+      uniqueCnt := 0;
       for i := 0 to reqList.Count - 1 do
       begin
         s := LowerCase(reqList.Names[i]);
@@ -308,8 +316,6 @@ begin
         if shipQty > DataSrc.Capacity then shipQty := DataSrc.Capacity;
 
 
-        lowCnt := 0;
-        uniqueCnt := 0;
         stock := m.Stock[s];
         if stock > 0 then
         begin
@@ -411,6 +417,12 @@ begin
   end;
 end;
 
+procedure TEDCDForm.FlightHistoryMenuItemClick(Sender: TObject);
+begin
+  FFlightHistory := not FFlightHistory;
+  UpdateConstrDepot;
+end;
+
 function TEDCDForm.GetItemMarketIndicators(normItem: string; reqQty: Integer; cargo: Integer; bestMarket: TMarket): string;
 var stock,maxQty: Integer;
     indPad: string;
@@ -495,6 +507,7 @@ var j: TJSONObject;
     cd: TConstructionDepot;
     col: TCDCol;
     m,bestMarket: TMarket;
+    avgt: Extended;
 label LSkipDepotSelection;
 begin
 
@@ -834,6 +847,60 @@ begin
          a[colText] := a[colText] + 'Flights left: ' + s + ' (' + s2 + 't)' + Chr(13);
         end;
       end;
+
+      if FFlightHistory then
+      begin
+        if FCurrentDepot <> nil then
+        with FCurrentDepot.DockToDockTimes do
+        for ci := AddIdx to AddIdx + High(fdata) do
+        begin
+          i := ci mod (High(fdata)+1);
+          if fdata[i].Time = 0 then continue;
+          s := '?';
+          m := DataSrc.MarketFromId(fdata[i].Destination);
+          if m <> nil then s := m.FullName;
+          a[colReq] := a[colReq] + Chr(13);
+          a[colText] := a[colText] + '⮀ ' + s + Chr(13);
+          s := FloatToStrF(fdata[i].Time,ffFixed,7,1);
+          a[colStock] := a[colStock] + s +  Chr(13);
+        end;
+      end;
+
+
+      if Opts.Flags['ShowDelTime'] then
+      begin
+        a[colReq] := a[colReq] + Chr(13);
+
+        s := '(no dock-to-dock times)';
+        avgt := FCurrentDepot.DockToDockTimes.GetAvg;
+        if avgt > 0 then
+        begin
+          reqQty := totReqQty-totDelQty;
+          s := 'Time left: ';        //⏱🕒
+          if FCurrentDepot.Finished then
+          begin
+            reqQty := totReqQty;
+            s := 'Est. Time: ';
+          end;
+
+          s2 := '?';
+          if DataSrc.Capacity > 0 then
+          begin
+            q := reqQty div DataSrc.Capacity;
+            if reqQty/DataSrc.Capacity <> reqQty div DataSrc.Capacity then q := q + 1;
+            s2 := FloatToStrF(avgt / 60 * q,ffFixed,7,1) + 'h';
+          end;
+          s := s + s2 + ', avg. ' + FloatToStrF(avgt,ffFixed,7,1) + 'm';
+        end;
+
+        a[colText] := a[colText] + s + Chr(13);
+        s := '';
+        if (FCurrentDepot.DockToDockTimes.Last > 0) and
+           (FCurrentDepot.DockToDockTimes.Last < cMaxDockToDockTime) then
+          s := '⏳' + FloatToStrF(FCurrentDepot.DockToDockTimes.Last,ffFixed,7,1);
+        a[colStock] := a[colStock] + s + Chr(13);
+      end;
+
       if Opts.Flags['ShowIndicators'] then
       begin
         if Opts.Flags['ShowRecentMarket'] then
@@ -933,6 +1000,7 @@ begin
         begin
           if FLayer1 <> nil then FLayer1.FormStyle := fsStayOnTop;
           self.FormStyle := fsStayOnTop;
+          ToggleTitleBar(false);
           FEliteWnd := wnd;
         end
         else
@@ -944,6 +1012,24 @@ begin
     finally
       CloseHandle(hProcess);
     end
+end;
+
+procedure TEDCDForm.ResetDockTimeMenuItemClick(Sender: TObject);
+var d: Extended;
+begin
+  if Vcl.Dialogs.MessageDlg('Are you sure you want start a new estimate?' + Chr(13) +
+    'Only the most recent time will be retained.' + Chr(13) +
+    '(The average will again include up to 6 recent runs after restart.)' ,
+    mtConfirmation, [mbYes, mbNo], 0, mbNo) = mrNo then Exit;
+
+  //DataSrc.ResetDockTimes;
+  if FCurrentDepot <> nil then
+  begin
+    d := FCurrentDepot.DockToDockTimes.Last;
+    FCurrentDepot.DockToDockTimes.Clear;
+    FCurrentDepot.DockToDockTimes.Add(d,DataSrc.LastMarketId);
+  end;
+  UpdateConstrDepot;
 end;
 
 procedure TEDCDForm.UpdateTransparency;
@@ -1145,17 +1231,6 @@ procedure TEDCDForm.Layer1Click(Sender: TObject);
 var fs: TFormStyle;
 begin
   self.BringToFront;
-
-//  fs := self.FormStyle;
-//  self.FormStyle := fsStayOnTop;
-//  self.FormStyle := fs;
-{
-  FLayer1.FormStyle := fsNormal;
-  FLayer1.SendToBack;
-  FLayer1.FormStyle := fsStayOnTop;
-  self.BringToFront;
-  self.FormStyle := fsStayOnTop;
-}
 end;
 
 
@@ -1475,6 +1550,8 @@ begin
   ComparePurchaseOrderMenuItem.Checked := Opts['UseExtCargo'] = '3';
   CurrentTGMenuItem.Caption := 'Task Group: ' + DataSrc.TaskGroup;
   CurrentTGMenuItem.Visible := DataSrc.TaskGroup <> '';
+  DeliveriesSubMenu.Visible := Opts.Flags['ShowDelTime'];
+  FlightHistoryMenuItem.Checked := FFlightHistory;
 
   SelectDepotSubMenu.Clear;
   activef := False;

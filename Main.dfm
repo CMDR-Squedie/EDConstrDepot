@@ -277,6 +277,17 @@ object EDCDForm: TEDCDForm
       Caption = 'Add Construction Info'
       OnClick = AddDepotInfoMenuItemClick
     end
+    object DeliveriesSubMenu: TMenuItem
+      Caption = 'Deliveries'
+      object ResetDockTimeMenuItem: TMenuItem
+        Caption = 'Reset Dock Times'
+        OnClick = ResetDockTimeMenuItemClick
+      end
+      object FlightHistoryMenuItem: TMenuItem
+        Caption = 'Delivery History'
+        OnClick = FlightHistoryMenuItemClick
+      end
+    end
     object ManageMarketsMenuItem: TMenuItem
       Caption = 'Manage All'
       OnClick = ManageMarketsMenuItemClick

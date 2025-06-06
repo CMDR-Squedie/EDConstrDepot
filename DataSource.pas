@@ -3,7 +3,8 @@
 
 interface
 
-uses Winapi.Windows, Winapi.Messages, Winapi.PsAPI, System.Classes, System.SysUtils, System.JSON, System.IOUtils, Settings,
+uses Winapi.Windows, Winapi.Messages, Winapi.PsAPI, System.Classes, System.SysUtils,
+  System.JSON, System.IOUtils, System.IniFiles, Settings,
   Vcl.ExtCtrls,Vcl.Dialogs;
 
 type IEDDataListener = interface
@@ -24,8 +25,24 @@ type TStock = class(TStringList)
     procedure SetQty(const Name: string; v: Integer);
     function GetQty(const Name: string): Integer;
   public
+    ShipTotal: Integer; //this is only updated from cargo.json!
     property Qty[const Name: string]: Integer read GetQty write SetQty; default;
 end;
+
+type TFlightData = record
+  Time: Extended;
+  Destination: string;
+end;
+
+type TDockToDockTimes = class
+  Last: Extended;
+  AddIdx: Integer;
+  fdata: array [0..5] of TFlightData;
+  procedure Clear;
+  procedure Add(t: Extended; dest: string);
+  function GetAvg: Extended;
+end;
+
 
 type TBaseMarket = class
   MarketID: string;
@@ -38,6 +55,7 @@ type TBaseMarket = class
   Status: string;
   Stock: TStock;
   DistFromStar: Integer;
+  DockToDockTimes: TDockToDockTimes;
   function FullName: string;
   function StationName_full: string;
   function StarSystem_nice: string;
@@ -96,7 +114,7 @@ type TEDDataSource = class (TDataModule)
   private
     FListeners: array of IEDDataListener;
     FCargo: TStock;
-    FFileDates: TStringList;
+    FFileDates: THashedStringList;
     FLastConstrTimes: TStringList;
     FItemCategories: TStringList;
     FItemNames: TStringList;
@@ -118,6 +136,9 @@ type TEDDataSource = class (TDataModule)
     FInitialLoad: Boolean;
     FLastFC: string;
     FTaskGroup: string;
+    FLastConstrDockTime: string;
+    FLastDockDepotId: string;
+    FLastMarketId: string;
     procedure SetDataChanged;
     function CheckLoadFromFile(var sl: TStringList; fn: string): Boolean;
     procedure MarketFromJSON(m: TMarket; js: string);
@@ -131,8 +152,9 @@ type TEDDataSource = class (TDataModule)
     procedure NotifyListeners;
     procedure Update;
     procedure SetTaskGroup(s: string);
+    procedure UpdateDockTime(tms: string; m: TBaseMarket);
   public
-    //todo: switch to TDictionary
+    //todo: switch to THashedStringList and TDictionary
     property Constructions: TStringList read FConstructions;
     property StarSystems: TSystemList read FStarSystems;
     property RecentMarkets: TStringList read FRecentMarkets;
@@ -148,6 +170,8 @@ type TEDDataSource = class (TDataModule)
     property CargoExt: TMarket read FCargoExt;
     property Capacity: Integer read FCapacity;
     property TaskGroup: string read FTaskGroup write SetTaskGroup;
+    property LastDockDepotId: string read FLastDockDepotId;
+    property LastMarketId: string read FLastMarketId;
     procedure MarketToSimDepot(mID: string);
     procedure MarketToCargoExt(mID: string);
     procedure CreateMarketSnapshot(mID: string);
@@ -164,6 +188,7 @@ type TEDDataSource = class (TDataModule)
     procedure AddListener(Sender: IEDDataListener);
     procedure RemoveListener(Sender: IEDDataListener);
     procedure GetUniqueGroups(sl: TStringList);
+    procedure ResetDockTimes;
 //    property DataChanged: Boolean read FDataChanged;
     procedure Load;
     procedure BeginUpdate;
@@ -173,6 +198,8 @@ end;
 
 procedure __log_except(fname: string;info: string);
 
+const cMinDockToDockTime: Integer = 3; //minutes
+      cMaxDockToDockTime: Integer = 60;
 
 var DataSrc: TEDDataSource;
 
@@ -193,6 +220,103 @@ begin
         Exception(ExceptObject).StackTrace + Chr(13),
         TEncoding.ASCII);
     end;
+end;
+
+procedure TDockToDockTimes.Clear;
+var i: Integer;
+begin
+  AddIdx := 0;
+  Last := 0;
+  for i := 0 to High(fdata) do fdata[i].Time := 0;
+end;
+
+procedure TDockToDockTimes.Add(t: Extended; dest: string);
+var i: Integer;
+begin
+  if t < cMinDockToDockTime then Exit;
+  if t > cMaxDockToDockTime then Exit;
+  fdata[AddIdx].Time := t;
+  fdata[AddIdx].Destination := dest;
+  Last := t;
+  AddIdx := AddIdx + 1;
+  if AddIdx > High(fdata) then AddIdx := 0;
+end;
+
+{
+//this one ignore min and max values
+function TDockToDockTimes.GetAvg: Extended;
+var MinVal,MaxVal,Sum: Extended;
+    i,Count: Integer;
+begin
+  Result := 0;
+  MinVal := 0;
+  MaxVal := 0;
+  Sum := 0;
+  Count := 0;
+  for i := 0 to High(varr) do
+  begin
+    if varr[i] = 0 then break;
+    Sum := Sum + varr[i];
+    Count := Count + 1;
+    if (MinVal = 0) or (varr[i] < MinVal) then MinVal := varr[i];
+    if (MaxVal = 0) or (varr[i] > MaxVal) then MaxVal := varr[i];
+  end;
+
+  if Count = 0 then Exit;
+  if Count < 3 then
+  begin
+    Result := Sum/Count;
+    Exit;
+  end;
+
+  Sum := 0;
+  Count := 0;
+  for i := 0 to High(varr) do
+  begin
+    if varr[i] = 0 then break;
+    if (varr[i] > MinVal) and (varr[i] > MaxVal) then
+    begin
+      Sum := Sum + varr[i];
+      Count := Count + 1;
+    end;
+    if varr[i] = MinVal then MinVal := 0;
+    if varr[i] = MaxVal then MaxVal := 0;
+  end;
+  Result := Sum/Count;
+end;
+}
+
+//this one accepts or values not greater than 2 x MinVal
+function TDockToDockTimes.GetAvg: Extended;
+var MinVal,Sum: Extended;
+    i,Count: Integer;
+begin
+  Result := 0;
+  MinVal := 0;
+  Sum := 0;
+  Count := 0;
+  for i := 0 to High(fdata) do
+  begin
+    if fdata[i].Time = 0 then break;
+    Sum := Sum + fdata[i].Time;
+    Count := Count + 1;
+    if (MinVal = 0) or (fdata[i].Time < MinVal) then MinVal := fdata[i].Time;
+  end;
+
+  if Count = 0 then Exit;
+
+  Sum := 0;
+  Count := 0;
+  for i := 0 to High(fdata) do
+  begin
+    if fdata[i].Time = 0 then break;
+    if fdata[i].Time < 2 * MinVal then
+    begin
+      Sum := Sum + fdata[i].Time;
+      Count := Count + 1;
+    end;
+  end;
+  Result := Sum/Count;
 end;
 
 function TStock.GetQty(const Name: string): Integer;
@@ -236,12 +360,14 @@ end;
 constructor TBaseMarket.Create;
 begin
   Stock := TStock.Create;
+  DockToDockTimes := TDockToDockTimes.Create;
   DistFromStar := -1;
 end;
 
 destructor TBaseMarket.Destroy;
 begin
   Stock.Free;
+  DockToDockTimes.Free;
 end;
 
 function TStarSystem.DistanceTo(s: TStarSystem): Double;
@@ -356,6 +482,7 @@ begin
   try
     j := TJSONObject.ParseJSONValue(sl.Text) as TJSONObject;
     try
+      FCargo.ShipTotal := StrToInt(j.GetValue<string>('Count'));
       jarr := j.GetValue<TJSONArray>('Inventory');
       for i := 0 to jarr.Count - 1 do
       begin
@@ -511,6 +638,23 @@ begin
     FListeners[i].OnEDDataUpdate;
   end;
 end;
+
+procedure TEDDataSource.UpdateDockTime(tms: string; m: TBaseMarket);
+var s: string;
+    d: Extended;
+begin
+  s := Copy(tms,12,8);
+  if m.MarketId = FLastDockDepotId then
+    if FLastConstrDockTime <> '' then
+    begin
+      d := (StrToDateTime(s) - StrToDateTime(FLastConstrDockTime)) * 1440;
+      if d < 0 then d := d + 1;
+      m.DockToDockTimes.Add(d,FLastMarketId);
+    end;
+  FLastConstrDockTime := s;
+  FLastDockDepotId := m.MarketId;
+end;
+
 procedure TEDDataSource.UpdateFromJournal(fn: string; jrnl: TStringList);
 var j: TJSONObject;
     jarr: TJSONArray;
@@ -678,6 +822,9 @@ begin
             except end;
             cd.LastDock := tms;
             cd.LastUpdate := tms;
+
+            //if not FInitialLoad then
+              UpdateDockTime(tms,cd);
           end
           else
           begin
@@ -702,7 +849,15 @@ begin
                 try
                   m.DistFromStar := Trunc(j.GetValue<single>('DistFromStarLS'));
                 except end;
+
                 m.LastDock := tms;
+                if m.StationType = 'FleetCarrier' then
+                  //if FCargo.ShipTotal = FCapacity then  //track only full deliveries to FC?
+                  begin
+                    if mID = FSimDepot.MarketID then
+                      UpdateDockTime(tms,FSimDepot);
+                  end;
+
                 s := '';
                 jarr := j.GetValue<TJSONArray>('StationEconomies');
                 for i2 := 0 to jarr.Count - 1 do
@@ -771,6 +926,9 @@ begin
 //              FCargoExt.Stock.Qty[s] := FCargoExt.Stock.Qty[s] + q;
 
           end;
+
+          if (event = 'MarketBuy') then
+            FLastMarketId := mID;
         end;
 
         if event = 'CarrierTradeOrder' then
@@ -853,6 +1011,13 @@ LUpdateTms:;
 
   end;
 
+end;
+
+procedure TEDDataSource.ResetDockTimes;
+begin
+  FLastConstrDockTime := '';
+  FLastDockDepotId := '';
+  FLastMarketId := '';
 end;
 
 function TEDDataSource.LastFC;
@@ -994,7 +1159,7 @@ end;
 
 procedure TEDDataSource.Update;
 var sl: TStringList;
-    fn: string;
+    fn,jsd: string;
     res: Integer;
     fa: DWord;
     srec: TSearchRec;
@@ -1021,14 +1186,22 @@ begin
 
   try
 
+//  tc := GetTickCount;
+
     UpdateCargo;
     UpdateMarket;
 
+//  tc := GetTickCount - tc;
+//  tc := GetTickCount;
+
     fn := '';
+    jsd := Opts['JournalStart'];
+    //this full folder scan supports multiple game clients on one machine
+    //todo: optimize the loop to scan only latest files
     res := FindFirst(FJournalDir + 'journal.*.log', faAnyFile, srec);
     while res = 0 do
     begin
-      if LowerCase(srec.Name) >= ('journal.' + Opts['JournalStart']) then
+      if LowerCase(srec.Name) >= ('journal.' + jsd) then
       begin
         fa := srec.FindData.ftLastWriteTime.dwLowDateTime;  //optimistically assuming it changes :)
         if FFileDates.Values[srec.Name] <> IntToStr(fa) then
@@ -1039,10 +1212,14 @@ begin
           FFileDates.Values[srec.Name] := IntToStr(fa);
   //        SetDataChanged;
         end;
+
       end;
       res := FindNext(srec);
     end;
     FindClose(srec);
+
+//  tc := GetTickCount - tc;
+//  tc := GetTickCount;
 
     UpdateSimDepot;
     //UpdateCapacity; //if Loadout event turns out to be not enough
@@ -1054,8 +1231,22 @@ begin
 end;
 
 procedure TEDDataSource.Load;
+var sl: TStringList;
 begin
   DataSrc.Update;
+
+  {
+  sl := TStringList.Create;
+  try
+    sl.LoadFromFile(FWorkingDir + 'journal_backup.json');
+    UpdateFromJournal'journal_backup.json',sl);
+
+    sl.LoadFromFile(FWorkingDir + 'journal_custom.json');
+    UpdateFromJournal'journal_custom.json',sl);
+  except end;
+  sl.Free;
+   }
+
   FInitialLoad := False;
   //automatic task group for new stations - after historical data is loaded
   FTaskGroup := Opts['SelectedTaskGroup'];
@@ -1231,7 +1422,7 @@ begin
   FCargo := TStock.Create;
   FSimDepot := TConstructionDepot.Create;
   FSimDepot.Simulated := True;
-  FFileDates := TStringList.Create;
+  FFileDates := THashedStringList.Create;
   FLastConstrTimes := TStringList.Create;
   FConstructions := TStringList.Create;
   FRecentMarkets := TStringList.Create;

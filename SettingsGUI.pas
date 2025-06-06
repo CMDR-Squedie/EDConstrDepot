@@ -85,6 +85,7 @@ begin
   DefineFlag('ShowUnderCapacity','');
   DefineOpt('ShowProgress','0-no info; 1-beneath the list; 2-in the title bar',0,2,'');
   DefineOpt('ShowFlightsLeft','0-no info; 1-beneath the list; 2-in the title bar',0,2,'');
+  DefineFlag('ShowDelTime','includes delivery time left, recent and average dock-to-dock time');
   DefineFlag('ShowRecentMarket','');
   DefineFlag('ShowBestMarket','');
   DefineFlag('ShowDividers','');

@@ -2,7 +2,7 @@ object SettingsForm: TSettingsForm
   Left = 0
   Top = 0
   Caption = 'Settings'
-  ClientHeight = 514
+  ClientHeight = 557
   ClientWidth = 623
   Color = clSilver
   Font.Charset = DEFAULT_CHARSET
@@ -18,7 +18,7 @@ object SettingsForm: TSettingsForm
     Left = 0
     Top = 0
     Width = 623
-    Height = 493
+    Height = 536
     Align = alClient
     BevelEdges = []
     BevelInner = bvNone
@@ -52,7 +52,7 @@ object SettingsForm: TSettingsForm
   end
   object Panel1: TPanel
     Left = 0
-    Top = 493
+    Top = 536
     Width = 623
     Height = 21
     Align = alBottom

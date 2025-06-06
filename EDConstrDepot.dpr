@@ -15,7 +15,7 @@ uses
 
 {$R *.res}
 
-const gNiceVersion: string = 'Release 20, build 1';
+const gNiceVersion: string = 'Release 21, build 1';
 
 begin
   Application.Initialize;
