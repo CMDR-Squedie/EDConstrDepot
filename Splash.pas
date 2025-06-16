@@ -42,6 +42,7 @@ begin
   self.Height := InfoLabel.Height + 4;
   self.Width := InfoLabel.Width + 40;
   Show;
+  Update;
   HideTimer.Interval := timer;
   HideTimer.Enabled := timer <> 0;
 end;

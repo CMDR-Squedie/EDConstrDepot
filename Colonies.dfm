@@ -1,8 +1,8 @@
-object MarketsForm: TMarketsForm
+object ColoniesForm: TColoniesForm
   Left = 0
   Top = 0
-  Caption = 'Manage Markets'
-  ClientHeight = 462
+  Caption = 'Manage Colonies'
+  ClientHeight = 380
   ClientWidth = 1184
   Color = clBackground
   Font.Charset = DEFAULT_CHARSET
@@ -19,7 +19,7 @@ object MarketsForm: TMarketsForm
     Left = 0
     Top = 34
     Width = 1184
-    Height = 428
+    Height = 346
     Align = alClient
     BevelEdges = []
     BevelInner = bvNone
@@ -27,61 +27,45 @@ object MarketsForm: TMarketsForm
     Color = clSilver
     Columns = <
       item
-        Caption = 'Station Name'
-      end
-      item
-        Caption = 'Station Type'
-        Tag = 3
-      end
-      item
         Caption = 'System'
+        Tag = 1
+      end
+      item
+        Caption = 'Architect'
         Tag = 2
       end
       item
-        Caption = 'Body'
-      end
-      item
-        Caption = 'Last Visit (UTC)'
+        Alignment = taRightJustify
+        Caption = 'Population'
         Tag = 3
       end
       item
         Alignment = taRightJustify
         Caption = 'Dist. (Ly)'
-        Tag = 2
+        Tag = 16
       end
       item
-        Alignment = taRightJustify
-        Caption = 'Dist. (Ls)'
-        Tag = 9
-      end
-      item
-        Alignment = taRightJustify
-        Caption = 'Stock'
-        Tag = 14
-      end
-      item
-        Alignment = taCenter
-        Caption = 'Ign.'
-        MaxWidth = 50
+        Caption = 'Last Visit (UTC)'
         Tag = 4
       end
       item
-        Alignment = taCenter
-        Caption = 'Fav.'
-        MaxWidth = 50
+        Caption = 'Alter. Name'
+        Tag = 7
+      end
+      item
+        Caption = 'Security'
+      end
+      item
+        Caption = 'Factions'
         Tag = 5
       end
       item
         Caption = 'Comment'
-        Tag = 6
-      end
-      item
-        Caption = 'Economies'
-        Tag = 14
+        Tag = 8
       end
       item
         Caption = 'Task Group'
-        Tag = 8
+        Tag = 9
       end>
     Ctl3D = False
     Font.Charset = DEFAULT_CHARSET
@@ -102,8 +86,7 @@ object MarketsForm: TMarketsForm
     OnCompare = ListViewCompare
     OnDblClick = ListViewAction
     OnMouseDown = ListViewMouseDown
-    ExplicitWidth = 1115
-    ExplicitHeight = 521
+    ExplicitWidth = 1102
   end
   object Panel1: TPanel
     Left = 0
@@ -124,7 +107,7 @@ object MarketsForm: TMarketsForm
     TabOrder = 1
     OnMouseDown = Panel1MouseDown
     OnMouseMove = Panel1MouseMove
-    ExplicitWidth = 1115
+    ExplicitWidth = 1102
     object Label1: TLabel
       Left = 8
       Top = 8
@@ -132,44 +115,31 @@ object MarketsForm: TMarketsForm
       Height = 16
       Caption = 'Filter'
     end
-    object MarketsCheck: TCheckBox
-      Left = 272
+    object DistFromLabel: TLabel
+      Left = 728
       Top = 8
-      Width = 97
-      Height = 17
-      Caption = 'Markets'
-      Checked = True
+      Width = 217
+      Height = 16
+      AutoSize = False
+      Caption = '(Set Reference System to see distances)'
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clWindowText
       Font.Height = -13
       Font.Name = 'Bahnschrift SemiCondensed'
       Font.Style = []
       ParentFont = False
-      State = cbChecked
-      TabOrder = 0
-      OnClick = MarketsCheckClick
-    end
-    object ConstrCheck: TCheckBox
-      Left = 367
-      Top = 8
-      Width = 115
-      Height = 17
-      Caption = 'Constructions'
-      Checked = True
-      State = cbChecked
-      TabOrder = 1
-      OnClick = MarketsCheckClick
     end
     object InclIgnoredCheck: TCheckBox
-      Left = 488
+      Left = 1097
       Top = 8
       Width = 114
       Height = 17
       Caption = 'Include Ignored'
       Checked = True
       State = cbChecked
-      TabOrder = 2
-      OnClick = MarketsCheckClick
+      TabOrder = 0
+      Visible = False
+      OnClick = ColoniesCheckClick
     end
     object FilterEdit: TComboBox
       Left = 40
@@ -178,17 +148,8 @@ object MarketsForm: TMarketsForm
       Height = 24
       DropDownCount = 20
       Sorted = True
-      TabOrder = 3
+      TabOrder = 1
       OnChange = FilterEditChange
-    end
-    object InclPartialCheck: TCheckBox
-      Left = 608
-      Top = 8
-      Width = 129
-      Height = 17
-      Caption = 'Include Partial Info'
-      TabOrder = 4
-      OnClick = MarketsCheckClick
     end
     object ClearFilterButton: TButton
       Left = 235
@@ -196,26 +157,17 @@ object MarketsForm: TMarketsForm
       Width = 20
       Height = 24
       Caption = 'X'
-      TabOrder = 5
+      TabOrder = 2
       OnClick = ClearFilterButtonClick
     end
-    object InclSnapshotsCheck: TCheckBox
-      Left = 743
-      Top = 8
-      Width = 129
-      Height = 17
-      Caption = 'Include Snapshots'
-      TabOrder = 6
-      OnClick = MarketsCheckClick
-    end
-    object CompareCheck: TCheckBox
+    object SelectModeCheck: TCheckBox
       Left = 987
       Top = 8
       Width = 111
       Height = 17
       Caption = 'Alt. Select Mode'
-      TabOrder = 7
-      OnClick = CompareCheckClick
+      TabOrder = 3
+      OnClick = SelectModeCheckClick
     end
     object Button1: TButton
       Left = 961
@@ -223,99 +175,124 @@ object MarketsForm: TMarketsForm
       Width = 20
       Height = 24
       Caption = 'OK'
-      TabOrder = 8
+      TabOrder = 4
       Visible = False
-      OnClick = CompareMarketsMenuItemClick
+    end
+    object ColoniesCheck: TCheckBox
+      Left = 272
+      Top = 8
+      Width = 97
+      Height = 17
+      Caption = 'Colonies'
+      Checked = True
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -13
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentFont = False
+      State = cbChecked
+      TabOrder = 5
+      OnClick = ColoniesCheckClick
+    end
+    object ColonTargetsCheck: TCheckBox
+      Left = 375
+      Top = 8
+      Width = 97
+      Height = 17
+      Caption = 'Col. Targets'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -13
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentFont = False
+      TabOrder = 6
+      OnClick = ColoniesCheckClick
+    end
+    object OtherSystemsCheck: TCheckBox
+      Left = 607
+      Top = 8
+      Width = 97
+      Height = 17
+      Caption = 'Other Systems'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -13
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentFont = False
+      TabOrder = 7
+      OnClick = ColoniesCheckClick
+    end
+    object ColonCandidatesCheck: TCheckBox
+      Left = 487
+      Top = 8
+      Width = 114
+      Height = 17
+      Caption = 'Col. Candidates'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -13
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentFont = False
+      TabOrder = 8
+      OnClick = ColoniesCheckClick
     end
   end
   object PopupMenu: TPopupMenu
     OnPopup = PopupMenuPopup
     Left = 648
     Top = 232
-    object SelectCurrentMenuItem: TMenuItem
-      Tag = 1
-      Caption = 'Set As Active'
+    object EditArchitectMenuItem: TMenuItem
+      Tag = 2
+      Caption = 'Architect...'
+      OnClick = ListViewAction
+    end
+    object EditAlterNameMenuItem: TMenuItem
+      Tag = 7
+      Caption = 'Alternative Name...'
       OnClick = ListViewAction
     end
     object EditCommentMenuItem: TMenuItem
-      Tag = 6
-      Caption = 'Edit Comment'
+      Tag = 8
+      Caption = 'Comment...'
       OnClick = ListViewAction
     end
-    object ToggleFavoriteMenuItem: TMenuItem
-      Tag = 5
-      Caption = 'Toggle Favorite'
+    object AddToTargetsMenuItem: TMenuItem
+      Caption = 'Add To Targets'
+      OnClick = AddToTargetsMenuItemClick
+    end
+    object DistancesFromMenuItem: TMenuItem
+      Tag = 16
+      Caption = 'Reference System'
       OnClick = ListViewAction
     end
     object ToggleIgnoredMenuItem: TMenuItem
       Tag = 4
       Caption = 'Toggle Ignore'
+      Visible = False
       OnClick = ListViewAction
     end
     object N5: TMenuItem
       Caption = '-'
-    end
-    object ConstructionsSubMenu: TMenuItem
-      Caption = 'Constructions'
-      object GroupDepotGroupMenuItem: TMenuItem
-        Tag = 16
-        Caption = 'Create Depot Group'
-        OnClick = GroupDepotGroupMenuItemClick
-      end
-      object AddToDepotGroupMenuItem: TMenuItem
-        Tag = 11
-        Caption = 'Group Add/Remove'
-        OnClick = ListViewAction
-      end
-    end
-    object MarketsSubMenu: TMenuItem
-      Caption = 'Markets'
-      object MarketInfoMenuItem: TMenuItem
-        Tag = 14
-        Caption = 'Market Info'
-        OnClick = ListViewAction
-      end
-      object MarketSnapshotMenuItem: TMenuItem
-        Caption = 'Create Snapshot'
-        OnClick = MarketSnapshotMenuItemClick
-      end
-      object RemoveSnapshotMenuItem: TMenuItem
-        Caption = 'Remove Snapshot'
-        OnClick = RemoveSnapshotMenuItemClick
-      end
-      object CompareMarketsMenuItem: TMenuItem
-        Caption = 'Compare Markets'
-        OnClick = CompareMarketsMenuItemClick
-      end
-    end
-    object FleetCarrierSubMenu: TMenuItem
-      Caption = 'Fleet Carrier'
-      object SetAsStockMenuItem: TMenuItem
-        Tag = 13
-        Caption = 'Set As Active'
-        OnClick = ListViewAction
-      end
-      object SetAsConstrDepotMenuItem: TMenuItem
-        Tag = 12
-        Caption = 'Set As Construction Depot'
-        OnClick = ListViewAction
-      end
+      Visible = False
     end
     object TaskGroupSubMenu: TMenuItem
       Caption = 'Task Group'
+      Visible = False
       object askGroup2: TMenuItem
         Caption = '-'
       end
       object OtherGroupMenuItem: TMenuItem
         Caption = 'New...'
-        OnClick = OtherGroupMenuItemClick
       end
       object N3: TMenuItem
         Caption = '-'
       end
       object Clear1: TMenuItem
         Caption = 'Clear'
-        OnClick = TaskGroupMenuItemClick
       end
     end
     object N1: TMenuItem

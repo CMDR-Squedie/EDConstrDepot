@@ -2,7 +2,7 @@ object SettingsForm: TSettingsForm
   Left = 0
   Top = 0
   Caption = 'Settings'
-  ClientHeight = 557
+  ClientHeight = 591
   ClientWidth = 623
   Color = clSilver
   Font.Charset = DEFAULT_CHARSET
@@ -18,7 +18,7 @@ object SettingsForm: TSettingsForm
     Left = 0
     Top = 0
     Width = 623
-    Height = 536
+    Height = 570
     Align = alClient
     BevelEdges = []
     BevelInner = bvNone
@@ -49,16 +49,18 @@ object SettingsForm: TSettingsForm
     TabOrder = 0
     ViewStyle = vsReport
     OnDblClick = ListViewDblClick
+    ExplicitHeight = 536
   end
   object Panel1: TPanel
     Left = 0
-    Top = 536
+    Top = 570
     Width = 623
     Height = 21
     Align = alBottom
     BevelOuter = bvNone
     ParentBackground = False
     TabOrder = 1
+    ExplicitTop = 536
     object VersionLabel: TLabel
       Left = 0
       Top = 0
@@ -72,9 +74,9 @@ object SettingsForm: TSettingsForm
       ExplicitHeight = 16
     end
     object UpdLinkLabel: TLinkLabel
-      Left = 310
+      Left = 488
       Top = 0
-      Width = 313
+      Width = 135
       Height = 21
       Align = alRight
       Alignment = taRightJustify
@@ -84,6 +86,17 @@ object SettingsForm: TSettingsForm
         'latest">Check for updates...</a>'
       TabOrder = 0
       OnLinkClick = UpdLinkLabelLinkClick
+    end
+    object BackupJournalLink: TLinkLabel
+      Left = 266
+      Top = 0
+      Width = 135
+      Height = 21
+      AutoSize = False
+      Caption = '<a>Backup journal...</a>'
+      TabOrder = 1
+      Visible = False
+      OnLinkClick = BackupJournalLinkLinkClick
     end
   end
   object FontDialog: TFontDialog

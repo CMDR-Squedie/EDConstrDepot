@@ -11,11 +11,12 @@ uses
   Settings in 'Settings.pas',
   DataSource in 'DataSource.pas',
   SettingsGUI in 'SettingsGUI.pas' {SettingsForm},
-  MarketInfo in 'MarketInfo.pas' {MarketInfoForm};
+  MarketInfo in 'MarketInfo.pas' {MarketInfoForm},
+  Colonies in 'Colonies.pas' {ColoniesForm};
 
 {$R *.res}
 
-const gNiceVersion: string = 'Release 21, build 1';
+const gNiceVersion: string = 'Release 22, build 1';
 
 begin
   Application.Initialize;
@@ -25,14 +26,14 @@ begin
 
   Opts := TSettings.Create(GetCurrentDir + '\' + 'EDConstrDepot.ini');
   Opts.Load;
-  DataSrc := TEDDataSource.Create(Application);
+  TEDDataSource.Create(Application);
 
   Application.CreateForm(TEDCDForm, EDCDForm);
   Application.CreateForm(TSplashForm, SplashForm);
   Application.CreateForm(TMarketsForm, MarketsForm);
+  Application.CreateForm(TColoniesForm, ColoniesForm);
   Application.CreateForm(TSettingsForm, SettingsForm);
   Application.CreateForm(TMarketInfoForm, MarketInfoForm);
-
   SettingsForm.VersionLabel.Caption := gNiceVersion;
 
   Application.OnActivate :=  EDCDForm.AppActivate;

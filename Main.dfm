@@ -115,6 +115,7 @@ object EDCDForm: TEDCDForm
     ParentFont = False
     Transparent = True
     StyleElements = [seFont, seClient]
+    OnDblClick = ReqQtyColLabelDblClick
     OnMouseDown = TextColLabelMouseDown
     OnMouseMove = TextColLabelMouseMove
     ExplicitLeft = 0
@@ -270,13 +271,6 @@ object EDCDForm: TEDCDForm
         OnClick = SwitchTaskGroupMenuItemClick
       end
     end
-    object N4: TMenuItem
-      Caption = '-'
-    end
-    object AddDepotInfoMenuItem: TMenuItem
-      Caption = 'Add Construction Info'
-      OnClick = AddDepotInfoMenuItemClick
-    end
     object DeliveriesSubMenu: TMenuItem
       Caption = 'Deliveries'
       object ResetDockTimeMenuItem: TMenuItem
@@ -288,9 +282,24 @@ object EDCDForm: TEDCDForm
         OnClick = FlightHistoryMenuItemClick
       end
     end
+    object N4: TMenuItem
+      Caption = '-'
+    end
+    object AddDepotInfoMenuItem: TMenuItem
+      Caption = 'Add Construction Info'
+      OnClick = AddDepotInfoMenuItemClick
+    end
+    object ManageColoniesMenuItem: TMenuItem
+      Caption = 'Manage Colonies'
+      OnClick = ManageColoniesMenuItemClick
+    end
     object ManageMarketsMenuItem: TMenuItem
-      Caption = 'Manage All'
+      Caption = 'Manage Markets'
       OnClick = ManageMarketsMenuItemClick
+    end
+    object ManageAllMenuItem: TMenuItem
+      Caption = 'Manage All'
+      OnClick = ManageAllMenuItemClick
     end
     object SettingsMenuItem: TMenuItem
       Caption = 'Settings'

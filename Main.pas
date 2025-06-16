@@ -35,7 +35,7 @@ type
     SelectMarketSubMenu: TMenuItem;
     SwitchMarketMenuItem: TMenuItem;
     UpdTimer: TTimer;
-    ManageMarketsMenuItem: TMenuItem;
+    ManageAllMenuItem: TMenuItem;
     SettingsMenuItem: TMenuItem;
     StatusPaintBox: TPaintBox;
     IncludeExtCargoinRequestMenuItem: TMenuItem;
@@ -52,6 +52,8 @@ type
     ResetDockTimeMenuItem: TMenuItem;
     FlightHistoryMenuItem: TMenuItem;
     DeliveriesSubMenu: TMenuItem;
+    ManageColoniesMenuItem: TMenuItem;
+    ManageMarketsMenuItem: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure UpdTimerTimer(Sender: TObject);
     procedure TextColLabelMouseMove(Sender: TObject; Shift: TShiftState; X,
@@ -76,7 +78,7 @@ type
     procedure AddRecentMarketMenuItemClick(Sender: TObject);
     procedure ForgetMarketMenuItemClick(Sender: TObject);
     procedure IgnoreMarketMenuItemClick(Sender: TObject);
-    procedure ManageMarketsMenuItemClick(Sender: TObject);
+    procedure ManageAllMenuItemClick(Sender: TObject);
     procedure SettingsMenuItemClick(Sender: TObject);
     procedure AutoSelectMarketMenuItemClick(Sender: TObject);
     procedure TitleLabelDblClick(Sender: TObject);
@@ -86,14 +88,21 @@ type
     procedure UseAsStockMenuItemClick(Sender: TObject);
     procedure ComparePurchaseOrderMenuItemClick(Sender: TObject);
     procedure Layer1Click(Sender: TObject);
+    procedure Layer1DblClick(Sender: TObject);
     procedure SwitchTaskGroupMenuItemClick(Sender: TObject);
     procedure NewTaskGroupMenuItemClick(Sender: TObject);
     procedure MarketInfoMenuItemClick(Sender: TObject);
     procedure ResetDockTimeMenuItemClick(Sender: TObject);
     procedure FlightHistoryMenuItemClick(Sender: TObject);
+    procedure ReqQtyColLabelDblClick(Sender: TObject);
+    procedure CopyReqQtyMenuItemClick(Sender: TObject);
+    procedure ActiveConstrMenuItemClick(Sender: TObject);
+    procedure ManageMarketsMenuItemClick(Sender: TObject);
+    procedure ManageColoniesMenuItemClick(Sender: TObject);
 private
     { Private declarations }
     FSelectedConstructions: TStringList;
+    FSelectedItems: TStringList;
     FCurrentDepot: TConstructionDepot;
     FSecondaryMarket: TMarket;
     FAutoSelectMarket: Boolean;
@@ -102,7 +111,7 @@ private
     FWorkingDir,FJournalDir: string;
 //    FSettings: TSettings;
     FTransColor: TColor;
-    FGlowChanges: Integer;
+    FShadowTimer: Integer;
     FLastActiveWnd: HWND;
     FEliteWnd: HWND;
     FBackdrop: Boolean;
@@ -115,6 +124,7 @@ private
     procedure UpdateBackdrop;
     procedure SetupLayers;
     procedure ArrangeLayers;
+    procedure UpdateLayersPos;
     procedure UpdateTransparency;
     function FindBestMarket(reqList: TStringList; prevMarket: TMarket): TMarket;
     function GetItemMarketIndicators(normItem: string; reqQty: Integer; cargo: Integer; bestMarket: TMarket): string;
@@ -123,10 +133,12 @@ private
     procedure OnEDDataUpdate;
     procedure UpdateConstrDepot;
     procedure SetDepot(mID: string; groupf: Boolean);
+    procedure SetDepotGroup(mIDs: string);
     procedure SetSecondaryMarket(mID: string);
     procedure MarketAsDepotDlg(m: TMarket);
     procedure MarketAsExtCargoDlg(m: TMarket; mode: Integer);
     procedure OnChangeSettings;
+    property CurrentDepot: TConstructionDepot read FCurrentDepot;
   end;
 
 var
@@ -137,7 +149,7 @@ implementation
 
 {$R *.dfm}
 
-uses Splash, Markets, SettingsGUI, MarketInfo, Clipbrd;
+uses Splash, Markets, SettingsGUI, MarketInfo, Clipbrd, Colonies;
 
 const cDefaultCapacity: Integer = 784;
 
@@ -146,6 +158,7 @@ var sl: TStringList;
     pt: TPoint;
     idx,p,px: Integer;
     s: string;
+    r: TRect;
 begin
    pt := Mouse.CursorPos;
    sl := TStringList.Create;
@@ -174,9 +187,7 @@ begin
          else
            Exit;
        end;
-       MarketsForm.MarketsCheck.Checked := True;
-       MarketsForm.FilterEdit.Text := s;
-       MarketsForm.UpdateAndShow;
+       MarketsForm.SetMarketFilter(s);
 
      end;
    finally
@@ -200,11 +211,7 @@ begin
     pt := Mouse.CursorPos;
     self.Left := self.Left + pt.X - gLastCursorPos.X;
     self.Top := self.Top + pt.Y - gLastCursorPos.Y;
-    if FLayer1 <> nil then
-    begin
-      FLayer1.Left := self.Left - 2;
-      FLayer1.Top := self.Top - 2; // + TitleLabel.Height;
-    end;
+    UpdateLayersPos;
     gLastCursorPos := pt;
   end;
 end;
@@ -282,11 +289,12 @@ end;
 
 
 function TEDCDForm.FindBestMarket(reqList: TStringList; prevMarket: TMarket): TMarket;
-var i,mi,score,maxscore,reqQty,shipQty,stock,totAvail,lowCnt,uniqueCnt,bonus: Integer;
+var i,mi,score,maxscore,reqQty,shipQty,stock,totAvail,lowCnt,uniqueCnt,bonus,extraJumps: Integer;
     m: TMarket;
-    s,tg: string;
+    normItem,tg: string;
     testf: Boolean;
     mlev: TMarketLevel;
+    d: Extended;
 begin
   Result := nil;
   maxscore := 0;
@@ -309,20 +317,26 @@ begin
       uniqueCnt := 0;
       for i := 0 to reqList.Count - 1 do
       begin
-        s := LowerCase(reqList.Names[i]);
+        normItem := LowerCase(reqList.Names[i]);
         reqQty := StrToIntDef(reqList.ValueFromIndex[i],0);
-        if DataSrc.Cargo[s] >= reqQty then continue;
+        if DataSrc.Cargo[normItem] >= reqQty then continue;
         shipQty := reqQty;
         if shipQty > DataSrc.Capacity then shipQty := DataSrc.Capacity;
 
 
-        stock := m.Stock[s];
+        stock := m.Stock[normItem];
         if stock > 0 then
         begin
 //base points for stocking the commodity
           score := score + 100;
+
+//base points for priority/selected commodities (still need to compare markets, hence the score)
+          if {(prevMarket <> nil) and} (FSelectedItems.IndexOf(normItem) <> -1) then
+            if stock >= shipQty then
+              score := score + 100000;
+
 //bonus for stocking other items than pre-selected market
-          if (prevMarket <> nil) and (prevMarket.Stock[s] < shipQty) then
+          if (prevMarket <> nil) and (prevMarket.Stock[normItem] < shipQty) then
           begin
             score := score + 20;
             if stock >= shipQty then
@@ -342,9 +356,15 @@ begin
 
 //extra points for station in same system
           if (FCurrentDepot <> nil) and (m.StarSystem = FCurrentDepot.StarSystem) then
+          begin
             score := score + 10;
+            if stock >= shipQty then
+              if prevMarket = nil then
+                score := score + 1000;
+          end;
+
 //extra points for station other than last visited (just for variety)
-          if DataSrc.Market.Stock[s] <= 0 then
+          if DataSrc.Market.Stock[normItem] <= 0 then
             score := score + 20;
 
           if stock < reqQty then
@@ -390,13 +410,21 @@ begin
           score := score * (100 + bonus + 1) div 100
         end
         else
-        if m.DistFromStar > 100000  then
-          score := score * 50 div 100  //-50% penalty
-        else
-        if m.DistFromStar > 10000  then
-          score := score * 90 div 100  //-10% penalty
-        ;
+          //no bonus nor penalty between 3kLs and 10kLs
+          score := score * 30 div (30 + m.DistFromStar div 10000);  //reverse 1% penalty for each 10kLs
       end;
+
+//penalty for system distance (above 2 jumps back and forth)
+      if score > 0 then
+      begin
+        d := m.DistanceTo(FCurrentDepot);
+        if (d > 0) and (DataSrc.JumpRange > 0)  then
+        begin
+          extraJumps := Ceil(d / DataSrc.MaxJumpRange) + Ceil(d / DataSrc.JumpRange) - 2;
+          score := score * 6 div (6 + extraJumps);  // reverse 16% penalty for each extra jump
+        end;
+      end;
+
 
 //bonus for favorite market
       if score > 0 then
@@ -479,7 +507,14 @@ begin
 end;
 
 procedure TEDCDForm.OnEDDataUpdate;
+var idx: Integer;
 begin
+  if DataSrc.LastConstructionDone <> '' then
+  begin
+    idx := FSelectedConstructions.IndexOf(DataSrc.LastConstructionDone);
+    if idx <> -1 then
+      FSelectedConstructions.Delete(idx);
+  end;
   UpdateConstrDepot;
 end;
 
@@ -496,23 +531,50 @@ procedure TEDCDForm.UpdateConstrDepot;
 var j: TJSONObject;
     jarr,resReq: TJSONArray;
     sl: TStringList;
-    js,s,s2,fn,cnames,cprogress,lastUpdate,itemName,normItem: string;
+    js,s,s2,fn,cnames,cprogress,lastUpdate,itemName,normItem,prevSys: string;
     i,ci,res,lastWIP,h,q,prec,sortPrefixLen: Integer;
     fa: DWord;
     reqQty,delQty,cargo,stock,prevQty,maxQty: Integer;
     totReqQty,totDelQty,validCargo: Integer;
     srec: TSearchRec;
     useExtCargo: Integer;
-    a: array [colReq..colStatus] of string;
+    a,l: array [colReq..colStatus] of string;
     cd: TConstructionDepot;
     col: TCDCol;
     m,bestMarket: TMarket;
     avgt: Extended;
-label LSkipDepotSelection;
+label
+    LSkipDepotSelection;
+
+  procedure addline;
+  var col: TCDCol;
+  begin
+    for col := colReq to colStatus do
+    begin
+      a[col] := a[col] + l[col] + Chr(13);
+      l[col] := '';
+    end;
+  end;
+
+  procedure addDistInfo(m: TBaseMarket);
+  var d: Extended;
+  begin
+    if not Opts.Flags['ShowDistance'] then Exit;
+    d := FCurrentDepot.DistanceTo(m);
+    if (d > 0) and (DataSrc.MaxJumpRange > 0) then
+    begin
+      l[colStock] := IntToStr(Ceil(d/DataSrc.MaxJumpRange)) + '/' + IntToStr(Ceil(d/DataSrc.JumpRange));
+      l[colStatus] := FloatToStrF(d,ffFixed,7,2);
+    end;
+  end;
+
 begin
 
   sl := TStringList.Create;
 
+  prevSys := '';
+  if FCurrentDepot <> nil then
+    prevSys := FCurrentDepot.StarSystem;
   FCurrentDepot := nil;
 
   if FSecondaryMarket = nil then
@@ -524,7 +586,7 @@ begin
 
   try
 
-    for col := colReq to colStatus do a[col] := '';
+    for col := colReq to colStatus do begin a[col] := ''; l[col] := ''; end;
     FItemsShown := 0;
     totReqQty := 0;
     totDelQty := 0;
@@ -540,17 +602,18 @@ begin
       cargo := 0;
       for i := 0 to DataSrc.Cargo.Count -1 do
       begin
-        s := DataSrc.ItemNames.Values[DataSrc.Cargo.Names[i]];
-        a[colText] := a[colText] + s + Chr(13);
+        l[colText] := DataSrc.ItemNames.Values[DataSrc.Cargo.Names[i]];
         s := DataSrc.Cargo.ValueFromIndex[i];
-        a[colStock] := a[colStock] + s +  Chr(13);
+        l[colStock] := s;
+        addline;
         cargo := cargo + StrToIntDef(s,0);
         FItemsShown := FItemsShown + 1;
       end;
       if cargo < DataSrc.Capacity then
       begin
-        a[colText] := a[colText] + '(Unused)' + Chr(13);
-        a[colStock] := a[colStock] + '(' + IntToStr(DataSrc.Capacity-cargo) + ')' + Chr(13);
+        l[colText] := '(Unused)';
+        l[colStock] := '(' + IntToStr(DataSrc.Capacity-cargo) + ')';
+        addline;
       end;
       goto LSkipDepotSelection;
     end;
@@ -573,10 +636,15 @@ begin
       cd := TConstructionDepot(DataSrc.Constructions.Objects[ci]);
       if (FSelectedConstructions.IndexOf(cd.MarketID) = -1) and (ci <> lastWIP) then continue;
       FCurrentDepot := cd;
-      if cnames <> '' then cnames := cnames + ', ';
-      cnames := cnames + cd.StationName_full;
+//      if cnames <> '' then cnames := cnames + ', ';
+      s := cd.StationName_full;
       if DataSrc.MarketComments.Values[cd.MarketID] <> '' then
-        cnames := cnames + ' (' + DataSrc.MarketComments.Values[cd.MarketID] + ')';
+        s := s + ' (' + DataSrc.MarketComments.Values[cd.MarketID] + ')';
+      if FSelectedConstructions.Count > 1 then
+        s := Copy(s,1,30 div FSelectedConstructions.Count) + '…';
+      cnames := cnames + s;
+
+
       js := cd.Status;
 
       try
@@ -684,6 +752,8 @@ begin
           else
             if (FSecondaryMarket <> nil) and (FSecondaryMarket.Stock[s] > 0) then
               s2 := '4';
+        if FSelectedItems.IndexOf(s) <> -1 then
+          s2 := '0'+ s2;
         s2 := Copy(s2 + '                         ',1,20);
         sl[i] := s2 + sl[i];
       end;
@@ -695,7 +765,7 @@ begin
       begin
         s := LowerCase(sl.Names[i]);
         s2 := '9';
-        if DataSrc.Cargo[s] > 0 then
+        if (DataSrc.Cargo[s] > 0) or (FSelectedItems.IndexOf(s) <> -1) then
           s2 := '0'
         else
         if DataSrc.Market.Stock[s] > 0 then
@@ -745,9 +815,12 @@ begin
         end;
 }
 
-        a[colText] := a[colText] + itemName + Chr(13);
-        a[colReq] := a[colReq] + sl.ValueFromIndex[i] + Chr(13);
         FItemsShown := FItemsShown + 1;
+
+        l[colReq] := sl.ValueFromIndex[i];
+        if FSelectedItems.IndexOf(normItem) <> -1 then
+          l[colReq] := '✓ ' + l[colReq]; //△
+        l[colText] := itemName;
 
         s := '';
         if cargo > 0 then
@@ -759,7 +832,8 @@ begin
             if cargo > reqQty then s := '+ ' + s;
           end;
         end;
-        a[colStock] := a[colStock] + s + Chr(13);
+        l[colStock] := s;
+
         s := '';
         if cargo < reqQty then
           s := GetItemMarketIndicators(normItem,reqQty,cargo,bestMarket);
@@ -771,7 +845,9 @@ begin
 //          if cargo < reqQty then
 //            if cargo < DataSrc.Capacity then s := '< ' + s;
         end;
-        a[colStatus] := a[colStatus] + s + Chr(13);
+        l[colStatus] := s;
+
+        addline;
       end;
 
       if (Opts.Flags['ShowUnderCapacity']) and (DataSrc.Capacity > 0) then
@@ -788,10 +864,10 @@ begin
 
             end;
           end;
-          a[colReq] := a[colReq] + s + Chr(13);
-          a[colText] := a[colText] + '⚠ UNDER CAPACITY' + Chr(13);
-          a[colStock] := a[colStock] + '(' + IntToStr(DataSrc.Capacity-validCargo) + ')' + Chr(13);
-          a[colStatus] := a[colStatus] + '' + Chr(13);
+          l[colReq] := s;
+          l[colText] := '⚠ UNDER CAPACITY';
+          l[colStock] := '(' + IntToStr(DataSrc.Capacity-validCargo) + ')';
+          addline;
         end;
       if (FCurrentDepot <> nil) and Opts.Flags['ShowProgress'] then
       begin
@@ -809,8 +885,8 @@ begin
             else
               s := s + IntToStr((100*totDelQty) div totReqQty) + '%';
           end;
-          a[colReq] := a[colReq] + Chr(13);
-          a[colText] := a[colText] + s + Chr(13);
+          l[colText] := s;
+          addline;
         end;
         if Opts['ShowProgress'] = '2' then
         begin
@@ -843,8 +919,8 @@ begin
           end;
           q := reqQty - (reqQty div DataSrc.Capacity) * DataSrc.Capacity;
           s2 := IntToStr(q) + '/' + IntToStr(DataSrc.Capacity);
-         a[colReq] := a[colReq] + Chr(13);
-         a[colText] := a[colText] + 'Flights left: ' + s + ' (' + s2 + 't)' + Chr(13);
+          l[colText] := 'Flights left: ' + s + ' (' + s2 + 't)';
+          addline;
         end;
       end;
 
@@ -859,18 +935,15 @@ begin
           s := '?';
           m := DataSrc.MarketFromId(fdata[i].Destination);
           if m <> nil then s := m.FullName;
-          a[colReq] := a[colReq] + Chr(13);
-          a[colText] := a[colText] + '⮀ ' + s + Chr(13);
-          s := FloatToStrF(fdata[i].Time,ffFixed,7,1);
-          a[colStock] := a[colStock] + s +  Chr(13);
+          l[colText] := '⮀ ' + s;
+          l[colStock] := FloatToStrF(fdata[i].Time,ffFixed,7,1);
+          addline;
         end;
       end;
 
 
       if Opts.Flags['ShowDelTime'] then
       begin
-        a[colReq] := a[colReq] + Chr(13);
-
         s := '(no dock-to-dock times)';
         avgt := FCurrentDepot.DockToDockTimes.GetAvg;
         if avgt > 0 then
@@ -893,12 +966,13 @@ begin
           s := s + s2 + ', avg. ' + FloatToStrF(avgt,ffFixed,7,1) + 'm';
         end;
 
-        a[colText] := a[colText] + s + Chr(13);
+        l[colText] := s;
         s := '';
         if (FCurrentDepot.DockToDockTimes.Last > 0) and
            (FCurrentDepot.DockToDockTimes.Last < cMaxDockToDockTime) then
           s := '⏳' + FloatToStrF(FCurrentDepot.DockToDockTimes.Last,ffFixed,7,1);
-        a[colStock] := a[colStock] + s + Chr(13);
+        l[colStock] := s;
+        addline;
       end;
 
       if Opts.Flags['ShowIndicators'] then
@@ -906,28 +980,31 @@ begin
         if Opts.Flags['ShowRecentMarket'] then
           if DataSrc.Market.Stock.Count > 0 then
           begin
-            a[colReq] := a[colReq] + Chr(13);
             s := DataSrc.Market.FullName;
             if DataSrc.Market.StationType = 'FleetCarrier' then
             begin
               m := DataSrc.MarketFromId(DataSrc.Market.MarketId);
               if m <> nil then s := m.FullName;
             end;
-            a[colText] := a[colText] + '□ ' + s + Chr(13);
+            l[colText] := '□ ' + s;
+            addDistInfo(DataSrc.Market);
+            addline;
           end;
         if bestMarket <> nil then
-          begin
-            a[colReq] := a[colReq] + Chr(13);
-            a[colText] := a[colText] + '○ ' + bestMarket.FullName + Chr(13);
-          end;
+        begin
+          l[colText] := '○ ' + bestMarket.FullName;
+          addDistInfo(bestMarket);
+          addline;
+        end;
         if FSecondaryMarket <> nil then
         begin
           s := '';
           if not FAutoSelectMarket then
             s := '🤚';  //👉☝🤚
-
-          a[colReq] := a[colReq] + s + Chr(13);
-          a[colText] := a[colText] + '△ ' + FSecondaryMarket.FullName + Chr(13);
+          l[colReq] := s;
+          l[colText] := '△ ' + FSecondaryMarket.FullName;
+          addDistInfo(FSecondaryMarket);
+          addline;
         end;
       end;
     end;
@@ -970,11 +1047,42 @@ LSkipDepotSelection:;
     j.Free;
     sl.Free;
   end;
+
+  if FCurrentDepot <> nil then
+    if prevSys <> FCurrentDepot.StarSystem then
+      if MarketsForm.Visible then
+        MarketsForm.UpdateItems;  //update distances
 end;
 
 procedure TEDCDForm.FormShow(Sender: TObject);
 begin
 //
+end;
+
+procedure TEDCDForm.ReqQtyColLabelDblClick(Sender: TObject);
+var sl: TStringList;
+    pt: TPoint;
+    idx,p: Integer;
+    s: string;
+begin
+   pt := Mouse.CursorPos;
+   sl := TStringList.Create;
+   sl.Text := TextColLabel.Caption;
+   try
+     pt := TextColLabel.ScreenToClient(pt);
+     idx := pt.Y div self.Canvas.TextHeight('Wq');
+     if (idx >= 0)  and (idx < sl.Count) then
+     begin
+       s := LowerCase(sl[idx]);
+       if FSelectedItems.IndexOf(s) = -1 then
+         FSelectedItems.Add(s)
+       else
+         FSelectedItems.Delete(FSelectedItems.IndexOf(s));
+       UpdateConstrDepot;
+     end;
+   finally
+     sl.Free;
+   end;
 end;
 
 procedure TEDCDForm.ResetAlwaysOnTop;
@@ -1071,56 +1179,86 @@ var orgactivewnd: HWND;
     clr: System.UITypes.TColorRec;
     p: TPoint;
     sdc: HDC;
-    i,avg: Integer;
+    i,rgbsum,avg: Integer;
 begin
-  if Opts['AlwaysOnTop'] = '2' then
-    ResetAlwaysOnTop;
+  try
+    if Opts['AlwaysOnTop'] = '2' then
+      ResetAlwaysOnTop;
 
-  if Opts.Flags['ScanMenuKey'] and (self = EDCDForm) then
-    if GetKeyState(VK_APPS) < 0 then
-    begin
-      orgactivewnd := GetForegroundWindow;
-      if orgactivewnd = FEliteWnd then
+    if Opts.Flags['ScanMenuKey'] and (self = EDCDForm) then
+      if GetKeyState(VK_APPS) < 0 then
       begin
-        Application.BringToFront;
-        //self.BringToFront;
-        //self.Activate;
-        //if orgactivewnd = self.Handle then
-        //  PopupMenu.Popup(self.Left,self.Top);
+        orgactivewnd := GetForegroundWindow;
+        if orgactivewnd = FEliteWnd then
+          Application.BringToFront;
+      end;
+
+    MarketInfoForm.SyncComparison;
+
+  //experimental - four pixel average, popupmenu issues
+{
+    if Opts.Flags['AutoFontGlow']  then
+    begin
+      orgc := self.Color;
+      sdc:= GetDC(0); //this is slow!
+
+      p := FLayer1.ClientToScreen(TPoint.Create(-2,0));
+      rgbsum := 0;
+      for i := 1 to 4 do
+      begin
+        try c := GetPixel(sdc,p.X,p.Y); except c := 0; end;
+        clr.Color := c;
+        rgbsum := rgbsum + clr.R + clr.G + clr.B;
+        p.Y := p.Y + FLayer1.Height div 4;
+      end;
+      rgbsum := rgbsum div 4;
+      avg := 48 + ((rgbsum div 3) div 32) * 16; //8 glow levels only
+      clr.R := avg;
+      clr.G := avg;
+      clr.B := avg;
+      c := clr.Color;
+      ReleaseDC(0,sdc);
+      if c <> orgc then
+      begin
+        self.Color := c;
+        self.TransparentColorValue := c;
+        //changing transp.color rearranges layers!
+        ArrangeLayers;
+      end;
+    end;
+}
+    FShadowTimer := FShadowTimer - UpdTimer.Interval;
+    if FShadowTimer <= 0 then
+    if Opts.Flags['AutoAlphaBlend']  then
+    begin
+      orgc := FLayer1.AlphaBlendValue;
+      sdc:= GetDC(0);
+
+      p := FLayer1.ClientToScreen(TPoint.Create(-2,0));
+      rgbsum := 0;
+      for i := 1 to 4 do
+      begin
+        try c := GetPixel(sdc,p.X,p.Y); except c := 0; end;
+        clr.Color := c;
+        rgbsum := rgbsum + clr.R + clr.G + clr.B;
+        p.Y := p.Y + FLayer1.Height div 4;
+      end;
+      rgbsum := rgbsum div 4;
+      // 4 alpha levels only
+      avg := 32 + ((rgbsum div 3) div 64) * 48;
+      c := avg;
+      ReleaseDC(0,sdc);
+      if c <> orgc then
+      begin
+        FLayer1.AlphaBlendValue := c;
+        FShadowTimer := 2000; //2s hysteresis
       end;
     end;
 
-  MarketInfoForm.SyncComparison;
-
-//experimental - single pixel only
-  if Opts.Flags['AutoFontGlow']  then
-  begin
-{
-    FGlowChanges := FGlowChanges - 1;
-    if FGlowChanges > 0 then Exit;
-    FGlowChanges := 1000 div UpdTimer.InterVal; //only one change per second
-}
-    orgc := self.Color;
-    p := FLayer1.ClientToScreen(TPoint.Create(0,0));
-    sdc:= GetDC(0);
-    c := orgc;
-    try c := GetPixel(sdc,p.X,p.Y); except end;
-    clr.Color := c;
-    avg := 48 + (((clr.R + clr.G + clr.B) div 3) div 64) * 48; //4 levels only
-    clr.R := avg;
-    clr.G := avg;
-    clr.B := avg;
-    c := clr.Color;
-    ReleaseDC(0,sdc);
-    if c <> orgc then
-    begin
-      self.Color := c;
-      self.TransparentColorValue := c;
-
-      //changing transp.color rearranges layers!
-      ArrangeLayers;
-    end;
+  except
+    //suppress all errors on timers!
   end;
+
 end;
 
 
@@ -1129,7 +1267,7 @@ var cd: TConstructionDepot;
     i: Integer;
 begin
   if TMenuItem(Sender).Tag >= DataSrc.Constructions.Count then Exit;
-
+  FSelectedItems.Clear;
   if TMenuItem(Sender).Tag = -2 then //empty
   begin
     FSelectedConstructions.Clear;
@@ -1186,6 +1324,14 @@ begin
   end
   else
     FSelectedConstructions.Text := mID;
+  FSelectedItems.Clear;
+  UpdateConstrDepot;
+end;
+
+procedure TEDCDForm.SetDepotGroup(mIDs: string);
+var i: Integer;
+begin
+  FSelectedConstructions.Text := mIDs;
   UpdateConstrDepot;
 end;
 
@@ -1233,8 +1379,21 @@ begin
   self.BringToFront;
 end;
 
+procedure TEDCDForm.Layer1DblClick(Sender: TObject);
+var pt: TPoint;
+    r: TRect;
+begin
+   pt := Mouse.CursorPos;
+   r := ReqQtyColLabel.ClientToScreen(ReqQtyColLabel.ClientRect);
+   if PtInRect(r,pt) then
+     ReqQtyColLabelDblClick(nil)
+   else
+     TextColLabelDblClick(nil);
+   self.BringToFront;
+end;
 
 procedure TEDCDForm.SetupLayers;
+var img: TImage;
 begin
 
   FLayer1 := TForm.Create(nil);
@@ -1246,7 +1405,7 @@ begin
   FLayer1.PopupMenu := self.PopupMenu;
 
   FLayer1.OnClick := Layer1Click;
-  FLayer1.OnDblClick := TextColLabelDblClick;
+  FLayer1.OnDblClick := Layer1DblClick;
 
   FLayer1.Visible := False;
 
@@ -1365,6 +1524,17 @@ begin
   UpdateConstrDepot;
 end;
 
+procedure TEDCDForm.ManageAllMenuItemClick(Sender: TObject);
+begin
+  ColoniesForm.UpdateAndShow;
+  MarketsForm.UpdateAndShow;
+end;
+
+procedure TEDCDForm.ManageColoniesMenuItemClick(Sender: TObject);
+begin
+  ColoniesForm.UpdateAndShow;
+end;
+
 procedure TEDCDForm.ManageMarketsMenuItemClick(Sender: TObject);
 begin
   MarketsForm.UpdateAndShow;
@@ -1421,6 +1591,7 @@ begin
   begin
     Top := self.Top + self.Height;
     Show;
+    UpdateLayersPos;
     UpdateConstrDepot;
   end;
   AppActivate(nil);
@@ -1473,32 +1644,47 @@ var r: TRect;
     supplyhintf: Boolean;
 begin
   supplyhintf := (Opts['ShowIndicators'] = '2') and Opts.Flags['IncludeSupply'];
+  r := StatusPaintBox.ClientRect;
   with StatusPaintBox.Canvas do
   begin
     Brush.Style := bsClear;
     Font.Color := clSilver;
-    r := ClientRect;
     dx := TextWidth('W') + 1;
 //    dx2 := (dx - TextWidth('_')) div 2;
     dy := TextHeight('Wq');
     y := 0;
     for i  := 0 to FIndicators.Count - 1 do
     begin
-      for j := 1 to Length(FIndicators[i]) do
+      if i < FItemsShown then
       begin
-        s := Copy(FIndicators[i],j,1);    //■●▲  □○△
-        if supplyhintf then
+        for j := 1 to Length(FIndicators[i]) do
         begin
-          if (s = '△') or (s = '○') or (s = '□') then
-            Font.Color := TColor($23238E) //clFireBrick
-          else
-            Font.Color := clSilver;
-            //Canvas.TextRect(r,(j-1)*dx + 2 + dx2,y+1,'_');
-          if s = '▲' then s := '△';
-          if s = '●' then s := '○';
-          if s = '■' then s := '□';
+          s := Copy(FIndicators[i],j,1);    //■●▲  □○△
+          if supplyhintf then
+          begin
+            if (s = '△') or (s = '○') or (s = '□') then
+              Font.Color := TColor($23238E) //clFireBrick
+            else
+            if s = '⛔' then
+              Font.Color := TColor($23238E)
+            else
+              Font.Color := clSilver;
+              //Canvas.TextRect(r,(j-1)*dx + 2 + dx2,y+1,'_');
+            if s = '▲' then s := '△';
+            if s = '●' then s := '○';
+            if s = '■' then s := '□';
+          end;
+          TextRect(r,(j-1)*dx + 2,y,s);
         end;
-        TextRect(r,(j-1)*dx + 2,y,s);
+      end
+      else
+      begin
+        s := FIndicators[i];
+        if s <> '' then
+        begin
+          Font.Color := clSilver;
+          TextRect(r,r.Width - TextWidth(s),y,s);
+        end;
       end;
       y := y + dy;
     end;
@@ -1533,6 +1719,44 @@ begin
     MarketInfoForm.Show;
   end;
 end;
+
+procedure TEDCDForm.CopyReqQtyMenuItemClick(Sender: TObject);
+var sl,sl2: TStringList;
+    s: string;
+    i: Integer;
+begin
+  sl := TStringList.Create;
+  sl2 := TStringList.Create;
+  sl.Text := TextColLabel.Caption;
+  sl2.Text := ReqQtyColLabel.Caption;
+  s := '';
+  try
+    while sl.Count > FItemsShown do
+      sl.Delete(FItemsShown);
+    for i := 0 to FItemsShown - 1 do
+      sl[i] := sl[i] + Chr(9) + sl2[i];
+    sl.Sort;
+    s := sl.Text;
+  finally
+    sl.Free;
+    sl2.Free;
+  end;
+  if s <> '' then
+  begin
+    Clipboard.SetTextBuf(PChar(s));
+    SplashForm.ShowInfo('Request copied to clipboard...',1000);
+  end;
+end;
+
+procedure TEDCDForm.ActiveConstrMenuItemClick(Sender: TObject);
+begin
+  MarketsForm.InclIgnoredCheck.Checked := False;
+  MarketsForm.MarketsCheck.Checked := False;
+  MarketsForm.ConstrCheck.Checked := True;
+  MarketsForm.FilterEdit.Text := 'ConstructionDepot';
+  MarketsForm.UpdateAndShow;
+end;
+
 
 procedure TEDCDForm.PopupMenuPopup(Sender: TObject);
 var
@@ -1600,7 +1824,7 @@ begin
   SelectDepotSubMenu.Insert(0,mitem);
 
   mitem := TMenuItem.Create(SelectDepotSubMenu);
-  mitem.Caption := '(No depot, show ship cargo only)';
+  mitem.Caption := '( No depot, show ship cargo only )';
   mitem.Tag := -2;
   mitem.Checked := FUseEmptyDepot;
   mitem.OnClick := SwitchDepotMenuItemClick;
@@ -1610,6 +1834,20 @@ begin
   mitem := TMenuItem.Create(SelectDepotSubMenu);
   mitem.Caption := '( Press and hold CTRL key to group depots )';
   mitem.Enabled := False;
+  SelectDepotSubMenu.Add(mitem);
+
+  mitem := TMenuItem.Create(SelectMarketSubMenu);
+  mitem.Caption := '-';
+  SelectDepotSubMenu.Add(mitem);
+
+  mitem := TMenuItem.Create(SelectDepotSubMenu);
+  mitem.Caption := 'Copy Request';
+  mitem.OnClick := CopyReqQtyMenuItemClick;
+  SelectDepotSubMenu.Add(mitem);
+
+  mitem := TMenuItem.Create(SelectDepotSubMenu);
+  mitem.Caption := 'All Active Constructions';
+  mitem.OnClick := ActiveConstrMenuItemClick;
   SelectDepotSubMenu.Add(mitem);
 
 
@@ -1766,6 +2004,11 @@ begin
   Action := caFree;
   if self = EDCDForm then
   begin
+
+    //force position saving; FormClose is not called on termination!
+    if MarketsForm.Visible then MarketsForm.Close;
+    if ColoniesForm.Visible then ColoniesForm.Close;
+
     Opts['Left'] := IntToStr(self.Left);
     Opts['Top'] := IntToStr(self.Top);
     if Opts.Flags['KeepSelected'] then
@@ -1795,6 +2038,9 @@ begin
   DataSrc.AddListener(self);
 
   FSelectedConstructions := TStringList.Create;
+  FSelectedItems := TStringList.Create;
+  FSelectedItems.Sorted := True;
+  FSelectedItems.Duplicates := dupIgnore;
 
   if Opts.Flags['KeepSelected'] then
     if Opts['SelectedDepots'] = 'cargo' then
@@ -1815,13 +2061,19 @@ begin
 
   self.Left := StrToIntDef(Opts['Left'],Screen.Width - self.Width);
   self.Top := StrToIntDef(Opts['Top'],(Screen.Height - self.Height) div 2);
+  UpdateLayersPos;
+
+end;
+
+procedure TEDCDForm.UpdateLayersPos;
+begin
   if FLayer1 <> nil then
   begin
     FLayer1.Left := self.Left - 2;
     FLayer1.Top := self.Top - 2;
   end;
-
 end;
+
 
 procedure TEDCDForm.AppActivate(Sender: TObject);
 var i: Integer;

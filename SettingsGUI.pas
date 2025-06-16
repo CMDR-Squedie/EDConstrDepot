@@ -21,10 +21,13 @@ type
     Panel1: TPanel;
     VersionLabel: TLabel;
     UpdLinkLabel: TLinkLabel;
+    BackupJournalLink: TLinkLabel;
     procedure FormShow(Sender: TObject);
     procedure ListViewDblClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure UpdLinkLabelLinkClick(Sender: TObject; const Link: string;
+      LinkType: TSysLinkType);
+    procedure BackupJournalLinkLinkClick(Sender: TObject; const Link: string;
       LinkType: TSysLinkType);
   private
     { Private declarations }
@@ -41,7 +44,22 @@ implementation
 
 {$R *.dfm}
 
-uses Settings, Main, Markets, MarketInfo;
+uses Settings, Main, Markets, MarketInfo, DataSource, Splash, Colonies;
+
+procedure TSettingsForm.BackupJournalLinkLinkClick(Sender: TObject;
+  const Link: string; LinkType: TSysLinkType);
+begin
+  if Vcl.Dialogs.MessageDlg('Are you sure you want create a journal backup?' + Chr(13) +
+    '(This file can be moved to a new machine and put in E:D Saved Games folder.)' ,
+    mtConfirmation, [mbYes, mbNo], 0, mbNo) = mrNo then Exit;
+
+  SplashForm.ShowInfo('Backing up journal...',0);
+  try
+    DataSrc.DoBackup;
+  finally
+    SplashForm.Hide;
+  end;
+end;
 
 procedure TSettingsForm.FormCreate(Sender: TObject);
 var i: Integer;
@@ -74,7 +92,8 @@ begin
   DefineOpt('Color','hex color code',0,0,'hex');
   DefineOpt('FontGlow','0-255 transition between font color and background',0,255,'');
   DefineOpt('Backdrop','0-transparent; 1-opaque; 2-shadowed',0,2,'');
-  DefineOpt('AlphaBlend','0-255 shadow intensity if Backdrop=2',0,255,'');
+  DefineOpt('AlphaBlend','0-255 shadow intensity (if Backdrop=2)',0,255,'');
+  DefineFlag('AutoAlphaBlend','automatic shadow intensity (if Backdrop=2)');
   DefineFlag('ClickThrough','transparent to in-game clicks (Alt-Tab/Menu key to re-activate)');
   DefineFlag('ScanMenuKey','when in-game, press and hold Quick Menu key to activate the app');
   DefineOpt('AlwaysOnTop','0-not on top; 1-always on top; 2-on top of E:D window only',0,2,'');
@@ -90,6 +109,7 @@ begin
   DefineFlag('ShowBestMarket','');
   DefineFlag('ShowDividers','');
   DefineOpt('ShowIndicators','0-no indicators; 1-solid/hollow indicators; 2-hollow indicators only',0,2,'');
+  DefineFlag('ShowDistance','shows number of jumps there and back and exact Ly distance to markets');
   DefineOpt('IncludeSupply','0-no supply hint; 1-full capacity supply; 2-full request supply',0,2,'');
   DefineFlag('ShowCloseBox','');
   DefineFlag('TransparentTitle','');
@@ -191,6 +211,7 @@ begin
       TEDCDForm(Application.Components[i]).OnChangeSettings;
   MarketsForm.ApplySettings;
   MarketInfoForm.ApplySettings;
+  ColoniesForm.ApplySettings;
 end;
 
 end.

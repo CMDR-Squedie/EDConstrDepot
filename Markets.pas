@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.ComCtrls, DataSource,
-  Vcl.StdCtrls, Vcl.Menus, System.Math;
+  Vcl.StdCtrls, Vcl.Menus, System.Math, System.IniFiles, System.StrUtils;
 
 type
   TMarketsForm = class(TForm, IEDDataListener)
@@ -27,7 +27,6 @@ type
     CopyMenuItem: TMenuItem;
     CopyAllMenuItem: TMenuItem;
     ClearFilterButton: TButton;
-    N2: TMenuItem;
     FleetCarrierSubMenu: TMenuItem;
     SetAsConstrDepotMenuItem: TMenuItem;
     SetAsStockMenuItem: TMenuItem;
@@ -38,13 +37,16 @@ type
     Clear1: TMenuItem;
     MarketInfoMenuItem: TMenuItem;
     CopySystemNameMenuItem: TMenuItem;
-    N4: TMenuItem;
     CompareMarketsMenuItem: TMenuItem;
     MarketSnapshotMenuItem: TMenuItem;
     InclSnapshotsCheck: TCheckBox;
     RemoveSnapshotMenuItem: TMenuItem;
     CompareCheck: TCheckBox;
     Button1: TButton;
+    GroupDepotGroupMenuItem: TMenuItem;
+    N5: TMenuItem;
+    ConstructionsSubMenu: TMenuItem;
+    MarketsSubMenu: TMenuItem;
     procedure ListViewColumnClick(Sender: TObject; Column: TListColumn);
     procedure ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
@@ -70,6 +72,7 @@ type
       Shift: TShiftState; X, Y: Integer);
     procedure Panel1MouseMove(Sender: TObject; Shift: TShiftState; X,
       Y: Integer);
+    procedure GroupDepotGroupMenuItemClick(Sender: TObject);
   private
     { Private declarations }
     SortColumn: Integer;
@@ -84,6 +87,8 @@ type
     procedure OnEDDataUpdate;
     procedure ApplySettings;
     procedure UpdateAndShow;
+    procedure SetColony(sid: string);
+    procedure SetMarketFilter(fs: string);
   end;
 
 var
@@ -101,6 +106,26 @@ const cMarketFavInd: array [miNormal..miLast] of string = ('','','','●','●�
 procedure TMarketsForm.OnEDDataUpdate;
 begin
   if Visible then UpdateItems;
+end;
+
+procedure TMarketsForm.SetColony(sid: string);
+begin
+  MarketsCheck.Checked := True;
+  ConstrCheck.Checked := True;
+  FilterEdit.Text := sid;
+  SortColumn := 6;
+  SortAscending := True;
+  UpdateAndShow;
+end;
+
+procedure TMarketsForm.SetMarketFilter(fs: string);
+begin
+  MarketsCheck.Checked := True;
+  ConstrCheck.Checked := False;
+  FilterEdit.Text := fs;
+  SortColumn := 5;
+  SortAscending := True;
+  UpdateAndShow;
 end;
 
 
@@ -153,6 +178,7 @@ procedure TMarketsForm.Panel1MouseMove(Sender: TObject; Shift: TShiftState; X,
   Y: Integer);
 var pt: TPoint;
 begin
+  Exit;
   if ssLeft in Shift then
   begin
     pt := Mouse.CursorPos;
@@ -182,9 +208,14 @@ begin
   end;
   EditCommentMenuItem.Enabled := m <> nil;
   SelectCurrentMenuItem.Enabled := mf or cdf;
+
   FleetCarrierSubMenu.Enabled := (m <> nil) and (m.StationType = 'FleetCarrier');
+  MarketsSubMenu.Enabled := mf;
+  ConstructionsSubMenu.Enabled := cdf;
+
   TaskGroupSubMenu.Enabled := mf or cdf;
   AddToDepotGroupMenuItem.Enabled := cdf;
+  GroupDepotGroupMenuItem.Enabled := cdf;
   MarketInfoMenuItem.Enabled := mf or snapf;
   MarketSnapshotMenuItem.Enabled := mf;
   RemoveSnapshotMenuItem.Enabled := snapf;
@@ -315,7 +346,8 @@ begin
   s := '';
   for i := 0 to ListView.Columns.Count -1 do
   begin
-    s := s + ListView.Columns[i].Caption + Chr(9);
+    if ListView.Columns[i].Caption <> '' then
+      s := s + ListView.Columns[i].Caption + Chr(9);
   end;
   s := s + Chr(13);
 
@@ -326,7 +358,8 @@ begin
     s := s + ListView.Items[i].Caption + Chr(9);
     for j := 0 to ListView.Items[i].SubItems.Count - 1 do
       if j < ListView.Columns.Count - 1 then
-        s := s + ListView.Items[i].SubItems[j] + Chr(9);
+        if ListView.Columns[j+1].Caption <> '' then
+          s := s + ListView.Items[i].SubItems[j] + Chr(9);
     s := s + Chr(13);
   end;
   Clipboard.SetTextBuf(PChar(s));
@@ -378,7 +411,7 @@ end;
 
 procedure TMarketsForm.FormCreate(Sender: TObject);
 begin
-  SortColumn := 3; //last visit
+  SortColumn := 4; //last visit
   SortAscending := False;
   FSelectedItems := TStringList.Create;
 
@@ -387,8 +420,8 @@ begin
 
   self.Width := StrToIntDef(Opts['Markets.Width'],self.Width);
   self.Height := StrToIntDef(Opts['Markets.Height'],self.Height);
-  self.Left := StrToIntDef(Opts['Markets.Left'],Screen.Width - self.Width);
-  self.Top := StrToIntDef(Opts['Markets.Top'],(Screen.Height - self.Height) div 2);
+  self.Left := StrToIntDef(Opts['Markets.Left'],(Screen.Width - self.Width) div 2);
+  self.Top := StrToIntDef(Opts['Markets.Top'],Screen.Height div 2);
 
   if Opts['Markets.AlphaBlend'] <> '' then
   begin
@@ -400,6 +433,20 @@ end;
 procedure TMarketsForm.FormShow(Sender: TObject);
 begin
   UpdateItems;
+  FilterEdit.SetFocus;
+end;
+
+procedure TMarketsForm.GroupDepotGroupMenuItemClick(Sender: TObject);
+var i: Integer;
+    s: string;
+begin
+  s := '';
+  for i := 0 to ListView.Items.Count -1 do
+    if IsSelected(ListView.Items[i]) then
+      if TBaseMarket(ListView.Items[i].Data) is TConstructionDepot then
+        s := s + TBaseMarket(ListView.Items[i].Data).MarketID + Chr(13);
+  if s <> '' then
+    EDCDForm.SetDepotGroup(s);
 end;
 
 procedure TMarketsForm.SaveSelection;
@@ -416,6 +463,7 @@ var i: Integer;
 begin
   for i := 0 to ListView.Items.Count - 1 do
   begin
+    if ListView.Items[i].Data <> nil then
     if FSelectedItems.IndexOf(TBaseMarket(ListView.Items[i].Data).MarketID) > -1 then
       if CompareCheck.Checked then
         ListView.Items[i].Checked := True
@@ -431,15 +479,17 @@ var
   m: TMarket;
   s: string;
   item: TListItem;
-  fs,cs: string;
-  items: TStringList;
+  fs,orgfs,cs,sups: string;
+  items: THashedStringList;
   lev: TMarketLevel;
-  ignoredf,partialf: Boolean;
+  ignoredf,partialf,findcmdtyf: Boolean;
+  d: Extended;
 
   function CheckFilter: Boolean;
   var i: Integer;
   begin
     Result := True;
+    sups := '';
     if fs <> '' then
     begin
       Result := False;
@@ -455,7 +505,11 @@ var
 
       if not Result then
         if TBaseMarket(item.Data) is TMarket then
-          Result := TMarket(item.Data).Stock.IndexOfName(fs) >= 0;
+        begin
+//          Result := TMarket(item.Data).Stock.IndexOfName(fs) >= 0;
+          sups := TMarket(item.Data).Stock.Values[fs];
+          Result := sups > '0';
+        end;
     end;
   end;
 
@@ -468,7 +522,7 @@ begin
 
   SaveSelection;
 
-  items := TStringList.Create;
+  items := THashedStringList.Create;
   items.Sorted := True;
   items.Duplicates := dupIgnore;
 
@@ -476,12 +530,19 @@ begin
     ignoredf := InclIgnoredCheck.Checked;
     partialf := InclPartialCheck.Checked;
 
-    ListView.SortType := stNone;
-    ListView.Items.Clear;
-
     ListView.Items.BeginUpdate;
 
-    fs := LowerCase(FilterEdit.Text);
+    ListView.Items.Clear;
+    ListView.SortType := stNone;
+
+    for i := 0 to ListView.Columns.Count - 1 do
+       ListView.Column[i].Width := 0;
+
+
+    orgfs := FilterEdit.Text;
+    fs := LowerCase(orgfs);
+    findcmdtyf := FilterEdit.Items.IndexOf(fs) <> -1;
+
   //  cs := CommodityCombo.Text;
 
     if ConstrCheck.Checked {and (cs = '')} then
@@ -493,6 +554,7 @@ begin
       lev := DataSrc.GetMarketLevel(cd.MarketId);
       if not ignoredf then
         if lev = miIgnore then continue;
+
       item := ListView.Items.Add;
       item.Data := cd;
       item.Caption := cd.StationName_full;
@@ -504,13 +566,16 @@ begin
         else
           item.SubItems.Add('ConstructionDepot');
       item.SubItems.Add(cd.StarSystem_nice);
+      item.SubItems.Add(cd.Body);
       s := cd.LastDock;
       if s < cd.LastUpdate then s := cd.LastUpdate;
       item.SubItems.Add(niceTime(s));
+      item.SubItems.Add('');
       s := '';
       if cd.DistFromStar >= 0 then
         s := Format('%.0n', [double(cd.DistFromStar)]);
       item.SubItems.Add(s);
+      item.SubItems.Add('');
       item.SubItems.Add(cMarketIgnoreInd[DataSrc.GetMarketLevel(cd.MarketId)]);
       item.SubItems.Add('');
       item.SubItems.Add(DataSrc.MarketComments.Values[cd.MarketID]);
@@ -518,7 +583,6 @@ begin
       item.SubItems.Add(DataSrc.MarketGroups.Values[cd.MarketID]);
 
       if not CheckFilter then item.Delete;
-
     end;
 
     if MarketsCheck.Checked then
@@ -535,6 +599,7 @@ begin
       item.Caption := m.StationName_full;
       item.SubItems.Add(m.StationType);
       item.SubItems.Add(m.StarSystem_nice);
+      item.SubItems.Add(m.Body);
       s := m.LastDock;
       if s < m.LastUpdate then s := m.LastUpdate;
       s := niceTime(s);
@@ -543,8 +608,20 @@ begin
           s := s + '  *';
       item.SubItems.Add(s);
       s := '';
+      if EDCDForm.CurrentDepot <> nil then
+      begin
+        d := m.DistanceTo(EDCDForm.CurrentDepot);
+        if d > 0 then
+          s := FloatToStrF(d,ffFixed,7,2);
+      end;
+      item.SubItems.Add(s);
+      s := '';
       if m.DistFromStar >= 0 then
         s := Format('%.0n', [double(m.DistFromStar)]);
+      item.SubItems.Add(s);
+      s := '';
+      if findcmdtyf then
+        s := Format('%.0n', [double(m.Stock.Qty[fs])]);
       item.SubItems.Add(s);
       item.SubItems.Add(cMarketIgnoreInd[lev]);
       item.SubItems.Add(cMarketFavInd[lev]);
@@ -552,8 +629,15 @@ begin
       item.SubItems.Add(DataSrc.MarketComments.Values[m.MarketID]);
       item.SubItems.Add(m.Economies);
       item.SubItems.Add(DataSrc.MarketGroups.Values[m.MarketID]);
+
       for j := 0 to m.Stock.Count - 1 do
-        items.Add(m.Stock.Names[j]);
+      begin
+        s := m.Stock.Names[j];
+        if LeftStr(s,1) <> '$' then
+          if FilterEdit.Items.IndexOf(s) = -1 then
+            items.Add(s);
+      end;
+
       if not CheckFilter then item.Delete;
 
     end;
@@ -567,21 +651,41 @@ begin
       item.Caption := m.StationName;
       item.SubItems.Add(m.StationType);
       item.SubItems.Add(m.StarSystem_nice);
+      item.SubItems.Add('');
       s := niceTime(m.LastUpdate);
       item.SubItems.Add(s);
       item.SubItems.Add('');
       item.SubItems.Add('');
+      s := '';
+      if findcmdtyf then
+        s := Format('%.0n', [double(m.Stock.Qty[fs])]);
+      item.SubItems.Add(s);
+      item.SubItems.Add(DataSrc.MarketGroups.Values[m.MarketID]);
+      item.SubItems.Add('');
       item.SubItems.Add('');
       item.SubItems.Add(DataSrc.MarketComments.Values[m.MarketID]);
       item.SubItems.Add(m.Economies);
-      item.SubItems.Add(DataSrc.MarketGroups.Values[m.MarketID]);
+      item.SubItems.Add('');
       if not CheckFilter then item.Delete;
     end;
 
     FilterEdit.Items.AddStrings(items);
 
+    //set columns to auto-size;  nice, but ListView is EXTREMELY slow with this!!!
+    //todo: set the column widths and add "auto-size" option for user to decide
     for i := 0 to ListView.Columns.Count - 1 do
        ListView.Column[i].Width := -2;
+
+    if findcmdtyf then
+    begin
+      ListView.Columns[7].Caption := 'Stock';
+    end
+    else
+    begin
+      ListView.Columns[7].Caption := '';
+      ListView.Columns[7].Width := 0;
+    end;
+
     ListView.SortType := stText;
     ListView.Items.EndUpdate;
 
@@ -604,15 +708,29 @@ end;
 
 procedure TMarketsForm.ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
   Data: Integer; var Compare: Integer);
+var s: string;
 begin
+  Compare := 0;
   if SortColumn <= 0 then
   begin
     Compare := CompareText(Item1.Caption, Item2.Caption);
   end
   else
   begin
-    if SortColumn = 4 then
+    if SortColumn = 5 then
+      Compare := CompareText(
+        Item1.SubItems[SortColumn-1].PadLeft(10),
+        Item2.SubItems[SortColumn-1].PadLeft(10))
+    else
+    if SortColumn = 6 then
       Compare := CompareValue(TBaseMarket(Item1.Data).DistFromStar,TBaseMarket(Item2.Data).DistFromStar)
+    else
+    if SortColumn = 7 then
+    begin
+      s := FilterEdit.Text;
+      Compare := CompareValue(
+        TBaseMarket(Item1.Data).Stock.Qty[s],TBaseMarket(Item2.Data).Stock.Qty[s])
+    end
     else
       Compare := CompareText(
         Item1.SubItems[SortColumn-1] + '    ' + Item1.Caption,
@@ -642,6 +760,11 @@ begin
   2:
     begin
       FilterEdit.Text := TBaseMarket(ListView.Selected.Data).StarSystem_nice;
+      UpdateItems;
+    end;
+  3:
+    begin
+      FilterEdit.Text := ListView.Selected.SubItems[ClickedColumn-1];
       UpdateItems;
     end;
   4:

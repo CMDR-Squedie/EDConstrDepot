@@ -2,19 +2,23 @@ unit Settings;
 
 interface
 
-uses Winapi.Windows, System.SysUtils, System.Classes;
+uses Winapi.Windows, System.SysUtils, System.Classes, System.IniFiles;
 
-type TSettings = class (TStringList)
+type TSettings = class (THashedStringList)
   private
-    FDefaults: TStringList;
+    FDefaults: THashedStringList;
     FFileName: string;
     procedure SetFlag(const Name: string; v: Boolean);
     function GetFlag(const Name: string): Boolean;
     procedure SetVal(const Name: string; v: string);
     function GetVal(const Name: string): string;
+    function GetInt(const Name: string): Integer;
     procedure SetDefaults(const Name: string; v: string);
     function GetDefaults(const Name: string): string;
   public
+    MaxIdleDockTime: Integer;
+    DockToUndockTime: Integer;
+    property Int[const Name: string]: Integer read GetInt;
     property Flags[const Name: string]: Boolean read GetFlag write SetFlag;
     property Val[const Name: string]: string read GetVal write SetVal; default;
 //    property Defaults[const Name: string]: string read GetDefaults write SetDefaults;
@@ -60,9 +64,16 @@ begin
   Values[Name] := IntToStr(Ord(v));
 end;
 
+function TSettings.GetInt(const Name: string): Integer;
+begin
+  Result := StrToIntDef(GetVal(Name),0);
+end;
+
 procedure TSettings.Load;
 begin
   try LoadFromFile(FFileName); except end;
+  MaxIdleDockTime := Int['MaxIdleDockTime'];
+  DockToUndockTime := Int['DockToUndockTime'];
 end;
 
 procedure TSettings.Save;
@@ -85,7 +96,7 @@ end;
 
 constructor TSettings.Create(fn: string);
 begin
-  FDefaults := TStringList.Create;
+  FDefaults := THashedStringList.Create;
 
   FDefaults.Values['FontName'] := 'Bahnschrift SemiCondensed';
   FDefaults.Values['FontSize'] := '10';
@@ -94,6 +105,7 @@ begin
   FDefaults.Values['ShowProgress'] := '1';
   FDefaults.Values['ShowFlightsLeft'] := '1';
   FDefaults.Values['ShowDelTime'] := '0';
+  FDefaults.Values['ShowDistance'] := '0';
   FDefaults.Values['ShowRecentMarket'] := '1';
   FDefaults.Values['ShowBestMarket'] := '1';
   FDefaults.Values['SelectedMarket'] := 'auto';
@@ -107,6 +119,7 @@ begin
   FDefaults.Values['AlwaysOnTop'] := '2';
   FDefaults.Values['Backdrop'] := '2';
   FDefaults.Values['AlphaBlend'] := '64';
+  FDefaults.Values['AutoAlphaBlend'] := '0';
   FDefaults.Values['ClickThrough'] := '0';
   FDefaults.Values['AutoHeight'] := '1';
   FDefaults.Values['AutoWidth'] := '1';
@@ -121,6 +134,9 @@ begin
   FDefaults.Values['BaseWidthText'] := '00000';
   FDefaults.Values['FontGlow'] := '48';
   FDefaults.Values['JournalStart'] := '2025-04-14';    //trailblazers journals start
+  FDefaults.Values['FontGlow'] := '48';
+  FDefaults.Values['MaxIdleDockTime'] := '60';  //seconds
+  FDefaults.Values['DockToUndockTime'] := '15';
 
 
   FFileName := fn;

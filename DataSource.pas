@@ -4,8 +4,8 @@
 interface
 
 uses Winapi.Windows, Winapi.Messages, Winapi.PsAPI, System.Classes, System.SysUtils,
-  System.JSON, System.IOUtils, System.IniFiles, Settings,
-  Vcl.ExtCtrls,Vcl.Dialogs;
+  System.JSON, System.IOUtils, System.IniFiles, System.DateUtils, System.StrUtils,
+  System.Types, Settings, Vcl.ExtCtrls,Vcl.Dialogs;
 
 type IEDDataListener = interface
   ['{C506D770-04B5-408D-99A0-261AC008D422}']
@@ -21,7 +21,7 @@ type TMarketLevel = (
   miLast
 );
 
-type TStock = class(TStringList)
+type TStock = class(THashedStringList)
     procedure SetQty(const Name: string; v: Integer);
     function GetQty(const Name: string): Integer;
   public
@@ -43,22 +43,63 @@ type TDockToDockTimes = class
   function GetAvg: Extended;
 end;
 
+type TStarSystem = class
+private
+  FFactions: string;
+  FAlterName: string;
+  function GetFactions: string;
+  function GetArchitectName: string;
+  procedure SetArchitectByName(s: string);
+  procedure SetAlterName(s: string);
+public
+  StarSystem: string;
+  SystemAddress: string;
+  StarPosX: Double;
+  StarPosY: Double;
+  StarPosZ: Double;
+  SystemSecurity: string;
+  Population: Int64;
+  PopHistory: TStringList;
+  LastUpdate: string;
+  Status: string;
+  FSSData: string;
+  Architect: string;
+  Comment: string;
+  function DistanceTo(s: TStarSystem): Double;
+  function PopForTimeStamp(tms: string): Int64;
+  procedure AddPopToHistory(tms: string; pop: Int64);
+  procedure Save;
+  constructor Create;
+  destructor Destroy;
+published
+  property Factions: string read GetFactions;
+  property ArchitectName: string read GetArchitectName write SetArchitectByName;
+  property AlterName: string read FAlterName write SetAlterName;
+end;
+
 
 type TBaseMarket = class
+private
+  FSysData: TStarSystem;
+public
   MarketID: string;
   StationName: string;
   StationName2: string; //eg. full name for carriers
   StationType: string;
   StarSystem: string;
+  Body: string;
   LastUpdate: string;
   LastDock: string;
   Status: string;
   Stock: TStock;
   DistFromStar: Integer;
   DockToDockTimes: TDockToDockTimes;
+  function System: TStarSystem;
   function FullName: string;
   function StationName_full: string;
   function StarSystem_nice: string;
+  function DistanceTo(m: TBaseMarket): Extended;
+  function DistanceTo_string(m: TBaseMarket): string;
   procedure Clear;
   constructor Create;
   destructor Destroy;
@@ -76,33 +117,20 @@ type TConstructionDepot = class (TBaseMarket)
   Simulated: Boolean;
 end;
 
-
-type TStarSystem = class
-  StarSystem: string;
-  SystemAddress: string;
-  StarPosX: Double;
-  StarPosY: Double;
-  StarPosZ: Double;
-  SystemSecurity: string;
-  Population: Int64;
-  PopHistory: TStringList;
-  Status: string;
-  FSSData: string;
-  Architect: string;
-  function DistanceTo(s: TStarSystem): Double;
-  function PopForTimeStamp(tms: string): Int64;
-  procedure AddPopToHistory(tms: string; pop: Int64);
-  constructor Create;
-  destructor Destroy;
-end;
-
-type TSystemList = class (TStringList)
+type TSystemList = class (THashedStringList)
+  FAlterNames: THashedStringList;
+  function GetSystemByAlterName(const Name: string): TStarSystem;
   function GetSystemByName(const Name: string): TStarSystem;
   function GetSystemByIdx(const idx: Integer): TStarSystem;
 public
   property SystemByName[const Name: string]: TStarSystem read GetSystemByName;
   property SystemByIdx[const idx: Integer]: TStarSystem read GetSystemByIdx; default;
+  property SystemByAlterName[const Name: string]: TStarSystem read GetSystemByAlterName;
 //  property SystemByAddr[const Addr: string]: TStarSystem read GetSystemByAddr;
+  procedure UpdateFromFSDJump(js: string; j: TJSONObject);
+  procedure AddFromJSON(js: string);
+  procedure UpdateArchitect(cmdr: string; j: TJSONObject);
+  constructor Create;
 end;
 
 //not used
@@ -113,25 +141,32 @@ type TEDDataSource = class (TDataModule)
     procedure UpdTimerTimer(Sender: TObject);
   private
     FListeners: array of IEDDataListener;
+    FCommanders: TStringList;
+    FCurrentCmdr: string;
     FCargo: TStock;
     FFileDates: THashedStringList;
-    FLastConstrTimes: TStringList;
-    FItemCategories: TStringList;
-    FItemNames: TStringList;
-    FRecentMarkets: TStringList;
-    FMarketSnapshots: TStringList;
-    FConstructions: TStringList;
+    FLastConstrTimes: THashedStringList;
+    FItemCategories: THashedStringList;
+    FItemNames: THashedStringList;
+    FRecentMarkets: THashedStringList;
+    FMarketSnapshots: THashedStringList;
+    FConstructions: THashedStringList;
     FCargoExt: TMarket;
     FSimDepot: TConstructionDepot;
     FMarket: TMarket;
-    FMarketComments: TStringList;
-    FMarketLevels: TStringList;
-    FMarketGroups: TStringList;
+    FMarketComments: THashedStringList;
+    FMarketLevels: THashedStringList;
+    FMarketGroups: THashedStringList;
     FStarSystems: TSystemList;
     FWorkingDir,FJournalDir: string;
     FMarketJSON,FCargoJSON,FModuleInfoJSON: string;
     FCapacity: Integer;
-    FLastJrnlTimeStamps: TStringList;
+    FMaxJumpRange: Extended;
+    FHullMass: Extended;
+    FLadenJumpRange: Extended;
+    FBaseJumpRange: Extended;
+    FFuelMass: Extended;
+    FLastJrnlTimeStamps: THashedStringList;
     FDataChanged: Boolean;
     FInitialLoad: Boolean;
     FLastFC: string;
@@ -139,11 +174,17 @@ type TEDDataSource = class (TDataModule)
     FLastConstrDockTime: string;
     FLastDockDepotId: string;
     FLastMarketId: string;
+    FLastDropId: string;
+    FDoingBackup: Boolean;
+    FBackupFile: string;
+    FLastConstructionDone: string;
     procedure SetDataChanged;
     function CheckLoadFromFile(var sl: TStringList; fn: string): Boolean;
     procedure MarketFromJSON(m: TMarket; js: string);
     procedure LoadMarket(fn: string);
     procedure LoadAllMarkets;
+    procedure LoadColony(fn: string);
+    procedure LoadAllColonies;
     procedure UpdateCargo;
     procedure UpdateMarket;
     procedure UpdateCapacity;
@@ -153,25 +194,30 @@ type TEDDataSource = class (TDataModule)
     procedure Update;
     procedure SetTaskGroup(s: string);
     procedure UpdateDockTime(tms: string; m: TBaseMarket);
+    procedure RemoveIdleDockTime(tms: string);
   public
     //todo: switch to THashedStringList and TDictionary
-    property Constructions: TStringList read FConstructions;
+    property Constructions: THashedStringList read FConstructions;
     property StarSystems: TSystemList read FStarSystems;
-    property RecentMarkets: TStringList read FRecentMarkets;
-    property MarketSnapshots: TStringList read FMarketSnapshots;
-    property LastConstrTimes: TStringList read FLastConstrTimes;
-    property MarketComments: TStringList read FMarketComments;
-    property MarketLevels: TStringList read FMarketLevels;
-    property MarketGroups: TStringList read FMarketGroups;
+    property Commanders: TStringList read FCommanders;
+    property RecentMarkets: THashedStringList read FRecentMarkets;
+    property MarketSnapshots: THashedStringList read FMarketSnapshots;
+    property LastConstrTimes: THashedStringList read FLastConstrTimes;
+    property MarketComments: THashedStringList read FMarketComments;
+    property MarketLevels: THashedStringList read FMarketLevels;
+    property MarketGroups: THashedStringList read FMarketGroups;
     property Market: TMarket read FMarket;
-    property ItemNames: TStringList read FItemNames;
-    property ItemCategories: TStringList read FItemCategories;
+    property ItemNames: THashedStringList read FItemNames;
+    property ItemCategories: THashedStringList read FItemCategories;
     property Cargo: TStock read FCargo;
     property CargoExt: TMarket read FCargoExt;
     property Capacity: Integer read FCapacity;
+    property MaxJumpRange: Extended read FMaxJumpRange;
+    property JumpRange: Extended read FLadenJumpRange;
     property TaskGroup: string read FTaskGroup write SetTaskGroup;
     property LastDockDepotId: string read FLastDockDepotId;
     property LastMarketId: string read FLastMarketId;
+    property LastConstructionDone: string read FLastConstructionDone;
     procedure MarketToSimDepot(mID: string);
     procedure MarketToCargoExt(mID: string);
     procedure CreateMarketSnapshot(mID: string);
@@ -193,6 +239,7 @@ type TEDDataSource = class (TDataModule)
     procedure Load;
     procedure BeginUpdate;
     procedure EndUpdate;
+    procedure DoBackup;
     constructor Create(Owner: TComponent); override;
 end;
 
@@ -208,6 +255,9 @@ implementation
 {$R *.dfm}
 
 uses Main;
+
+var JSONFormatSettings: TFormatSettings;
+
 
 procedure __log_except(fname: string;info: string);
 begin
@@ -332,9 +382,17 @@ end;
 procedure TBaseMarket.Clear;
 begin
   MarketID := '';
+  StationName := '';
+  StationName2 := '';
+  StationType := '';
+  StarSystem := '';
+  FSysData := nil;
   Status := '';
   LastUpdate := '';
+  LastDock := '';
+  DistFromStar := 0;
   Stock.Clear;
+  DockToDockTimes.Clear;
 end;
 
 function TBaseMarket.FullName: string;
@@ -355,6 +413,29 @@ function TBaseMarket.StationName_full: string;
 begin
   Result := StationName;
   if StationName2 <> '' then Result := StationName2;
+end;
+
+function TBaseMarket.System: TStarSystem;
+begin
+  if FSysData = nil then
+    FSysData := DataSrc.StarSystems.SystemByName[self.StarSystem];
+  Result := FSysData;
+end;
+
+function TBaseMarket.DistanceTo_string(m: TBaseMarket): string;
+begin
+  Result := '';
+  if self.System <> nil then
+    if m.System <> nil then
+      Result := FloatToStrF(System.DistanceTo(m.System),ffFixed,7,2);
+end;
+
+function TBaseMarket.DistanceTo(m: TBaseMarket): Extended;
+begin
+  Result := 0;
+  if self.System <> nil then
+    if m.System <> nil then
+      Result := System.DistanceTo(m.System);
 end;
 
 constructor TBaseMarket.Create;
@@ -397,6 +478,106 @@ begin
   PopHistory.AddPair(tms,IntToStr(pop));
 end;
 
+function TStarSystem.GetFactions: string;
+var j: TJSONObject;
+    jarr: TJSONArray;
+    i,i2: Integer;
+    s,s2: string;
+    infl: Extended;
+    sl,sl2: TStringList;
+    sarr: TStringDynArray;
+    abbrevf: Boolean;
+begin
+  Result := FFactions;
+  if Result <> '' then Exit;
+  abbrevf := True;
+  sl := TStringList.Create;
+  sl2 := TStringList.Create;
+  try
+    j := TJSONObject.ParseJSONValue(Status) as TJSONObject;
+    try
+      jarr := j.GetValue<TJSONArray>('Factions');
+      for i := 0 to jarr.Count - 1 do
+      begin
+        s := jarr.Items[i].GetValue<string>('Name');
+        if abbrevf then
+        begin
+          sarr := SplitString(s,' ');
+          s := '';
+          for i2 := 0 to High(sarr) - 1 do
+            s := s + Copy(sarr[i2],1,1);
+          s := s + Copy(sarr[High(sarr)],1,3);
+        end;
+
+        infl := jarr.Items[i].GetValue<Extended>('Influence');
+        s2 := FloatToStrF(infl*100,ffFixed,7,1);
+        sl.Add(s2.PadLeft(10,' ') + s + '=' + s2);
+      end;
+
+      sl.Sort;
+      for i := sl.Count - 1 downto 0 do
+      begin
+        if FFactions <> '' then FFactions := FFactions + '; ';
+        FFactions := FFactions + Copy(sl.Names[i],11,200) + ' ' + sl.ValueFromIndex[i] + '%';
+      end;
+
+    finally
+      j.Free;
+    end;
+  except
+  end;
+  sl.Free;
+  sl2.Free;
+  Result := FFactions;
+end;
+
+procedure TStarSystem.Save;
+var j: TJSONObject;
+    fn: string;
+begin
+  j := TJSONObject.Create;
+  j.AddPair(TJSONPair.Create('StarSystem', StarSystem));
+  j.AddPair(TJSONPair.Create('SystemAddress', SystemAddress));
+  j.AddPair(TJSONPair.Create('Architect', Architect));
+  j.AddPair(TJSONPair.Create('ArchitectName', ArchitectName));
+  j.AddPair(TJSONPair.Create('AlterName', AlterName));
+  j.AddPair(TJSONPair.Create('Comment', Comment));
+  fn := DataSrc.FWorkingDir + 'colonies\' + SystemAddress + '.json';
+  TFile.WriteAllText(fn, j.Format());
+  j.Free;
+end;
+
+function TStarSystem.GetArchitectName: string;
+begin
+  Result := DataSrc.Commanders.Values[Architect];
+  if Result = '' then Result := Architect;
+end;
+
+procedure TStarSystem.SetArchitectByName(s: string);
+var i: Integer;
+begin
+  Architect := s;
+  for i := 0 to DataSrc.Commanders.Count - 1 do
+    if DataSrc.Commanders.ValueFromIndex[i] = s then
+      Architect := DataSrc.Commanders.Names[i];
+end;
+
+procedure TStarSystem.SetAlterName(s: string);
+var i,idx: Integer;
+begin
+  if s = FAlterName then Exit;
+
+  if FAlterName <> '' then
+  begin
+    idx := DataSrc.FStarSystems.FAlterNames.IndexOf(FAlterName);
+    if idx <> -1 then
+      DataSrc.FStarSystems.FAlterNames.Delete(idx);
+  end;
+  FAlterName := s;
+  DataSrc.FStarSystems.FAlterNames.AddObject(FAlterName,self);
+end;
+
+
 constructor TStarSystem.Create;
 begin
   PopHistory := TStringList.Create;
@@ -405,6 +586,15 @@ end;
 destructor TStarSystem.Destroy;
 begin
   PopHistory.Free;
+end;
+
+function TSystemList.GetSystemByAlterName(const Name: string): TStarSystem;
+var idx: Integer;
+begin
+  Result := nil;
+  idx := FAlterNames.IndexOf(Name);
+  if idx > -1 then
+    Result := TStarSystem(FAlterNames.Objects[idx]);
 end;
 
 function TSystemList.GetSystemByName(const Name: string): TStarSystem;
@@ -420,6 +610,103 @@ function TSystemList.GetSystemByIdx(const idx: Integer): TStarSystem;
 var i: Integer;
 begin
   Result := TStarSystem(Objects[idx]);
+end;
+
+constructor TSystemList.Create;
+begin
+  FAlterNames := THashedStringList.Create;
+end;
+
+procedure TSystemList.UpdateFromFSDJump(js: string; j: TJSONObject);
+var jarr: TJSONArray;
+    name,s, tms: string;
+    sys: TStarSystem;
+    pop: Int64;
+begin
+  try
+    tms := j.GetValue<string>('timestamp');
+    name := j.GetValue<string>('StarSystem');
+    sys := GetSystemByName(name);
+    pop := j.GetValue<Int64>('Population');
+    if sys <> nil then
+    begin
+      sys.AddPopToHistory(tms,pop);
+      if tms < sys.LastUpdate then Exit;
+    end
+    else
+    begin
+      sys := TStarSystem.Create;
+      with sys do
+      begin
+        StarSystem := name;
+        SystemAddress := j.GetValue<string>('SystemAddress');
+      end;
+      AddObject(name,sys);
+    end;
+
+    if sys.LastUpdate = '' then  //loaded from file?
+    begin
+      jarr := j.GetValue<TJSONArray>('StarPos');
+      sys.StarPosX := StrToFloat(jarr[0].Value,JSONFormatSettings);
+      sys.StarPosY := StrToFloat(jarr[1].Value,JSONFormatSettings);
+      sys.StarPosZ := StrToFloat(jarr[2].Value,JSONFormatSettings);
+    end;
+    sys.SystemSecurity := j.GetValue<string>('SystemSecurity_Localised');
+    try sys.SystemSecurity := SplitString(sys.SystemSecurity,' ')[0]; except end;
+
+    sys.Population := pop;
+    sys.LastUpdate := tms;
+    sys.FFactions := ''; //extracted on demand
+    sys.Status := js;
+  except
+  end;
+end;
+
+procedure TSystemList.AddFromJSON(js: string);
+var j: TJSONObject;
+    jarr: TJSONArray;
+    s, tms: string;
+    sys: TStarSystem;
+    pop: Int64;
+begin
+  try
+    j := TJSONObject.ParseJSONValue(js) as TJSONObject;
+    sys := TStarSystem.Create;
+    with sys do
+    begin
+      StarSystem := j.GetValue<string>('StarSystem');
+      SystemAddress := j.GetValue<string>('SystemAddress');
+      try Architect := j.GetValue<string>('Architect'); except end;
+      try AlterName := j.GetValue<string>('AlterName'); except end;
+      try Comment := j.GetValue<string>('Comment'); except end;
+ {
+      jarr := j.GetValue<TJSONArray>('StarPos');
+      StarPosX := StrToFloat(jarr[0].Value,JSONFormatSettings);
+      StarPosY := StrToFloat(jarr[1].Value,JSONFormatSettings);
+      StarPosZ := StrToFloat(jarr[2].Value,JSONFormatSettings);
+      SystemSecurity := j.GetValue<string>('SystemSecurity_Localised');
+      Population := j.GetValue<Int64>('Population');
+      LastUpdate := j.GetValue<string>('timestamp');
+      Status := js;
+}
+      //FJSONObj := j;
+    end;
+    AddObject(sys.StarSystem,sys);
+  except
+  end;
+end;
+
+procedure TSystemList.UpdateArchitect(cmdr: string; j: TJSONObject);
+var sys: TStarSystem;
+    s: string;
+begin
+  try
+    s := j.GetValue<string>('StarSystem');
+    sys := GetSystemByName(s);
+    if sys <> nil then
+      sys.Architect := cmdr;
+  except
+  end;
 end;
 
 function TEDDataSource.CheckLoadFromFile(var sl: TStringList; fn: string): Boolean;
@@ -507,6 +794,7 @@ var  j: TJSONObject;
      jarr: TJSONArray;
      i: Integer;
      s,normItem: string;
+     additemf: Boolean;
 begin
   try
     j := TJSONObject.ParseJSONValue(js) as TJSONObject;
@@ -535,24 +823,30 @@ begin
         jarr := j.GetValue<TJSONArray>('Items');
         for i := 0 to jarr.Count - 1 do
         begin
+          additemf := False;
           s := jarr.Items[i].GetValue<string>('Stock');
           if s > '0' then
-           m.Stock.AddPair(LowerCase(jarr.Items[i].GetValue<string>('Name_Localised')), s);
+          begin
+            m.Stock.AddPair(LowerCase(jarr.Items[i].GetValue<string>('Name_Localised')), s);
+            additemf := True;
+          end;
 
           if m.StationType = 'FleetCarrier' then
           begin
             s := jarr.Items[i].GetValue<string>('Demand');
             if s > '0' then
              m.Stock.AddPair('$' + LowerCase(jarr.Items[i].GetValue<string>('Name_Localised')), s);
+             additemf := True;
           end;
 
-          //if FInitialLoad then
-          if True then //illegals are only listed on selected markets
+          //if not FInitialLoad then additemf = False;
+          if additemf then
           begin
             s := LowerCase(jarr.Items[i].GetValue<string>('Name_Localised'));
             FItemNames.Values[s] := jarr.Items[i].GetValue<string>('Name_Localised');
             FItemCategories.Values[s] := jarr.Items[i].GetValue<string>('Category_Localised');
           end;
+
         end;
       except
         __log_except('MarketFromJSON',m.MarketID);
@@ -603,10 +897,14 @@ end;
 
 procedure TEDDataSource.UpdTimerTimer(Sender: TObject);
 begin
-  Update;
-  if FDataChanged then
-    NotifyListeners;
-  FDataChanged := False;
+  try
+    Update;
+    if FDataChanged then
+      NotifyListeners;
+    FDataChanged := False;
+  except
+    //suppress all errors on timers!
+  end;
 end;
 
 procedure TEDDataSource.AddListener(Sender: IEDDataListener);
@@ -628,8 +926,6 @@ begin
 
 end;
 
-var Cnt1,Cnt2: Integer;
-
 procedure TEDDataSource.NotifyListeners;
 var i: Integer;
 begin
@@ -637,6 +933,7 @@ begin
   begin
     FListeners[i].OnEDDataUpdate;
   end;
+  FLastConstructionDone := '';
 end;
 
 procedure TEDDataSource.UpdateDockTime(tms: string; m: TBaseMarket);
@@ -653,6 +950,20 @@ begin
     end;
   FLastConstrDockTime := s;
   FLastDockDepotId := m.MarketId;
+end;
+
+procedure TEDDataSource.RemoveIdleDockTime(tms: string);
+var s: string;
+    d: Extended;
+begin
+  if Opts.MaxIdleDockTime <= 0 then Exit;
+  s := Copy(tms,12,8);
+  d := (StrToDateTime(s) - StrToDateTime(FLastConstrDockTime)) * 86400;
+  if d > Opts.MaxIdleDockTime then //60 seconds for checking missions, news etc.
+  begin
+    d := StrToDateTime(s) - Opts.DockToUndockTime/86400;  //15 seconds dock-to-undock
+    FLastConstrDockTime := Copy(DateToISO8601(d),12,8);
+  end;
 end;
 
 procedure TEDDataSource.UpdateFromJournal(fn: string; jrnl: TStringList);
@@ -724,12 +1035,20 @@ begin
             if GetEvent(jrnl[i+1]) = 'ColonisationConstructionDepot' then
               continue;
 
-        if (s<>'Loadout') and
+        if (s<>'Commander') and
+
+//core events
+           (s<>'Loadout') and
            (s<>'Docked') and
            (s<>'ColonisationConstructionDepot') and
 
-//fleet carrier names
+//delivery time only
+           (s<>'Undocked') and
+
+//fleet carrier names, body names
           (s<>'SupercruiseDestinationDrop') and
+          (s<>'SupercruiseExit') and
+          (s<>'ApproachSettlement') and
 
 //updates to all markets
            (s<>'MarketBuy') and
@@ -738,16 +1057,20 @@ begin
            (s<>'CarrierTradeOrder') and
            (s<>'CargoTransfer') and
 //star system info
-           (s<>'FSDJump')
+           (s<>'FSDJump') and
+           (s<>'ColonisationSystemClaim') and
+           (s<>'ColonisationSystemClaimRelease')
 
 //ModuleStore/ModuleRetrieve - to supplement Loadout event?
 
             then continue;
         event := s;
 
-//        if not FInitialLoad then
-//          System.IOUtils.TFile.AppendAllText(
-//            DataSrc.FWorkingDir + 'journal_backup.log',js+Chr(13),TEncoding.ASCII);
+        if FDoingBackup then
+        begin
+          System.IOUtils.TFile.AppendAllText(FWorkingDir + FBackupFile,js+Chr(13),TEncoding.ASCII);
+          continue;
+        end;
 
         j := TJSONObject.ParseJSONValue(jrnl[i]) as TJSONObject;
         tms := j.GetValue<string>('timestamp');
@@ -756,24 +1079,65 @@ begin
         if entryId <= FLastJrnlTimeStamps.Values[fn] then continue;
 
 //        event := j.GetValue<string>('event');
-        if event = 'Loadout' then
+        if event = 'Commander' then
         begin
-          FCapacity := j.GetValue<Integer>('CargoCapacity');
+          s := j.GetValue<string>('FID');
+          FCommanders.Values[s] := j.GetValue<string>('Name');
+          FCurrentCmdr := s;
           goto LUpdateTms;
         end;
 
+        if event = 'Loadout' then
+        begin
+          FCapacity := j.GetValue<Integer>('CargoCapacity');
+          //this seems to be calculated with fuel tank filled to one jump...
+          //all subsequent calculations match perfectly in-game calculations
+          //if FHullMass is increased by FMinFuel
+          // eg. ~12t for Cutter which is minimum fuel for 8A FSD
+          FBaseJumpRange := j.GetValue<Extended>('MaxJumpRange');
+          FHullMass := j.GetValue<Extended>('UnladenMass');
+          FFuelMass := j.GetValue<Extended>('FuelCapacity.Main');
+
+          //not perfect, but close enough to in-game calculations, and not as optimistic
+          FMaxJumpRange := FBaseJumpRange * FHullMass { + FMinFuel}/ (FHullMass + FFuelMass);
+          FLadenJumpRange := FBaseJumpRange * FHullMass { + FMinFuel } / (FHullMass + FFuelMass + FCapacity);
+          goto LUpdateTms;
+        end;
+
+
         if event = 'FSDJump' then
         begin
-{
-          s := '';
-          try s := j.GetValue<string>('SystemAddress'); except end;
-          sys := SystemFromId(s);
-          sys.Status := js;
-          sys.Ready := False;
-          //no further processing here
-}
-          continue;
+          StarSystems.UpdateFromFSDJump(js,j);
+          goto LUpdateTms;
         end;
+
+        if event = 'ColonisationSystemClaim' then
+        begin
+          StarSystems.UpdateArchitect(FCurrentCmdr,j);
+          goto LUpdateTms;
+        end;
+
+        if event = 'ColonisationSystemClaimRelease' then
+        begin
+          StarSystems.UpdateArchitect('',j);
+          goto LUpdateTms;
+        end;
+
+        if event = 'SupercruiseExit' then
+        begin
+          s:= j.GetValue<string>('StarSystem');
+          cd := DepotFromId(FLastDropId);
+          if cd <> nil then
+            cd.Body := Copy(j.GetValue<string>('Body'),Length(s)+1,200);
+          {
+          m := MarketFromId(FLastDropId);
+          if m <> nil then
+            m.Body := Copy(j.GetValue<string>('Body'),Length(s)+1,200);
+          }
+          FLastDropId := '';
+          goto LUpdateTms;
+        end;
+
 
         mID := '';
         try mID := j.GetValue<string>('MarketID'); except end;
@@ -796,6 +1160,19 @@ begin
                 FSimDepot.StationName2 := m.StationName2;
             end;
           end;
+          FLastDropId := mID;
+        end;
+
+        if event = 'ApproachSettlement' then
+        begin
+          FLastDropId := mID;
+        end;
+
+        if event = 'Undocked' then
+        begin
+          if mID = FLastDockDepotId then
+            if FLastConstrDockTime <> '' then
+              RemoveIdleDockTime(tms);
         end;
 
         if event = 'Docked' then
@@ -891,6 +1268,7 @@ begin
             if s = 'true' then
             begin
               cd.Finished := true;
+              FLastConstructionDone := mID;
               if FLastConstrTimes.Values[cd.StarSystem] < tms  then
                 FLastConstrTimes.Values[cd.StarSystem] := tms;
             end;
@@ -1140,12 +1518,8 @@ begin
 end;
 
 procedure TEDDataSource.LoadAllMarkets;
-var sl: TStringList;
-    s,s2,fn: string;
-    i,res: Integer;
-    fa: DWord;
+var i,res: Integer;
     srec: TSearchRec;
-    m: TMarket;
 begin
   res := FindFirst(FWorkingDir + 'markets\*.json', faAnyFile, srec);
   while res = 0 do
@@ -1157,6 +1531,46 @@ begin
 
 end;
 
+procedure TEDDataSource.LoadColony(fn: string);
+var sl: TStringList;
+    js: string;
+begin
+  sl := TStringList.Create;
+  try
+    sl.LoadFromFile(fn);
+    js := sl.Text;
+    StarSystems.AddFromJSON(js);
+  finally
+    sl.Free;
+  end;
+end;
+
+procedure TEDDataSource.LoadAllColonies;
+var i,res: Integer;
+    srec: TSearchRec;
+begin
+  res := FindFirst(FWorkingDir + 'colonies\*.json', faAnyFile, srec);
+  while res = 0 do
+  begin
+    LoadColony(FWorkingDir + 'colonies\' + srec.Name);
+    res := FindNext(srec);
+  end;
+  FindClose(srec);
+
+end;
+
+procedure _share_LoadFromFile(sl: TStringList; const FileName: string);
+var s: TStream;
+begin
+  s := TFileStream.Create(FileName, fmOpenRead or fmShareDenyNone);
+  try
+    sl.LoadFromStream(s, nil);
+  finally
+    s.Free;
+  end;
+end;
+
+
 procedure TEDDataSource.Update;
 var sl: TStringList;
     fn,jsd: string;
@@ -1164,18 +1578,6 @@ var sl: TStringList;
     fa: DWord;
     srec: TSearchRec;
     tc: DWORD;
-
-    procedure _share_LoadFromFile(sl: TStringList; const FileName: string);
-    var s: TStream;
-    begin
-      s := TFileStream.Create(FileName, fmOpenRead or fmShareDenyNone);
-      try
-        sl.LoadFromStream(s, nil);
-      finally
-        s.Free;
-      end;
-    end;
-
 begin
 
 //  tc := GetTickCount;
@@ -1228,6 +1630,40 @@ begin
     sl.Free;
   end;
 
+end;
+
+procedure TEDDataSource.DoBackup;
+var sl: TStringList;
+    fn,jsd: string;
+    res: Integer;
+    fa: DWord;
+    srec: TSearchRec;
+begin
+  sl := TStringList.Create;
+  try
+    FDoingBackup := True;
+    FBackupFile := 'journal.' + DateToISO8601(Date-2) + '.log';
+    FBackupFile := FBackupFile.Replace(':','');
+    fn := '';
+    jsd := Opts['JournalStart'];
+    res := FindFirst(FJournalDir + 'journal.*.log', faAnyFile, srec);
+    while res = 0 do
+    begin
+      fn := LowerCase(srec.Name);
+      if fn >= ('journal.' + jsd) then
+      if fn <= FBackupFile then
+      begin
+        sl.Clear;
+        try _share_LoadFromFile(sl,FJournalDir + srec.Name); except end;
+        UpdateFromJournal(srec.Name,sl);
+      end;
+      res := FindNext(srec);
+    end;
+    FindClose(srec);
+  finally
+    sl.Free;
+    FDoingBackup := False;
+  end;
 end;
 
 procedure TEDDataSource.Load;
@@ -1414,31 +1850,42 @@ constructor TEDDataSource.Create(Owner: TComponent);
 begin
   inherited Create(Owner);
 
+  DataSrc := self;
+
   FWorkingDir := GetCurrentDir + '\';
 
+  FillChar(JSONFormatSettings, SizeOf(JSONFormatSettings), 0);
+//  JSONFormatSettings.ThousandSeparator := '';
+  JSONFormatSettings.DecimalSeparator := '.';
+
   try CreateDir(FWorkingDir + 'markets'); except end;
+  try CreateDir(FWorkingDir + 'colonies'); except end;
+
+  FCommanders := TStringList.Create;
 
   FMarket := TMarket.Create;
   FCargo := TStock.Create;
   FSimDepot := TConstructionDepot.Create;
   FSimDepot.Simulated := True;
   FFileDates := THashedStringList.Create;
-  FLastConstrTimes := TStringList.Create;
-  FConstructions := TStringList.Create;
-  FRecentMarkets := TStringList.Create;
-  FMarketSnapshots := TStringList.Create;
-  FMarketComments := TStringList.Create;
-  FMarketLevels := TStringList.Create;
-  FMarketGroups := TStringList.Create;
+  FLastConstrTimes := THashedStringList.Create;
+  FConstructions := THashedStringList.Create;
+  FRecentMarkets := THashedStringList.Create;
+  FMarketSnapshots := THashedStringList.Create;
+  FMarketComments := THashedStringList.Create;
+  FMarketLevels := THashedStringList.Create;
+  FMarketGroups := THashedStringList.Create;
   FStarSystems := TSystemList.Create;
-  FItemCategories := TStringList.Create;
-  FItemNames := TStringList.Create;
-  FLastJrnlTimeStamps := TStringList.Create;
+  FItemCategories := THashedStringList.Create;
+  FItemNames := THashedStringList.Create;
+  FLastJrnlTimeStamps := THashedStringList.Create;
   FDataChanged := false;
 
   FInitialLoad := true;
 
+  LoadAllColonies;
   LoadAllMarkets;
+
   if Opts['SimDepot'] <> '' then
     MarketToSimDepot(Opts['SimDepot']);
   if Opts['CargoExt'] <> '' then
