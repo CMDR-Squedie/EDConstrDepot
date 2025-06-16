@@ -14,7 +14,7 @@ You can use **Add Construction Info** command to enter your own short text about
 
 Markets are only updated if you actually visit them (merely docking is not sufficient).
 
-You can manage all your visited markets and constructions in one place using the **Manage All** command. This tool lets you filter data, search for commodities, quickly set active market or construction, ignore/forget selected markets, check market economies, compare markets or their historical snapshots etc.
+You can manage all your colonies, visited markets and constructions in one place using the **Manage All** command. This tool lets you filter data, search for commodities, quickly set active market or construction, ignore/forget selected markets, check market economies, compare markets or their historical snapshots etc.
 
 To temporarily turn the transparency off, double-click the title bar or choose the **Backdrop** command.
 
@@ -40,6 +40,7 @@ Features:
 - track colony market history with snapshots (manual or automatic)
 - compare markets or snapshots of same market (eg. after strong/weak links were added) [details](https://github.com/CMDR-Squedie/EDConstrDepot/releases/tag/release.v18)
 - delivery time left, average dock-to-dock time and most recent time; delivery history with recent markets [details](https://github.com/CMDR-Squedie/EDConstrDepot/releases/tag/release.v21)
+- manage your colonies, colony candidates and colonisation targets [details](https://github.com/CMDR-Squedie/EDConstrDepot/releases/tag/release.v22)
 - task groups - group markets and depots by context (personal projects/location in galaxy etc.)
 
 Indicators:
