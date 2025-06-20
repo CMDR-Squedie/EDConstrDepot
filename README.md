@@ -59,6 +59,7 @@ Market score for market auto-selection is generally based on how many requested 
 - penalty for low stock (stock below request and capacity)
 - penalty for under capacity flight (total quantity)
 - bonus/penalty for distance from star
+- penalty for extra jumps there or back
 
 
 Advanced Features (.ini file only):
