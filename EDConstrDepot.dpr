@@ -12,11 +12,12 @@ uses
   DataSource in 'DataSource.pas',
   SettingsGUI in 'SettingsGUI.pas' {SettingsForm},
   MarketInfo in 'MarketInfo.pas' {MarketInfoForm},
-  Colonies in 'Colonies.pas' {ColoniesForm};
+  Colonies in 'Colonies.pas' {ColoniesForm},
+  SystemPict in 'SystemPict.pas' {SystemPictForm};
 
 {$R *.res}
 
-const gNiceVersion: string = 'Release 22, build 1';
+const gNiceVersion: string = 'Release 23, build 1';
 
 begin
   Application.Initialize;
@@ -34,6 +35,7 @@ begin
   Application.CreateForm(TColoniesForm, ColoniesForm);
   Application.CreateForm(TSettingsForm, SettingsForm);
   Application.CreateForm(TMarketInfoForm, MarketInfoForm);
+  Application.CreateForm(TSystemPictForm, SystemPictForm);
   SettingsForm.VersionLabel.Caption := gNiceVersion;
 
   Application.OnActivate :=  EDCDForm.AppActivate;

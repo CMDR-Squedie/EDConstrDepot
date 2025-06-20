@@ -18,6 +18,7 @@ type TSettings = class (THashedStringList)
   public
     MaxIdleDockTime: Integer;
     DockToUndockTime: Integer;
+    MaxColonyDist: Integer;
     property Int[const Name: string]: Integer read GetInt;
     property Flags[const Name: string]: Boolean read GetFlag write SetFlag;
     property Val[const Name: string]: string read GetVal write SetVal; default;
@@ -74,6 +75,7 @@ begin
   try LoadFromFile(FFileName); except end;
   MaxIdleDockTime := Int['MaxIdleDockTime'];
   DockToUndockTime := Int['DockToUndockTime'];
+  MaxColonyDist := Int['MaxColonyDist'];
 end;
 
 procedure TSettings.Save;
@@ -137,6 +139,7 @@ begin
   FDefaults.Values['FontGlow'] := '48';
   FDefaults.Values['MaxIdleDockTime'] := '60';  //seconds
   FDefaults.Values['DockToUndockTime'] := '15';
+  FDefaults.Values['MaxColonyDist'] := '1500';  //Ly in any direction from Sol
 
 
   FFileName := fn;

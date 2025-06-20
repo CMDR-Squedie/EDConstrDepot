@@ -102,8 +102,6 @@ object MarketsForm: TMarketsForm
     OnCompare = ListViewCompare
     OnDblClick = ListViewAction
     OnMouseDown = ListViewMouseDown
-    ExplicitWidth = 1115
-    ExplicitHeight = 521
   end
   object Panel1: TPanel
     Left = 0
@@ -124,7 +122,6 @@ object MarketsForm: TMarketsForm
     TabOrder = 1
     OnMouseDown = Panel1MouseDown
     OnMouseMove = Panel1MouseMove
-    ExplicitWidth = 1115
     object Label1: TLabel
       Left = 8
       Top = 8
@@ -328,6 +325,9 @@ object MarketsForm: TMarketsForm
     object CopyAllMenuItem: TMenuItem
       Caption = 'Copy All'
       OnClick = CopyMenuItemClick
+    end
+    object N2: TMenuItem
+      Caption = '-'
     end
     object CopySystemNameMenuItem: TMenuItem
       Tag = 15

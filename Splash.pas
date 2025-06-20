@@ -41,7 +41,11 @@ begin
   InfoLabel.Width := self.Canvas.TextWidth(InfoLabel.Caption);
   self.Height := InfoLabel.Height + 4;
   self.Width := InfoLabel.Width + 40;
+
   Show;
+//  ShowWindow(self.Handle, SW_SHOWNOACTIVATE);
+//  self.Visible := True;
+
   Update;
   HideTimer.Interval := timer;
   HideTimer.Enabled := timer <> 0;

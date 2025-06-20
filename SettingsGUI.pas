@@ -113,7 +113,7 @@ begin
   DefineOpt('IncludeSupply','0-no supply hint; 1-full capacity supply; 2-full request supply',0,2,'');
   DefineFlag('ShowCloseBox','');
   DefineFlag('TransparentTitle','');
-  DefineFlag('MarketsDarkMode','changes market list background to dark');
+  DefineFlag('MarketsDarkMode','changes market and colony list background to dark');
 
   for i := 0 to ListView.Columns.Count - 1 do
   begin

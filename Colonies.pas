@@ -16,7 +16,6 @@ type
     FilterEdit: TComboBox;
     ClearFilterButton: TButton;
     SelectModeCheck: TCheckBox;
-    Button1: TButton;
     ColoniesCheck: TCheckBox;
     ColonTargetsCheck: TCheckBox;
     OtherSystemsCheck: TCheckBox;
@@ -39,11 +38,15 @@ type
     AddToTargetsMenuItem: TMenuItem;
     DistancesFromMenuItem: TMenuItem;
     DistFromLabel: TLabel;
+    SystemPictureMenuItem: TMenuItem;
+    N2: TMenuItem;
+    N4: TMenuItem;
+    CurrentGoalsMenuItem: TMenuItem;
+    LongtermObjectivesMenuItem: TMenuItem;
     procedure ListViewColumnClick(Sender: TObject; Column: TListColumn);
     procedure ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
     procedure FormShow(Sender: TObject);
-    procedure UpdateItems;
     procedure FilterEditChange(Sender: TObject);
     procedure ListViewMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
@@ -62,6 +65,7 @@ type
     procedure SelectModeCheckClick(Sender: TObject);
     procedure PopupMenuPopup(Sender: TObject);
     procedure AddToTargetsMenuItemClick(Sender: TObject);
+    procedure ToggleIgnoredMenuItemClick(Sender: TObject);
   private
     { Private declarations }
     SortColumn: Integer;
@@ -76,6 +80,7 @@ type
     { Public declarations }
     procedure OnEDDataUpdate;
     procedure ApplySettings;
+    procedure UpdateItems;
     procedure UpdateAndShow;
   end;
 
@@ -84,7 +89,7 @@ var
 
 implementation
 
-uses Main,Clipbrd,Settings,Splash, Markets;
+uses Main,Clipbrd,Settings,Splash, Markets, SystemPict;
 
 {$R *.dfm}
 
@@ -172,14 +177,16 @@ begin
   if ListView.Selected <> nil then
   begin
     sys :=  TStarSystem(ListView.Selected.Data);
-    if (sys.Architect <> '') and (sys.Population > 0) then colf := True;
-    if (sys.Architect <> '') and (sys.Population = 0) then tf := True;
+    if (sys.Architect <> '') and ((sys.Population > 0) or sys.PrimaryDone) then colf := True;
+    if (sys.Architect <> '') and (sys.Population = 0) and not sys.PrimaryDone then tf := True;
     if (sys.Architect = '') and (sys.Population = 0) and (sys.Factions = '') then canf := True;
     if (sys.Architect = '') and ((sys.Population > 0) or (sys.Factions <> '')) then othf := True;
   end;
   EditArchitectMenuItem.Enabled := sys <> nil;
   EditCommentMenuItem.Enabled := sys <> nil;
   EditAlterNameMenuItem.Enabled := sys <> nil;
+  CurrentGoalsMenuItem.Enabled := sys <> nil;
+  LongTermObjectivesMenuItem.Enabled := sys <> nil;
   AddToTargetsMenuItem.Visible := canf;
 {
   TaskGroupSubMenu.Enabled := colf or tf;
@@ -223,6 +230,23 @@ begin
   ListView.Checkboxes := SelectModeCheck.Checked;
 end;
 
+
+procedure TColoniesForm.ToggleIgnoredMenuItemClick(Sender: TObject);
+var i: Integer;
+begin
+  if Vcl.Dialogs.MessageDlg('Toggle all selected systems Ignored status?',
+    mtConfirmation, [mbYes, mbNo], 0, mbNo) = mrNo then Exit;
+  for i := 0 to ListView.Items.Count -1 do
+  begin
+    if not IsSelected(ListView.Items[i]) then continue;
+    with TStarSystem(ListView.Items[i].Data) do
+    begin
+      Ignored := not Ignored;
+      Save;
+    end;
+  end;
+  UpdateItems;
+end;
 
 function TColoniesForm.IsSelected(item: TListItem): Boolean;
 begin
@@ -391,7 +415,7 @@ var
   item: TListItem;
   fs,orgfs,cs,sups: string;
   items: THashedStringList;
-  coloniesf,targetf,candidf,otherf,okf: Boolean;
+  coloniesf,targetf,candidf,otherf,okf,ignf: Boolean;
   d: Extended;
 
   function CheckFilter: Boolean;
@@ -431,6 +455,7 @@ begin
   targetf := ColonTargetsCheck.Checked;
   candidf := ColonCandidatesCheck.Checked;
   otherf := OtherSystemsCheck.Checked;
+  ignf := InclIgnoredCheck.Checked;
 
   try
     ListView.Items.BeginUpdate;
@@ -445,16 +470,20 @@ begin
     orgfs := FilterEdit.Text;
     fs := LowerCase(orgfs);
 
-
+//stress test
+//for j := 1 to 100 do
+  
     for i := 0 to DataSrc.StarSystems.Count - 1 do
     begin
       sys := DataSrc.StarSystems[i];
 
+      if not ignf and sys.Ignored then continue;
+
       okf := false;
       if coloniesf then
-        if (sys.Architect <> '') and (sys.Population > 0) then okf := True;
+        if (sys.Architect <> '') and ((sys.Population > 0) or sys.PrimaryDone) then okf := True;
       if targetf then
-        if (sys.Architect <> '') and (sys.Population = 0) then okf := True;
+        if (sys.Architect <> '') and (sys.Population = 0) and not sys.PrimaryDone then okf := True;
       if candidf then
         if (sys.Architect = '') and (sys.Population = 0) and (sys.Factions = '') then okf := True;
       if otherf then
@@ -483,8 +512,16 @@ begin
       item.SubItems.Add(sys.SystemSecurity);
       item.SubItems.Add(sys.Factions);
       item.SubItems.Add(sys.Comment);
-      item.SubItems.Add('');
-      item.SubItems.Add('');
+      s := '';
+      if FileExists(sys.ImagePath) then
+        s := '✓';
+      item.SubItems.Add(s);
+      item.SubItems.Add(sys.CurrentGoals);
+      item.SubItems.Add(sys.Objectives);
+      s := '';
+      if sys.Ignored then s := '●';
+      item.SubItems.Add(s);
+
 
       if not CheckFilter then item.Delete;
     end;
@@ -577,6 +614,18 @@ begin
         UpdateItems;
       end;
     end;
+  5:
+    begin
+      s := sys.Factions_full;
+      if s <> '' then
+        ShowMessage(s);
+    end;
+  6:
+    begin
+      sys.Ignored := not sys.Ignored;
+      sys.Save;
+      UpdateItems;
+    end;
   7:
     begin
       orgs := sys.AlterName;
@@ -599,15 +648,44 @@ begin
         UpdateItems;
       end;
     end;
-
+  9:
+    begin
+      orgs := sys.CurrentGoals;
+      s := Vcl.Dialogs.InputBox(sys.StarSystem, 'Current Goals', orgs);
+      if s <> orgs then
+      begin
+        sys.CurrentGoals := s;
+        sys.Save;
+        UpdateItems;
+      end;
+    end;
+  10:
+    begin
+      orgs := sys.Objectives;
+      s := Vcl.Dialogs.InputBox(sys.StarSystem, 'Long-term Objectives', orgs);
+      if s <> orgs then
+      begin
+        sys.Objectives := s;
+        sys.Save;
+        UpdateItems;
+      end;
+    end;
   15:
       Clipboard.SetTextBuf(PChar(sys.StarSystem));
   16:
     begin
       FReferenceSystem := sys;
       DistFromLabel.Caption := 'Dist. from: ' + sys.StarSystem;
+      SortColumn := 3;
+      SortAscending := True;
       UpdateItems;
     end;
+  17:
+    begin
+      SystemPictForm.SetSystem(sid);
+      SystemPictForm.Show;
+    end;
+
   end;
   ClickedColumn := -1;
 end;

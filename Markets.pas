@@ -47,6 +47,7 @@ type
     N5: TMenuItem;
     ConstructionsSubMenu: TMenuItem;
     MarketsSubMenu: TMenuItem;
+    N2: TMenuItem;
     procedure ListViewColumnClick(Sender: TObject; Column: TListColumn);
     procedure ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
@@ -210,7 +211,7 @@ begin
   SelectCurrentMenuItem.Enabled := mf or cdf;
 
   FleetCarrierSubMenu.Enabled := (m <> nil) and (m.StationType = 'FleetCarrier');
-  MarketsSubMenu.Enabled := mf;
+  MarketsSubMenu.Enabled := mf or snapf;
   ConstructionsSubMenu.Enabled := cdf;
 
   TaskGroupSubMenu.Enabled := mf or cdf;
@@ -251,7 +252,7 @@ begin
   if not (TBaseMarket(ListView.Selected.Data) is TMarket) then Exit;
   if not TMarket(ListView.Selected.Data).Snapshot then Exit;
 
-  if Vcl.Dialogs.MessageDlg('Are you sure you want to delete this snapshot?',
+  if Vcl.Dialogs.MessageDlg('Delete this snapshot?',
     mtConfirmation, [mbYes, mbNo], 0, mbNo) = mrNo then Exit;
 
   mid := TBaseMarket(ListView.Selected.Data).MarketId;
@@ -660,7 +661,6 @@ begin
       if findcmdtyf then
         s := Format('%.0n', [double(m.Stock.Qty[fs])]);
       item.SubItems.Add(s);
-      item.SubItems.Add(DataSrc.MarketGroups.Values[m.MarketID]);
       item.SubItems.Add('');
       item.SubItems.Add('');
       item.SubItems.Add(DataSrc.MarketComments.Values[m.MarketID]);

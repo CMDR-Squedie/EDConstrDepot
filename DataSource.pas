@@ -43,11 +43,37 @@ type TDockToDockTimes = class
   function GetAvg: Extended;
 end;
 
+type TSystemBody = class
+  BodyName: string;
+  BodyID: string;
+  BodyType: string; //StarType or PlanetClass
+  DistanceFromArrivalLS: Extended;
+  TidalLock: Boolean;
+  Landable: Boolean;
+  AtmosphereType: string;
+  Volcanism: string;
+  SurfaceGravity: string;
+//  Composition: string;
+  SemiMajorAxis: Extended;
+  OrbitalInclination: Extended;
+  OrbitalPeriod: Extended;
+  RotationPeriod: Extended;
+  AxialTilt: Extended;
+  GeologicalSignals: Integer;
+  BiologicalSignals: Integer;
+  HumanSignals: Integer;
+  OtherSignals: Integer;
+  Scan: string;
+end;
+
 type TStarSystem = class
 private
   FFactions: string;
   FAlterName: string;
-  function GetFactions: string;
+  FBodies: TStringList;
+  function GetFactions(abbrevf: Boolean): string;
+  function GetFactions_short: string;
+  function GetFactions_full: string;
   function GetArchitectName: string;
   procedure SetArchitectByName(s: string);
   procedure SetAlterName(s: string);
@@ -64,15 +90,25 @@ public
   Status: string;
   FSSData: string;
   Architect: string;
+  PrimaryDone: Boolean;
+  LastCmdr: string;
   Comment: string;
+  CurrentGoals: string;
+  Objectives: string;
+  Ignored: Boolean;
   function DistanceTo(s: TStarSystem): Double;
   function PopForTimeStamp(tms: string): Int64;
   procedure AddPopToHistory(tms: string; pop: Int64);
+  function TryAddBodyFromId(orgBodyId: string): TSystemBody;
+  procedure AddScan(js: string; j: TJSONObject);
+  procedure AddSignals(js: string; j: TJSONObject);
+  function ImagePath: string;
   procedure Save;
   constructor Create;
   destructor Destroy;
 published
-  property Factions: string read GetFactions;
+  property Factions: string read GetFactions_short;
+  property Factions_full: string read GetFactions_full;
   property ArchitectName: string read GetArchitectName write SetArchitectByName;
   property AlterName: string read FAlterName write SetAlterName;
 end;
@@ -118,18 +154,24 @@ type TConstructionDepot = class (TBaseMarket)
 end;
 
 type TSystemList = class (THashedStringList)
+//  FFirstColony: TStarSystem;
+//  FLastColony: TStarSystem;
   FAlterNames: THashedStringList;
+  FAddresses: THashedStringList;
   function GetSystemByAlterName(const Name: string): TStarSystem;
   function GetSystemByName(const Name: string): TStarSystem;
+  function GetSystemByAddr(const Addr: string): TStarSystem;
   function GetSystemByIdx(const idx: Integer): TStarSystem;
 public
   property SystemByName[const Name: string]: TStarSystem read GetSystemByName;
   property SystemByIdx[const idx: Integer]: TStarSystem read GetSystemByIdx; default;
   property SystemByAlterName[const Name: string]: TStarSystem read GetSystemByAlterName;
-//  property SystemByAddr[const Addr: string]: TStarSystem read GetSystemByAddr;
+  property SystemByAddr[const Addr: string]: TStarSystem read GetSystemByAddr;
   procedure UpdateFromFSDJump(js: string; j: TJSONObject);
   procedure AddFromJSON(js: string);
   procedure UpdateArchitect(cmdr: string; j: TJSONObject);
+  procedure UpdateBodyScan(js: string; j: TJSONObject);
+  procedure UpdateBodySignals(js: string; j: TJSONObject);
   constructor Create;
 end;
 
@@ -143,6 +185,7 @@ type TEDDataSource = class (TDataModule)
     FListeners: array of IEDDataListener;
     FCommanders: TStringList;
     FCurrentCmdr: string;
+    FCurrentSystem: string;
     FCargo: TStock;
     FFileDates: THashedStringList;
     FLastConstrTimes: THashedStringList;
@@ -195,6 +238,7 @@ type TEDDataSource = class (TDataModule)
     procedure SetTaskGroup(s: string);
     procedure UpdateDockTime(tms: string; m: TBaseMarket);
     procedure RemoveIdleDockTime(tms: string);
+    procedure CalcShipRanges(j: TJSONObject);
   public
     //todo: switch to THashedStringList and TDictionary
     property Constructions: THashedStringList read FConstructions;
@@ -218,6 +262,7 @@ type TEDDataSource = class (TDataModule)
     property LastDockDepotId: string read FLastDockDepotId;
     property LastMarketId: string read FLastMarketId;
     property LastConstructionDone: string read FLastConstructionDone;
+    property WorkingDir: string read FWorkingDir;
     procedure MarketToSimDepot(mID: string);
     procedure MarketToCargoExt(mID: string);
     procedure CreateMarketSnapshot(mID: string);
@@ -456,6 +501,11 @@ begin
   Result := Sqrt(Sqr(StarPosX-s.StarPosX) + Sqr(StarPosY-s.StarPosY) + Sqr(StarPosZ-s.StarPosZ));
 end;
 
+function TStarSystem.ImagePath: string;
+begin
+  Result := DataSrc.FWorkingDir + 'colonies\' + StarSystem + '.png';
+end;
+
 function TStarSystem.PopForTimeStamp(tms: string): Int64;
 var i: Integer;
 begin
@@ -478,19 +528,16 @@ begin
   PopHistory.AddPair(tms,IntToStr(pop));
 end;
 
-function TStarSystem.GetFactions: string;
+function TStarSystem.GetFactions(abbrevf: Boolean): string;
 var j: TJSONObject;
     jarr: TJSONArray;
     i,i2: Integer;
-    s,s2: string;
+    s,s2,name: string;
     infl: Extended;
     sl,sl2: TStringList;
     sarr: TStringDynArray;
-    abbrevf: Boolean;
 begin
-  Result := FFactions;
-  if Result <> '' then Exit;
-  abbrevf := True;
+  Result := '';
   sl := TStringList.Create;
   sl2 := TStringList.Create;
   try
@@ -499,15 +546,15 @@ begin
       jarr := j.GetValue<TJSONArray>('Factions');
       for i := 0 to jarr.Count - 1 do
       begin
-        s := jarr.Items[i].GetValue<string>('Name');
-        if abbrevf then
-        begin
-          sarr := SplitString(s,' ');
-          s := '';
-          for i2 := 0 to High(sarr) - 1 do
-            s := s + Copy(sarr[i2],1,1);
-          s := s + Copy(sarr[High(sarr)],1,3);
-        end;
+        name := jarr.Items[i].GetValue<string>('Name');
+        sarr := SplitString(name,' ');
+        s := '';
+        for i2 := 0 to High(sarr) - 1 do
+          s := s + Copy(sarr[i2],1,1);
+        s := s + Copy(sarr[High(sarr)],1,3);
+
+        if not abbrevf then
+          s := s + '   ' + name;
 
         infl := jarr.Items[i].GetValue<Extended>('Influence');
         s2 := FloatToStrF(infl*100,ffFixed,7,1);
@@ -517,8 +564,12 @@ begin
       sl.Sort;
       for i := sl.Count - 1 downto 0 do
       begin
-        if FFactions <> '' then FFactions := FFactions + '; ';
-        FFactions := FFactions + Copy(sl.Names[i],11,200) + ' ' + sl.ValueFromIndex[i] + '%';
+        if Result <> '' then
+          if abbrevf then
+            Result := Result + '; '
+          else
+            Result := Result + Chr(13);
+        Result := Result + Copy(sl.Names[i],11,200) + ' ' + sl.ValueFromIndex[i] + '%';
       end;
 
     finally
@@ -528,7 +579,109 @@ begin
   end;
   sl.Free;
   sl2.Free;
+end;
+
+function TStarSystem.GetFactions_short: string;
+begin
   Result := FFactions;
+  if Result <> '' then Exit;
+  FFactions := GetFactions(true);
+  Result := FFactions;
+end;
+
+function TStarSystem.GetFactions_full: string;
+begin
+  Result := GetFactions(false);
+end;
+
+function TStarSystem.TryAddBodyFromId(orgBodyId: string): TSystemBody;
+var bodyId: string;
+    b: TSystemBody;
+    idx: Integer;
+begin
+  Result := nil;
+  if FBodies = nil then
+  begin
+    FBodies := TStringList.Create;
+    FBodies.Sorted := True;
+    FBodies.Duplicates := dupIgnore;
+  end;
+
+  bodyId := orgBodyId;
+  bodyId := bodyId.PadLeft(6,'0');
+  idx := FBodies.IndexOf(bodyId);
+  if idx = -1 then
+  begin
+    b := TSystemBody.Create;
+    b.BodyID := bodyId;
+    FBodies.AddObject(bodyId,b);
+  end
+  else
+    b := TSystemBody(FBodies.Objects[idx]);
+  Result := b;
+end;
+
+procedure TStarSystem.AddScan(js: string; j: TJSONObject);
+var bodyId,s: string;
+    b: TSystemBody;
+    idx: Integer;
+begin
+  bodyId := '';
+  j.TryGetValue<string>('BodyID',bodyId);
+  b := TryAddBodyFromId(bodyId);
+  if b = nil then Exit;
+  with b do
+  begin
+    Scan := js;
+    j.TryGetValue<string>('BodyName',BodyName);
+    BodyType := '';
+    j.TryGetValue<string>('StarType',BodyType);
+    if BodyType = '' then
+      j.TryGetValue<string>('PlanetClass',BodyType);
+    j.TryGetValue<Extended>('DistanceFromArrivalLS',DistanceFromArrivalLS);
+    j.TryGetValue<Boolean>('TidalLock',TidalLock);
+    j.TryGetValue<Boolean>('Landable',Landable);
+    j.TryGetValue<string>('AtmosphereType',AtmosphereType);
+    j.TryGetValue<string>('Volcanism',Volcanism);
+    j.TryGetValue<string>('SurfaceGravity',SurfaceGravity);
+    j.TryGetValue<Extended>('SemiMajorAxis',SemiMajorAxis);
+    j.TryGetValue<Extended>('OrbitalInclination',OrbitalInclination);
+    j.TryGetValue<Extended>('OrbitalPeriod',OrbitalPeriod);
+    j.TryGetValue<Extended>('RotationPeriod',RotationPeriod);
+    j.TryGetValue<Extended>('AxialTilt',AxialTilt);
+  end;
+end;
+
+procedure TStarSystem.AddSignals(js: string; j: TJSONObject);
+var bodyId,s: string;
+    b: TSystemBody;
+    i,idx,cnt: Integer;
+    jarr: TJSONArray;
+begin
+  if FBodies = nil then Exit;
+  bodyId := '';
+  j.TryGetValue<string>('BodyID',bodyId);
+  if bodyId = '' then Exit;
+  b := TryAddBodyFromId(bodyId);
+  if b = nil then Exit;
+
+  jarr := j.GetValue<TJSONArray>('Signals');
+  for i := 0 to jarr.Count - 1 do
+  begin
+    s := '';
+    jarr[i].TryGetValue<string>('Type_Localised',s);
+    jarr[i].TryGetValue<Integer>('Count',cnt);
+    if s = 'Geological' then
+      b.GeologicalSignals := cnt
+    else
+    if s = 'Biological' then
+      b.BiologicalSignals := cnt
+    else
+    if s = 'Human' then
+      b.HumanSignals := cnt
+    else
+      b.OtherSignals := cnt;
+  end;
 end;
 
 procedure TStarSystem.Save;
@@ -542,6 +695,9 @@ begin
   j.AddPair(TJSONPair.Create('ArchitectName', ArchitectName));
   j.AddPair(TJSONPair.Create('AlterName', AlterName));
   j.AddPair(TJSONPair.Create('Comment', Comment));
+  j.AddPair(TJSONPair.Create('CurrentGoals', CurrentGoals));
+  j.AddPair(TJSONPair.Create('Objectives', Objectives));
+  j.AddPair(TJSONPair.Create('Ignored', Ignored));
   fn := DataSrc.FWorkingDir + 'colonies\' + SystemAddress + '.json';
   TFile.WriteAllText(fn, j.Format());
   j.Free;
@@ -597,6 +753,15 @@ begin
     Result := TStarSystem(FAlterNames.Objects[idx]);
 end;
 
+function TSystemList.GetSystemByAddr(const Addr: string): TStarSystem;
+var idx: Integer;
+begin
+  Result := nil;
+  idx := FAddresses.IndexOf(Addr);
+  if idx > -1 then
+    Result := TStarSystem(FAddresses.Objects[idx]);
+end;
+
 function TSystemList.GetSystemByName(const Name: string): TStarSystem;
 var idx: Integer;
 begin
@@ -615,6 +780,7 @@ end;
 constructor TSystemList.Create;
 begin
   FAlterNames := THashedStringList.Create;
+  FAddresses := THashedStringList.Create;
 end;
 
 procedure TSystemList.UpdateFromFSDJump(js: string; j: TJSONObject);
@@ -622,12 +788,21 @@ var jarr: TJSONArray;
     name,s, tms: string;
     sys: TStarSystem;
     pop: Int64;
+    px,py,pz: Extended;
 begin
   try
+    jarr := j.GetValue<TJSONArray>('StarPos');
+    px := StrToFloat(jarr[0].Value,JSONFormatSettings);
+    py := StrToFloat(jarr[1].Value,JSONFormatSettings);
+    pz := StrToFloat(jarr[2].Value,JSONFormatSettings);
+    if Abs(px) > Opts.MaxColonyDist then Exit;
+    if Abs(py) > Opts.MaxColonyDist then Exit;
+    if Abs(pz) > Opts.MaxColonyDist then Exit;
+
     tms := j.GetValue<string>('timestamp');
     name := j.GetValue<string>('StarSystem');
-    sys := GetSystemByName(name);
     pop := j.GetValue<Int64>('Population');
+    sys := GetSystemByName(name);
     if sys <> nil then
     begin
       sys.AddPopToHistory(tms,pop);
@@ -642,20 +817,21 @@ begin
         SystemAddress := j.GetValue<string>('SystemAddress');
       end;
       AddObject(name,sys);
+      FAddresses.AddObject(sys.SystemAddress,sys);
     end;
 
     if sys.LastUpdate = '' then  //loaded from file?
     begin
-      jarr := j.GetValue<TJSONArray>('StarPos');
-      sys.StarPosX := StrToFloat(jarr[0].Value,JSONFormatSettings);
-      sys.StarPosY := StrToFloat(jarr[1].Value,JSONFormatSettings);
-      sys.StarPosZ := StrToFloat(jarr[2].Value,JSONFormatSettings);
+      sys.StarPosX := px;
+      sys.StarPosY := py;
+      sys.StarPosZ := pz;
     end;
     sys.SystemSecurity := j.GetValue<string>('SystemSecurity_Localised');
     try sys.SystemSecurity := SplitString(sys.SystemSecurity,' ')[0]; except end;
 
     sys.Population := pop;
     sys.LastUpdate := tms;
+    sys.LastCmdr := DataSrc.FCurrentCmdr;
     sys.FFactions := ''; //extracted on demand
     sys.Status := js;
   except
@@ -679,6 +855,9 @@ begin
       try Architect := j.GetValue<string>('Architect'); except end;
       try AlterName := j.GetValue<string>('AlterName'); except end;
       try Comment := j.GetValue<string>('Comment'); except end;
+      j.TryGetValue<string>('CurrentGoals',CurrentGoals);
+      j.TryGetValue<string>('Objectives',Objectives);
+      j.TryGetValue<Boolean>('Ignored',Ignored);
  {
       jarr := j.GetValue<TJSONArray>('StarPos');
       StarPosX := StrToFloat(jarr[0].Value,JSONFormatSettings);
@@ -692,6 +871,7 @@ begin
       //FJSONObj := j;
     end;
     AddObject(sys.StarSystem,sys);
+    FAddresses.AddObject(sys.SystemAddress,sys);
   except
   end;
 end;
@@ -705,6 +885,32 @@ begin
     sys := GetSystemByName(s);
     if sys <> nil then
       sys.Architect := cmdr;
+  except
+  end;
+end;
+
+procedure TSystemList.UpdateBodyScan(js: string; j: TJSONObject);
+var sys: TStarSystem;
+    s: string;
+begin
+  try
+    s := j.GetValue<string>('StarSystem');
+    sys := GetSystemByName(s);
+    if sys <> nil then
+      sys.AddScan(js,j);
+  except
+  end;
+end;
+
+procedure TSystemList.UpdateBodySignals(js: string; j: TJSONObject);
+var sys: TStarSystem;
+    s: string;
+begin
+  try
+    s := j.GetValue<string>('SystemAddress');
+    sys := GetSystemByAddr(s);
+    if sys <> nil then
+      sys.AddSignals(js,j);
   except
   end;
 end;
@@ -897,6 +1103,10 @@ end;
 
 procedure TEDDataSource.UpdTimerTimer(Sender: TObject);
 begin
+  //would be a good idea to turn off the timer, but it also renews
+  //the timer resource altogether...
+  if gTimersSuspended then Exit;
+
   try
     Update;
     if FDataChanged then
@@ -966,6 +1176,46 @@ begin
   end;
 end;
 
+procedure TEDDataSource.CalcShipRanges(j: TJSONObject);
+var jarr: TJSONArray;
+    i: Integer;
+    nominalRange,rangeBoost, minFuel: Extended;
+    s: string;
+begin
+  //MaxJumpRange seems to be calculated with fuel tank filled to one jump...
+  //all subsequent calculations match perfectly in-game calculations
+  //if FHullMass is increased by minFuel
+  // eg. ~12t for Cutter which is minimum fuel for 7A SCO FSD
+  nominalRange := j.GetValue<Extended>('MaxJumpRange');
+  minFuel := 0;  //max fuel per one jump
+  rangeBoost := 0;
+
+  try
+    jarr := j.GetValue<TJSONArray>('Modules');
+    for i := 0 to jarr.Count - 1 do
+    begin
+      s := '';
+      jarr[i].TryGetValue('Item',s);
+      if s = 'int_guardianfsdbooster_size1' then rangeBoost := 4.00 else
+      if s = 'int_guardianfsdbooster_size2' then rangeBoost := 6.00 else
+      if s = 'int_guardianfsdbooster_size3' then rangeBoost := 7.75 else
+      if s = 'int_guardianfsdbooster_size4' then rangeBoost := 9.25 else
+      if s = 'int_guardianfsdbooster_size5' then rangeBoost := 10.50 else
+      if s = 'int_hyperdrive_overcharge_size7_class5' then minFuel := 12.00;
+
+    end;
+  except
+  end;
+
+  FBaseJumpRange := nominalRange - rangeBoost;
+  FHullMass := j.GetValue<Extended>('UnladenMass');
+  FFuelMass := j.GetValue<Extended>('FuelCapacity.Main');
+
+  FMaxJumpRange := FBaseJumpRange * (FHullMass + minFuel)/ (FHullMass + FFuelMass) + rangeBoost;
+  FLadenJumpRange := FBaseJumpRange * (FHullMass  + minFuel) / (FHullMass + FFuelMass + FCapacity) + rangeBoost;
+end;
+
+
 procedure TEDDataSource.UpdateFromJournal(fn: string; jrnl: TStringList);
 var j: TJSONObject;
     jarr: TJSONArray;
@@ -973,6 +1223,7 @@ var j: TJSONObject;
     i,i2,cpos,q: Integer;
     cd: TConstructionDepot;
     m: TMarket;
+    sys: TStarSystem;
 label LUpdateTms;
 
     function DepotForMarketId(mID: string): TConstructionDepot;
@@ -1059,7 +1310,10 @@ begin
 //star system info
            (s<>'FSDJump') and
            (s<>'ColonisationSystemClaim') and
-           (s<>'ColonisationSystemClaimRelease')
+           (s<>'ColonisationSystemClaimRelease') {and
+           (s<>'Scan') and
+           (s<>'FSSBodySignals')   }
+           //Location ???
 
 //ModuleStore/ModuleRetrieve - to supplement Loadout event?
 
@@ -1090,23 +1344,14 @@ begin
         if event = 'Loadout' then
         begin
           FCapacity := j.GetValue<Integer>('CargoCapacity');
-          //this seems to be calculated with fuel tank filled to one jump...
-          //all subsequent calculations match perfectly in-game calculations
-          //if FHullMass is increased by FMinFuel
-          // eg. ~12t for Cutter which is minimum fuel for 8A FSD
-          FBaseJumpRange := j.GetValue<Extended>('MaxJumpRange');
-          FHullMass := j.GetValue<Extended>('UnladenMass');
-          FFuelMass := j.GetValue<Extended>('FuelCapacity.Main');
-
-          //not perfect, but close enough to in-game calculations, and not as optimistic
-          FMaxJumpRange := FBaseJumpRange * FHullMass { + FMinFuel}/ (FHullMass + FFuelMass);
-          FLadenJumpRange := FBaseJumpRange * FHullMass { + FMinFuel } / (FHullMass + FFuelMass + FCapacity);
+          CalcShipRanges(j);
           goto LUpdateTms;
         end;
 
 
         if event = 'FSDJump' then
         begin
+          j.TryGetValue<string>('StarSystem',FCurrentSystem);
           StarSystems.UpdateFromFSDJump(js,j);
           goto LUpdateTms;
         end;
@@ -1120,6 +1365,18 @@ begin
         if event = 'ColonisationSystemClaimRelease' then
         begin
           StarSystems.UpdateArchitect('',j);
+          goto LUpdateTms;
+        end;
+
+        if event = 'Scan' then
+        begin
+          StarSystems.UpdateBodyScan(js,j);
+          goto LUpdateTms;
+        end;
+
+        if event = 'FSSBodySignals' then
+        begin
+          StarSystems.UpdateBodySignals(js,j);
           goto LUpdateTms;
         end;
 
@@ -1268,6 +1525,8 @@ begin
             if s = 'true' then
             begin
               cd.Finished := true;
+              sys := FStarSystems.SystemByName[cd.StarSystem];
+              if sys <> nil then sys.PrimaryDone := True;
               FLastConstructionDone := mID;
               if FLastConstrTimes.Values[cd.StarSystem] < tms  then
                 FLastConstrTimes.Values[cd.StarSystem] := tms;

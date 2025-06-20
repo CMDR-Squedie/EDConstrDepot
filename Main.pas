@@ -115,7 +115,10 @@ private
     FLastActiveWnd: HWND;
     FEliteWnd: HWND;
     FBackdrop: Boolean;
+    FTextHeight: Integer;
     FItemsShown: Integer;
+    FLastBkgColor: Integer;
+    FLastClipbrdStr: string;
     FLayer0: TForm;
     FLayer1: TForm;
     FIndicators: TStringList;
@@ -128,6 +131,7 @@ private
     procedure UpdateTransparency;
     function FindBestMarket(reqList: TStringList; prevMarket: TMarket): TMarket;
     function GetItemMarketIndicators(normItem: string; reqQty: Integer; cargo: Integer; bestMarket: TMarket): string;
+    function IsEliteActiveWnd: Boolean;
   public
     { Public declarations }
     procedure OnEDDataUpdate;
@@ -144,6 +148,7 @@ private
 var
   EDCDForm: TEDCDForm;
  gLastCursorPos: TPoint;
+ gTimersSuspended: Boolean;
 
 implementation
 
@@ -165,7 +170,7 @@ begin
    sl.Text := TextColLabel.Caption;
    try
      pt := TextColLabel.ScreenToClient(pt);
-     idx := pt.Y div self.Canvas.TextHeight('Wq');
+     idx := pt.Y div FTextHeight;
      if (idx >= 0)  and (idx < sl.Count) then
      begin
        s := LowerCase(sl[idx]);
@@ -272,7 +277,7 @@ begin
     end;
 
 {
-  if Vcl.Dialogs.MessageDlg('Are you sure you want to use ' +
+  if Vcl.Dialogs.MessageDlg('Do you want to use ' +
     m.StationName + ' as active Fleet Carrier?',
     mtConfirmation, [mbYes, mbNo], 0, mbNo) = mrNo then Exit;
 }
@@ -516,6 +521,18 @@ begin
       FSelectedConstructions.Delete(idx);
   end;
   UpdateConstrDepot;
+
+  //main overlay update is priority, so immediately process all repaints and resizing
+  //risking recursion if something else than timers kick in, but...
+  if MarketsForm.Visible or ColoniesForm.Visible then
+  begin
+    gTimersSuspended := True;
+    try
+      Application.ProcessMessages;
+    finally
+      gTimersSuspended := False;
+    end;
+  end;
 end;
 
 procedure TEDCDForm.OnChangeSettings;
@@ -1030,7 +1047,7 @@ LSkipDepotSelection:;
     begin
       sl.Text := a[colText];
       h := TextColLabel.Margins.Top +
-           self.Canvas.TextHeight('Wq') * sl.Count +
+           FTextHeight * sl.Count +
            TextColLabel.Margins.Bottom;
       h := TextColLabel.Top + h + 2;
       if self.Height <> h then
@@ -1070,10 +1087,20 @@ begin
    sl.Text := TextColLabel.Caption;
    try
      pt := TextColLabel.ScreenToClient(pt);
-     idx := pt.Y div self.Canvas.TextHeight('Wq');
+     idx := pt.Y div FTextHeight;
      if (idx >= 0)  and (idx < sl.Count) then
      begin
        s := LowerCase(sl[idx]);
+       if s = '' then Exit;
+       if idx >= FItemsShown then
+       begin
+         if not FAutoSelectMarket then
+         begin
+           FAutoSelectMarket := True;
+           UpdateConstrDepot;
+         end;
+         Exit;
+       end;
        if FSelectedItems.IndexOf(s) = -1 then
          FSelectedItems.Add(s)
        else
@@ -1085,17 +1112,16 @@ begin
    end;
 end;
 
-procedure TEDCDForm.ResetAlwaysOnTop;
+function TEDCDForm.IsEliteActiveWnd: Boolean;
 var wnd: HWND;
     pid: DWORD;
     hProcess: THandle;
     path: array[0..4095] of Char;
     s: string;
 begin
+  Result := False;
   wnd := GetForegroundWindow;
   if wnd = self.Handle then Exit;
-  if wnd = FLastActiveWnd then Exit;
-  FLastActiveWnd := wnd;
 
   GetWindowThreadProcessId(wnd, pid);
   hProcess := OpenProcess(PROCESS_QUERY_INFORMATION or PROCESS_VM_READ, FALSE, pid);
@@ -1105,27 +1131,40 @@ begin
       begin
         s := PWideChar(@path);
         if Pos('EliteDangerous',s) > 0 then
-        begin
-          if FLayer1 <> nil then FLayer1.FormStyle := fsStayOnTop;
-          self.FormStyle := fsStayOnTop;
-          ToggleTitleBar(false);
-          FEliteWnd := wnd;
-        end
-        else
-        begin
-          if FLayer1 <> nil then FLayer1.FormStyle := fsNormal;
-          self.FormStyle := fsNormal;
-        end;
+          Result := True;
       end;
     finally
       CloseHandle(hProcess);
     end
 end;
+procedure TEDCDForm.ResetAlwaysOnTop;
+var wnd: HWND;
+    pid: DWORD;
+    hProcess: THandle;
+    path: array[0..4095] of Char;
+    s: string;
+begin
+  wnd := GetForegroundWindow;
+  if wnd = FLastActiveWnd then Exit;
+  FLastActiveWnd := wnd;
+  if IsEliteActiveWnd then
+  begin
+    if FLayer1 <> nil then FLayer1.FormStyle := fsStayOnTop;
+    self.FormStyle := fsStayOnTop;
+    ToggleTitleBar(false);
+    FEliteWnd := wnd;
+  end
+  else
+  begin
+    if FLayer1 <> nil then FLayer1.FormStyle := fsNormal;
+    self.FormStyle := fsNormal;
+  end;
+end;
 
 procedure TEDCDForm.ResetDockTimeMenuItemClick(Sender: TObject);
 var d: Extended;
 begin
-  if Vcl.Dialogs.MessageDlg('Are you sure you want start a new estimate?' + Chr(13) +
+  if Vcl.Dialogs.MessageDlg('Start a new estimate?' + Chr(13) +
     'Only the most recent time will be retained.' + Chr(13) +
     '(The average will again include up to 6 recent runs after restart.)' ,
     mtConfirmation, [mbYes, mbNo], 0, mbNo) = mrNo then Exit;
@@ -1180,20 +1219,16 @@ var orgactivewnd: HWND;
     p: TPoint;
     sdc: HDC;
     i,rgbsum,avg: Integer;
+
+    s: string;
+    carr: array [0..256] of Char;
+    sys: TStarSystem;
 begin
+  if gTimersSuspended then Exit;
+  
   try
     if Opts['AlwaysOnTop'] = '2' then
       ResetAlwaysOnTop;
-
-    if Opts.Flags['ScanMenuKey'] and (self = EDCDForm) then
-      if GetKeyState(VK_APPS) < 0 then
-      begin
-        orgactivewnd := GetForegroundWindow;
-        if orgactivewnd = FEliteWnd then
-          Application.BringToFront;
-      end;
-
-    MarketInfoForm.SyncComparison;
 
   //experimental - four pixel average, popupmenu issues
 {
@@ -1233,27 +1268,75 @@ begin
     begin
       orgc := FLayer1.AlphaBlendValue;
       sdc:= GetDC(0);
+      try
+        p := FLayer1.ClientToScreen(TPoint.Create(-2,0));
+        if p.X <= 0 then
+          p := FLayer1.ClientToScreen(TPoint.Create(FLayer1.Width + 2,0));
 
-      p := FLayer1.ClientToScreen(TPoint.Create(-2,0));
-      rgbsum := 0;
-      for i := 1 to 4 do
-      begin
-        try c := GetPixel(sdc,p.X,p.Y); except c := 0; end;
-        clr.Color := c;
-        rgbsum := rgbsum + clr.R + clr.G + clr.B;
-        p.Y := p.Y + FLayer1.Height div 4;
-      end;
-      rgbsum := rgbsum div 4;
-      // 4 alpha levels only
-      avg := 32 + ((rgbsum div 3) div 64) * 48;
-      c := avg;
-      ReleaseDC(0,sdc);
-      if c <> orgc then
-      begin
-        FLayer1.AlphaBlendValue := c;
-        FShadowTimer := 2000; //2s hysteresis
+        rgbsum := 0;
+        //todo: switch to bitblt to scan full line
+        for i := 1 to 6 do
+        begin
+          try c := GetPixel(sdc,p.X,p.Y); except c := 0; end;
+          clr.Color := c;
+          rgbsum := rgbsum + clr.R + clr.G + clr.B;
+          p.Y := p.Y + FLayer1.Height div 6;
+        end;
+        c := (rgbsum div 3) div 6;
+        if (FLastBkgColor = 0) or (Abs(c-FLastBkgColor) > 10) then
+        begin
+          // 4 alpha levels only
+          avg := 32 + (c div 64) * 48;
+          if avg <> orgc then
+          begin
+            FLastBkgColor := c;
+            FLayer1.AlphaBlendValue := avg;
+            FShadowTimer := 1000; //1s hysteresis
+          end;
+        end;
+      finally
+        ReleaseDC(0,sdc);
       end;
     end;
+
+
+    if self <> EDCDForm then Exit;
+
+    MarketInfoForm.SyncComparison;
+
+    if Opts.Flags['ScanMenuKey'] then
+      if GetKeyState(VK_APPS) < 0 then
+      begin
+        orgactivewnd := GetForegroundWindow;
+        if orgactivewnd = FEliteWnd then
+          Application.BringToFront;
+      end;
+
+    if Opts.Flags['ScanClipboard'] then
+      if Clipboard.HasFormat(CF_TEXT) then
+      if Clipboard.GetTextBuf(carr,sizeof(carr)-1) > 0 then
+      begin
+        s := PChar(@carr);
+        if  s <> FLastClipbrdStr then
+        begin
+          FLastClipbrdStr := s;
+          if IsEliteActiveWnd then
+          begin
+            if Length(s) < 60  then
+            begin
+              sys := DataSrc.StarSystems.SystemByName[s];
+              s := '(not visited)';
+              if sys <> nil then
+              begin
+                 s := '(visited, no comments)';
+                 if sys.Comment <> '' then
+                  s := sys.Comment;
+              end;
+              SplashForm.ShowInfo(s,4000);
+            end;
+          end;
+        end;
+      end;
 
   except
     //suppress all errors on timers!
@@ -1486,7 +1569,9 @@ begin
     StockColLabel.Width := basew;
     CloseLabel.Left := self.Width - CloseLabel.Width - 3;
 
-    dh := self.Canvas.TextHeight('Wq') - TitleLabel.Height;
+    FTextHeight := self.Canvas.TextHeight('Wq');
+
+    dh := FTextHeight - TitleLabel.Height;
     TitleLabel.Height := TitleLabel.Height + dh;
     CloseLabel.Height := CloseLabel.Height + dh;
   end;
@@ -1553,7 +1638,7 @@ begin
     end;
 
 
-  if Vcl.Dialogs.MessageDlg('Are you sure you want to use ' +
+  if Vcl.Dialogs.MessageDlg('Set ' +
     m.StationName_full + ' as simulated Construction Depot?',
     mtConfirmation, [mbYes, mbNo], 0, mbNo) = mrNo then Exit;
 
@@ -1607,7 +1692,7 @@ begin
     Exit;
   end;
 
-  if Vcl.Dialogs.MessageDlg('Are you sure you want add ' +
+  if Vcl.Dialogs.MessageDlg('Add ' +
     DataSrc.Market.StationName_full + ' to market list?',
     mtConfirmation, [mbYes, mbNo], 0, mbNo) = mrNo then Exit;
 
@@ -1619,7 +1704,7 @@ procedure TEDCDForm.ForgetMarketMenuItemClick(Sender: TObject);
 begin
   if FSecondaryMarket = nil then Exit;
 
-  if Vcl.Dialogs.MessageDlg('Are you sure you want remove ' +
+  if Vcl.Dialogs.MessageDlg('Remove ' +
     FSecondaryMarket.StationName_full + ' from market list?',
     mtConfirmation, [mbYes, mbNo], 0, mbNo) = mrNo then Exit;
 
@@ -1651,7 +1736,7 @@ begin
     Font.Color := clSilver;
     dx := TextWidth('W') + 1;
 //    dx2 := (dx - TextWidth('_')) div 2;
-    dy := TextHeight('Wq');
+    dy := FTextHeight;
     y := 0;
     for i  := 0 to FIndicators.Count - 1 do
     begin

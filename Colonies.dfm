@@ -64,8 +64,22 @@ object ColoniesForm: TColoniesForm
         Tag = 8
       end
       item
-        Caption = 'Task Group'
+        Alignment = taCenter
+        Caption = 'Pic.'
+        Tag = 17
+      end
+      item
+        Caption = 'Current Goals'
         Tag = 9
+      end
+      item
+        Caption = 'Objectives'
+        Tag = 10
+      end
+      item
+        Alignment = taCenter
+        Caption = 'Ign.'
+        Tag = 6
       end>
     Ctl3D = False
     Font.Charset = DEFAULT_CHARSET
@@ -86,7 +100,6 @@ object ColoniesForm: TColoniesForm
     OnCompare = ListViewCompare
     OnDblClick = ListViewAction
     OnMouseDown = ListViewMouseDown
-    ExplicitWidth = 1102
   end
   object Panel1: TPanel
     Left = 0
@@ -107,7 +120,6 @@ object ColoniesForm: TColoniesForm
     TabOrder = 1
     OnMouseDown = Panel1MouseDown
     OnMouseMove = Panel1MouseMove
-    ExplicitWidth = 1102
     object Label1: TLabel
       Left = 8
       Top = 8
@@ -116,9 +128,9 @@ object ColoniesForm: TColoniesForm
       Caption = 'Filter'
     end
     object DistFromLabel: TLabel
-      Left = 728
+      Left = 756
       Top = 8
-      Width = 217
+      Width = 225
       Height = 16
       AutoSize = False
       Caption = '(Set Reference System to see distances)'
@@ -130,15 +142,12 @@ object ColoniesForm: TColoniesForm
       ParentFont = False
     end
     object InclIgnoredCheck: TCheckBox
-      Left = 1097
+      Left = 678
       Top = 8
-      Width = 114
+      Width = 72
       Height = 17
-      Caption = 'Include Ignored'
-      Checked = True
-      State = cbChecked
+      Caption = 'Incl. Ign.'
       TabOrder = 0
-      Visible = False
       OnClick = ColoniesCheckClick
     end
     object FilterEdit: TComboBox
@@ -169,19 +178,10 @@ object ColoniesForm: TColoniesForm
       TabOrder = 3
       OnClick = SelectModeCheckClick
     end
-    object Button1: TButton
-      Left = 961
-      Top = 4
-      Width = 20
-      Height = 24
-      Caption = 'OK'
-      TabOrder = 4
-      Visible = False
-    end
     object ColoniesCheck: TCheckBox
       Left = 272
       Top = 8
-      Width = 97
+      Width = 81
       Height = 17
       Caption = 'Colonies'
       Checked = True
@@ -192,11 +192,11 @@ object ColoniesForm: TColoniesForm
       Font.Style = []
       ParentFont = False
       State = cbChecked
-      TabOrder = 5
+      TabOrder = 4
       OnClick = ColoniesCheckClick
     end
     object ColonTargetsCheck: TCheckBox
-      Left = 375
+      Left = 359
       Top = 8
       Width = 97
       Height = 17
@@ -207,13 +207,13 @@ object ColoniesForm: TColoniesForm
       Font.Name = 'Bahnschrift SemiCondensed'
       Font.Style = []
       ParentFont = False
-      TabOrder = 6
+      TabOrder = 5
       OnClick = ColoniesCheckClick
     end
     object OtherSystemsCheck: TCheckBox
-      Left = 607
+      Left = 567
       Top = 8
-      Width = 97
+      Width = 105
       Height = 17
       Caption = 'Other Systems'
       Font.Charset = DEFAULT_CHARSET
@@ -222,13 +222,13 @@ object ColoniesForm: TColoniesForm
       Font.Name = 'Bahnschrift SemiCondensed'
       Font.Style = []
       ParentFont = False
-      TabOrder = 7
+      TabOrder = 6
       OnClick = ColoniesCheckClick
     end
     object ColonCandidatesCheck: TCheckBox
-      Left = 487
+      Left = 455
       Top = 8
-      Width = 114
+      Width = 106
       Height = 17
       Caption = 'Col. Candidates'
       Font.Charset = DEFAULT_CHARSET
@@ -237,7 +237,7 @@ object ColoniesForm: TColoniesForm
       Font.Name = 'Bahnschrift SemiCondensed'
       Font.Style = []
       ParentFont = False
-      TabOrder = 8
+      TabOrder = 7
       OnClick = ColoniesCheckClick
     end
   end
@@ -260,6 +260,19 @@ object ColoniesForm: TColoniesForm
       Caption = 'Comment...'
       OnClick = ListViewAction
     end
+    object CurrentGoalsMenuItem: TMenuItem
+      Tag = 9
+      Caption = 'Current Goals...'
+      OnClick = ListViewAction
+    end
+    object LongtermObjectivesMenuItem: TMenuItem
+      Tag = 10
+      Caption = 'Long-term Objectives...'
+      OnClick = ListViewAction
+    end
+    object N4: TMenuItem
+      Caption = '-'
+    end
     object AddToTargetsMenuItem: TMenuItem
       Caption = 'Add To Targets'
       OnClick = AddToTargetsMenuItemClick
@@ -269,15 +282,13 @@ object ColoniesForm: TColoniesForm
       Caption = 'Reference System'
       OnClick = ListViewAction
     end
-    object ToggleIgnoredMenuItem: TMenuItem
-      Tag = 4
-      Caption = 'Toggle Ignore'
-      Visible = False
+    object SystemPictureMenuItem: TMenuItem
+      Tag = 17
+      Caption = 'System Picture'
       OnClick = ListViewAction
     end
     object N5: TMenuItem
       Caption = '-'
-      Visible = False
     end
     object TaskGroupSubMenu: TMenuItem
       Caption = 'Task Group'
@@ -295,6 +306,11 @@ object ColoniesForm: TColoniesForm
         Caption = 'Clear'
       end
     end
+    object ToggleIgnoredMenuItem: TMenuItem
+      Tag = 4
+      Caption = 'Toggle Ignored'
+      OnClick = ToggleIgnoredMenuItemClick
+    end
     object N1: TMenuItem
       Caption = '-'
     end
@@ -305,6 +321,9 @@ object ColoniesForm: TColoniesForm
     object CopyAllMenuItem: TMenuItem
       Caption = 'Copy All'
       OnClick = CopyMenuItemClick
+    end
+    object N2: TMenuItem
+      Caption = '-'
     end
     object CopySystemNameMenuItem: TMenuItem
       Tag = 15
