@@ -102,6 +102,8 @@ begin
 
   FDefaults.Values['FontName'] := 'Bahnschrift SemiCondensed';
   FDefaults.Values['FontSize'] := '10';
+  FDefaults.Values['FontName2'] := 'Bahnschrift SemiCondensed';
+  FDefaults.Values['FontSize2'] := '10';
   FDefaults.Values['Color'] := 'FFA000';
   FDefaults.Values['ShowUnderCapacity'] := '1';
   FDefaults.Values['ShowProgress'] := '1';

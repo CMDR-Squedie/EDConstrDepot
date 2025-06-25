@@ -5,7 +5,7 @@ interface
 
 uses Winapi.Windows, Winapi.Messages, Winapi.PsAPI, System.Classes, System.SysUtils,
   System.JSON, System.IOUtils, System.IniFiles, System.DateUtils, System.StrUtils,
-  System.Types, Settings, Vcl.ExtCtrls,Vcl.Dialogs;
+  System.Types, Settings, Vcl.ExtCtrls,Vcl.Dialogs, System.Net.HttpClient, System.Net.HttpClientComponent;
 
 type IEDDataListener = interface
   ['{C506D770-04B5-408D-99A0-261AC008D422}']
@@ -43,6 +43,40 @@ type TDockToDockTimes = class
   function GetAvg: Extended;
 end;
 
+type TConstructionType = class
+  Id: string;
+  Tier: string;
+  Location: string;
+  Category: string;
+  StationType: string;
+  Size: string;
+  Layouts: string;
+  Economy: string;
+  Influence: string;
+  Requirements: string;
+  CP2: Integer;
+  CP3: Integer;
+  MaxPad: string;
+  InitPop: Integer;
+  MaxPop: Integer;
+  SecLev: Integer;
+  TechLev: Integer;
+  WealthLev: Integer;
+  StdLivLev: Integer;
+  DevLev: Integer;
+  InitPopInc: Integer;
+  EstCargo: Integer;
+  function StationType_full: string;
+end;
+
+type TConstructionTypes = class (THashedStringList)
+  function GetTypeById(const Id: string): TConstructionType;
+public
+  property TypeById[const Id: string]: TConstructionType read GetTypeById;
+  procedure PopulateList(sl: TStrings);
+  procedure Load;
+end;
+
 type TSystemBody = class
   BodyName: string;
   BodyID: string;
@@ -50,9 +84,10 @@ type TSystemBody = class
   DistanceFromArrivalLS: Extended;
   TidalLock: Boolean;
   Landable: Boolean;
+  Atmosphere: string;
   AtmosphereType: string;
   Volcanism: string;
-  SurfaceGravity: string;
+  SurfaceGravity: Extended;
 //  Composition: string;
   SemiMajorAxis: Extended;
   OrbitalInclination: Extended;
@@ -63,20 +98,25 @@ type TSystemBody = class
   BiologicalSignals: Integer;
   HumanSignals: Integer;
   OtherSignals: Integer;
+  ReserveLevel: string;
   Scan: string;
 end;
 
 type TStarSystem = class
 private
   FFactions: string;
+  FArchitect: string;
   FAlterName: string;
+  FSystemScan_EDSM: string;
   FBodies: TStringList;
   function GetFactions(abbrevf: Boolean): string;
   function GetFactions_short: string;
   function GetFactions_full: string;
   function GetArchitectName: string;
   procedure SetArchitectByName(s: string);
+  procedure SetArchitect(s: string);
   procedure SetAlterName(s: string);
+  procedure Delete;
 public
   StarSystem: string;
   SystemAddress: string;
@@ -88,28 +128,33 @@ public
   PopHistory: TStringList;
   LastUpdate: string;
   Status: string;
-  FSSData: string;
-  Architect: string;
   PrimaryDone: Boolean;
+  PrimaryPortId: string;
   LastCmdr: string;
   Comment: string;
   CurrentGoals: string;
   Objectives: string;
   Ignored: Boolean;
+  NavBeaconScan: Boolean;
   function DistanceTo(s: TStarSystem): Double;
   function PopForTimeStamp(tms: string): Int64;
   procedure AddPopToHistory(tms: string; pop: Int64);
   function TryAddBodyFromId(orgBodyId: string): TSystemBody;
   procedure AddScan(js: string; j: TJSONObject);
   procedure AddSignals(js: string; j: TJSONObject);
+  function BodyByName(name: string): TSystemBody;
+  procedure UpdateBodies_EDSM;
+  procedure UpdateFromScan_EDSM;
   function ImagePath: string;
   procedure Save;
   constructor Create;
   destructor Destroy;
 published
   property Factions: string read GetFactions_short;
+  property Bodies: TStringList read FBodies;
   property Factions_full: string read GetFactions_full;
   property ArchitectName: string read GetArchitectName write SetArchitectByName;
+  property Architect: string read FArchitect write SetArchitect;
   property AlterName: string read FAlterName write SetAlterName;
 end;
 
@@ -124,18 +169,26 @@ public
   StationType: string;
   StarSystem: string;
   Body: string;
+  FirstUpdate: string;
   LastUpdate: string;
   LastDock: string;
   Status: string;
   Stock: TStock;
   DistFromStar: Integer;
   DockToDockTimes: TDockToDockTimes;
+  MarketLevel: TMarketLevel;
+  Comment: string;
+  ConstructionType: string;
+  Modified: Boolean;
+  LinkedMarketId: string;
   function System: TStarSystem;
   function FullName: string;
   function StationName_full: string;
   function StarSystem_nice: string;
   function DistanceTo(m: TBaseMarket): Extended;
   function DistanceTo_string(m: TBaseMarket): string;
+  function GetComment: string;
+  function GetConstrType: TConstructionType;
   procedure Clear;
   constructor Create;
   destructor Destroy;
@@ -150,6 +203,8 @@ end;
 
 type TConstructionDepot = class (TBaseMarket)
   Finished: Boolean;
+  DepotComplete: Boolean; //player actually docked and finished the construction?
+  Planned: Boolean;
   Simulated: Boolean;
 end;
 
@@ -172,6 +227,9 @@ public
   procedure UpdateArchitect(cmdr: string; j: TJSONObject);
   procedure UpdateBodyScan(js: string; j: TJSONObject);
   procedure UpdateBodySignals(js: string; j: TJSONObject);
+  function AddFromName(name: string): Boolean;
+  function AddNeighbours_EDSM(origin: string): Integer;
+  procedure RemoveFromName(name: string);
   constructor Create;
 end;
 
@@ -218,9 +276,12 @@ type TEDDataSource = class (TDataModule)
     FLastDockDepotId: string;
     FLastMarketId: string;
     FLastDropId: string;
+    FLastBody: string;
     FDoingBackup: Boolean;
     FBackupFile: string;
     FLastConstructionDone: string;
+    FConstructionTypes: TConstructionTypes;
+    FPreventNotify: Boolean;
     procedure SetDataChanged;
     function CheckLoadFromFile(var sl: TStringList; fn: string): Boolean;
     procedure MarketFromJSON(m: TMarket; js: string);
@@ -247,9 +308,12 @@ type TEDDataSource = class (TDataModule)
     property RecentMarkets: THashedStringList read FRecentMarkets;
     property MarketSnapshots: THashedStringList read FMarketSnapshots;
     property LastConstrTimes: THashedStringList read FLastConstrTimes;
+
+    //todo: gradually move all to TBaseMarket
     property MarketComments: THashedStringList read FMarketComments;
     property MarketLevels: THashedStringList read FMarketLevels;
     property MarketGroups: THashedStringList read FMarketGroups;
+
     property Market: TMarket read FMarket;
     property ItemNames: THashedStringList read FItemNames;
     property ItemCategories: THashedStringList read FItemCategories;
@@ -263,15 +327,18 @@ type TEDDataSource = class (TDataModule)
     property LastMarketId: string read FLastMarketId;
     property LastConstructionDone: string read FLastConstructionDone;
     property WorkingDir: string read FWorkingDir;
+    property ConstructionTypes: TConstructionTypes read FConstructionTypes;
     procedure MarketToSimDepot(mID: string);
     procedure MarketToCargoExt(mID: string);
     procedure CreateMarketSnapshot(mID: string);
     procedure RemoveMarketSnapshot(mID: string);
     function MarketFromID(id: string): TMarket;
     function LastFC: TMarket;
+    function CurrentSystem: TStarSystem;
     function DepotFromID(id: string): TConstructionDepot;
     procedure UpdateSecondaryMarket(forcef: Boolean);
     procedure RemoveSecondaryMarket(m: TMarket);
+    procedure RemoveConstruction(cd: TConstructionDepot);
     procedure SetMarketLevel(mID: string; level: TMarketLevel);
     function GetMarketLevel(mID: string): TMarketLevel;
     procedure UpdateMarketComment(mID: string; s: string);
@@ -316,6 +383,94 @@ begin
         TEncoding.ASCII);
     end;
 end;
+
+function TConstructionType.StationType_full: string;
+var s: string;
+begin
+  s := Size;
+  if s <> '' then s := ', ' + s;
+  Result := StationType + ' ' + Category + ' (T' + Tier + ' ' + Location + s + ')';
+end;
+
+
+function TConstructionTypes.GetTypeById(const Id: string): TConstructionType;
+var idx: Integer;
+begin
+  Result := nil;
+  idx := IndexOf(Id);
+  if idx > -1 then
+    Result := TConstructionType(Objects[idx]);
+end;
+
+procedure TConstructionTypes.PopulateList(sl: TStrings);
+var i: Integer;
+begin
+  sl.Clear;
+  for i := 0 to Count - 1 do
+    with TConstructionType(Objects[i]) do
+    begin
+      sl.AddObject(StationType_full,self.Objects[i]);
+    end;
+end;
+
+
+procedure TConstructionTypes.Load;
+var ct: TConstructionType;
+    jarr: TJSONArray;
+    i: Integer;
+    sl: TStringList;
+begin
+  sl := TStringList.Create;
+  try
+    try
+      sl.LoadFromFile(DataSrc.FWorkingDir + 'construction_types.json');
+    except
+      ShowMessage('Unable to load: construction_types.json');
+      Exit;
+    end;
+    jarr := TJSONObject.ParseJSONValue(sl.Text) as TJSONArray;
+    if jarr = nil then
+    begin
+      ShowMessage('Error in file: construction_types.json');
+      Exit;
+    end;
+    try
+      for i := 0 to jarr.Count - 1 do
+      begin
+        ct := TConstructionType.Create;
+        jarr[i].TryGetValue<string>('Id',ct.Id);
+        jarr[i].TryGetValue<string>('Tier',ct.Tier);
+        jarr[i].TryGetValue<string>('Location',ct.Location);
+        jarr[i].TryGetValue<string>('Category',ct.Category);
+        jarr[i].TryGetValue<string>('Type',ct.StationType);
+        jarr[i].TryGetValue<string>('Size',ct.Size);
+        jarr[i].TryGetValue<string>('Layouts',ct.Layouts);
+        jarr[i].TryGetValue<string>('Economy',ct.Economy);
+        jarr[i].TryGetValue<string>('Influence',ct.Influence);
+        jarr[i].TryGetValue<string>('Requirements',ct.Requirements);
+        jarr[i].TryGetValue<string>('MaxPad',ct.MaxPad);
+        jarr[i].TryGetValue<string>('Influence',ct.Influence);
+        jarr[i].TryGetValue<Integer>('CP2',ct.CP2);
+        jarr[i].TryGetValue<Integer>('CP3',ct.CP3);
+        jarr[i].TryGetValue<Integer>('InitPop',ct.InitPop);
+        jarr[i].TryGetValue<Integer>('MaxPop',ct.MaxPop);
+//        jarr[i].TryGetValue<Integer>('InitPopInc',ct.InitPopInc);
+        jarr[i].TryGetValue<Integer>('SecLev',ct.SecLev);
+        jarr[i].TryGetValue<Integer>('TechLev',ct.TechLev);
+        jarr[i].TryGetValue<Integer>('WealthLev',ct.WealthLev);
+        jarr[i].TryGetValue<Integer>('StdLivLev',ct.StdLivLev);
+        jarr[i].TryGetValue<Integer>('DevLev',ct.DevLev);
+        jarr[i].TryGetValue<Integer>('EstCargo',ct.EstCargo);
+        AddObject(ct.Id,ct);
+      end;
+    finally
+      jarr.Free;
+    end;
+  finally
+    sl.Free;
+  end;
+end;
+
 
 procedure TDockToDockTimes.Clear;
 var i: Integer;
@@ -424,6 +579,11 @@ begin
   Values[Name] := IntToStr(v);
 end;
 
+function TBaseMarket.GetConstrType: TConstructionType;
+begin
+  Result := DataSrc.ConstructionTypes.TypeById[ConstructionType];
+end;
+
 procedure TBaseMarket.Clear;
 begin
   MarketID := '';
@@ -445,6 +605,13 @@ begin
   Result := StationName_full + '/' + StarSystem_nice;
 end;
 
+function TBaseMarket.GetComment: string;
+begin
+  Result := Comment;
+  if Comment = '' then
+    Result := DataSrc.FMarketComments.Values[MarketId];
+end;
+
 function TBaseMarket.StarSystem_nice: string;
 var p: Integer;
 begin
@@ -458,6 +625,9 @@ function TBaseMarket.StationName_full: string;
 begin
   Result := StationName;
   if StationName2 <> '' then Result := StationName2;
+  if Result = '' then
+    if ConstructionType <> '' then
+      try Result := '(' + self.GetConstrType.StationType + ')'; except end;
 end;
 
 function TBaseMarket.System: TStarSystem;
@@ -600,12 +770,6 @@ var bodyId: string;
     idx: Integer;
 begin
   Result := nil;
-  if FBodies = nil then
-  begin
-    FBodies := TStringList.Create;
-    FBodies.Sorted := True;
-    FBodies.Duplicates := dupIgnore;
-  end;
 
   bodyId := orgBodyId;
   bodyId := bodyId.PadLeft(6,'0');
@@ -621,34 +785,202 @@ begin
   Result := b;
 end;
 
+function TStarSystem.BodyByName(name: string): TSystemBody;
+var i: Integer;
+begin
+  Result := nil;
+  for i := 0 to FBodies.Count - 1 do
+    if TSystemBody(FBodies.Objects[i]).BodyName = name then
+    begin
+      Result := TSystemBody(FBodies.Objects[i]);
+      Exit;
+    end;
+end;
+
 procedure TStarSystem.AddScan(js: string; j: TJSONObject);
-var bodyId,s: string;
+var bodyId,bodyNm,s: string;
     b: TSystemBody;
-    idx: Integer;
+    i,idx: Integer;
+    jarr: TJSONArray;
 begin
   bodyId := '';
   j.TryGetValue<string>('BodyID',bodyId);
+  bodyNm := '';
+  j.TryGetValue<string>('BodyName',bodyNm);
+  if Pos('Belt Cluster',bodyNm) > 0 then Exit;
+
+  j.TryGetValue<string>('ScanType',s);
+  if s = 'NavBeaconDetail' then NavBeaconScan := True;
+
   b := TryAddBodyFromId(bodyId);
   if b = nil then Exit;
   with b do
   begin
     Scan := js;
-    j.TryGetValue<string>('BodyName',BodyName);
+    BodyName := bodyNm;
+    if LeftStr(BodyName,Length(StarSystem)) = StarSystem then
+      BodyName := Copy(BodyName,Length(StarSystem) + 2,255);
     BodyType := '';
     j.TryGetValue<string>('StarType',BodyType);
     if BodyType = '' then
-      j.TryGetValue<string>('PlanetClass',BodyType);
+      j.TryGetValue<string>('PlanetClass',BodyType)
+    else
+      BodyType := BodyType + ' Star';
     j.TryGetValue<Extended>('DistanceFromArrivalLS',DistanceFromArrivalLS);
     j.TryGetValue<Boolean>('TidalLock',TidalLock);
     j.TryGetValue<Boolean>('Landable',Landable);
     j.TryGetValue<string>('AtmosphereType',AtmosphereType);
+    j.TryGetValue<string>('Atmosphere',Atmosphere);
+    if Atmosphere.EndsWith('atmosphere') then
+      Atmosphere := Copy(Atmosphere,1,Length(Atmosphere) - 11);
+
     j.TryGetValue<string>('Volcanism',Volcanism);
-    j.TryGetValue<string>('SurfaceGravity',SurfaceGravity);
+    if Volcanism.EndsWith('volcanism') then
+      Volcanism := Copy(Volcanism,1,Length(Volcanism) - 10);
+    if Volcanism.EndsWith('geysers') then
+      Volcanism := Copy(Volcanism,1,Length(Volcanism) - 8);
+
+    j.TryGetValue<Extended>('SurfaceGravity',SurfaceGravity);
+    SurfaceGravity := SurfaceGravity / 9.80665;
     j.TryGetValue<Extended>('SemiMajorAxis',SemiMajorAxis);
+    SemiMajorAxis := SemiMajorAxis / 1000000;
     j.TryGetValue<Extended>('OrbitalInclination',OrbitalInclination);
     j.TryGetValue<Extended>('OrbitalPeriod',OrbitalPeriod);
+    OrbitalPeriod := OrbitalPeriod / (60*60*24);
     j.TryGetValue<Extended>('RotationPeriod',RotationPeriod);
+    RotationPeriod := RotationPeriod / (60*60*24);
     j.TryGetValue<Extended>('AxialTilt',AxialTilt);
+
+    j.TryGetValue<string>('ReserveLevel',ReserveLevel);
+
+    try
+      jarr := j.GetValue<TJSONArray>('Rings');
+      for i := 0 to jarr.Count - 1 do
+      begin
+        b := TryAddBodyFromId(bodyId + '.' + IntToStr(i));
+        if b = nil then Exit;
+        with b do
+        begin
+          jarr[i].TryGetValue<string>('Name',BodyName);
+          if LeftStr(BodyName,Length(StarSystem)) = StarSystem then
+            BodyName := Copy(BodyName,Length(StarSystem) + 2,255);
+          jarr[i].TryGetValue<string>('RingClass',s);
+          idx := Pos('_',s);
+          s := Copy(s,idx+1,255);
+          BodyType := 'Ring - ' + s;
+          jarr[i].TryGetValue<Extended>('OuterRad',SemiMajorAxis);
+          SemiMajorAxis := SemiMajorAxis / 1000000;
+        end;
+      end;
+    except
+    end;
+  end;
+end;
+
+procedure TStarSystem.UpdateBodies_EDSM;
+var req: TNetHTTPClient;
+    res: IHTTPResponse;
+begin
+//  FFullSystemScan_EDSM := '';
+//  FBodies.Clear;
+
+  req := TNetHTTPClient.Create(nil);
+  try
+    res := req.Get('https://www.edsm.net/api-system-v1/bodies?systemName=' + StarSystem);
+    if res.StatusCode <> 200 then
+      raise Exception.Create(res.StatusText);
+    FSystemScan_EDSM := res.ContentAsString;
+  finally
+    req.Free;
+  end;
+  UpdateFromScan_EDSM;
+end;
+
+procedure TStarSystem.UpdateFromScan_EDSM;
+var jdata: TJSONObject;
+    jarr,jrings: TJSONArray;
+    b: TSystemBody;
+    i,i2,idx: Integer;
+    s,bodyId,bodyNm: string;
+begin
+
+  try
+    jdata := TJSONObject.ParseJSONValue(FSystemScan_EDSM) as TJSONObject;
+    try
+      jarr := jdata.GetValue<TJSONArray>('bodies');
+      for i := 0 to jarr.Count - 1 do
+      begin
+        jarr[i].TryGetValue<string>('bodyId',bodyId);
+        jarr[i].TryGetValue<string>('name',bodyNm);
+        if Pos('Belt Cluster',bodyNm) > 0 then continue;
+        b := TryAddBodyFromId(bodyId);
+        if b = nil then continue;
+        with b do
+        begin
+          BodyName := bodyNm;
+          if LeftStr(BodyName,Length(StarSystem)) = StarSystem then
+            BodyName := Copy(BodyName,Length(StarSystem) + 2,255);
+          BodyType := '';
+          jarr[i].TryGetValue<string>('subType',BodyType);
+          jarr[i].TryGetValue<Extended>('distanceToArrival',DistanceFromArrivalLS);
+          jarr[i].TryGetValue<Boolean>('rotationalPeriodTidallyLocked',TidalLock);
+          jarr[i].TryGetValue<Boolean>('isLandable',Landable);
+    //      j.TryGetValue<string>('AtmosphereType',AtmosphereType);
+          jarr[i].TryGetValue<string>('atmosphereType',Atmosphere);
+          if Atmosphere = 'No atmosphere' then Atmosphere := '';
+          if Atmosphere.EndsWith('atmosphere') then
+            Atmosphere := Copy(Atmosphere,1,Length(Atmosphere) - 11);
+          jarr[i].TryGetValue<string>('volcanismType',Volcanism);
+          if Volcanism = 'No volcanism' then Volcanism := '';
+          if Volcanism.EndsWith('volcanism') then
+            Volcanism := Copy(Volcanism,1,Length(Volcanism) - 10);
+          if Volcanism.EndsWith('geysers') then
+            Volcanism := Copy(Volcanism,1,Length(Volcanism) - 8);
+          if Volcanism.EndsWith('Geysers') then
+            Volcanism := Copy(Volcanism,1,Length(Volcanism) - 8);
+
+          jarr[i].TryGetValue<Extended>('gravity',SurfaceGravity);
+          jarr[i].TryGetValue<Extended>('semiMajorAxis',SemiMajorAxis);
+          SemiMajorAxis := SemiMajorAxis * 149597.8707;  //Mm
+          jarr[i].TryGetValue<Extended>('orbitalInclination',OrbitalInclination);
+          jarr[i].TryGetValue<Extended>('orbitalPeriod',OrbitalPeriod);
+          //OrbitalPeriod := OrbitalPeriod / (60*60*24);
+          jarr[i].TryGetValue<Extended>('rotationalPeriod',RotationPeriod);
+          //RotationPeriod := RotationPeriod / (60*60*24);
+          jarr[i].TryGetValue<Extended>('axialTilt',AxialTilt);
+
+          //j.TryGetValue<string>('ReserveLevel',ReserveLevel);
+
+          try
+            try
+              jrings := jarr[i].GetValue<TJSONArray>('belts');
+            except
+              jrings := jarr[i].GetValue<TJSONArray>('rings');
+            end;
+            for i2 := 0 to jrings.Count - 1 do
+            begin
+              b := TryAddBodyFromId(bodyId + '.' + IntToStr(i2));
+              if b = nil then Exit;
+              with b do
+              begin
+                jrings[i2].TryGetValue<string>('name',BodyName);
+                if LeftStr(BodyName,Length(StarSystem)) = StarSystem then
+                  BodyName := Copy(BodyName,Length(StarSystem) + 2,255);
+                jrings[i2].TryGetValue<string>('type',s);
+                BodyType := 'Ring - ' + s;
+                jrings[i2].TryGetValue<Extended>('outerRadius',SemiMajorAxis);
+                SemiMajorAxis := SemiMajorAxis / 1000000;
+              end;
+            end;
+          except
+          end;
+        end;
+      end;
+    finally
+      jdata.Free;
+    end;
+  except
+
   end;
 end;
 
@@ -658,7 +990,7 @@ var bodyId,s: string;
     i,idx,cnt: Integer;
     jarr: TJSONArray;
 begin
-  if FBodies = nil then Exit;
+  if FBodies.Count = 0 then Exit;
   bodyId := '';
   j.TryGetValue<string>('BodyID',bodyId);
   if bodyId = '' then Exit;
@@ -687,20 +1019,78 @@ end;
 procedure TStarSystem.Save;
 var j: TJSONObject;
     fn: string;
+    sarr: TJSONArray;
+    st: TJSONObject;
+    i: Integer;
 begin
   j := TJSONObject.Create;
   j.AddPair(TJSONPair.Create('StarSystem', StarSystem));
   j.AddPair(TJSONPair.Create('SystemAddress', SystemAddress));
-  j.AddPair(TJSONPair.Create('Architect', Architect));
+  j.AddPair(TJSONPair.Create('Architect', FArchitect));
   j.AddPair(TJSONPair.Create('ArchitectName', ArchitectName));
   j.AddPair(TJSONPair.Create('AlterName', AlterName));
   j.AddPair(TJSONPair.Create('Comment', Comment));
   j.AddPair(TJSONPair.Create('CurrentGoals', CurrentGoals));
   j.AddPair(TJSONPair.Create('Objectives', Objectives));
   j.AddPair(TJSONPair.Create('Ignored', Ignored));
-  fn := DataSrc.FWorkingDir + 'colonies\' + SystemAddress + '.json';
+  j.AddPair(TJSONPair.Create('FSystemScan_EDSM', FSystemScan_EDSM));
+  j.AddPair(TJSONPair.Create('PrimaryPortId', PrimaryPortId));
+
+  sarr := TJSONArray.Create;
+  j.AddPair(TJSONPair.Create('Stations', sarr));
+
+  for i := 0 to DataSrc.Constructions.Count - 1 do
+    with TConstructionDepot(DataSrc.Constructions.Objects[i]) do
+      if StationType <> 'FleetCarrier' then
+      if Modified and (StarSystem = self.StarSystem) then
+      begin
+        st := TJSONObject.Create;
+        st.AddPair(TJSONPair.Create('MarketType', 'depot'));
+        st.AddPair(TJSONPair.Create('MarketId', MarketId));
+        st.AddPair(TJSONPair.Create('Name', StationName));
+        st.AddPair(TJSONPair.Create('Body', Body));
+        st.AddPair(TJSONPair.Create('ConstructionType', ConstructionType));
+        st.AddPair(TJSONPair.Create('Planned', Planned));
+        st.AddPair(TJSONPair.Create('Finished', Finished));
+        st.AddPair(TJSONPair.Create('Comment', Comment));
+        st.AddPair(TJSONPair.Create('MarketLevel', Integer(MarketLevel)));
+        st.AddPair(TJSONPair.Create('LinkedMarketId', LinkedMarketId));
+        sarr.Add(st);
+      end;
+{
+  for i := 0 to DataSrc.RecentMarkets.Count - 1 do
+    with TMarket(DataSrc.RecentMarkets.Objects[i]) do
+      if StationType <> 'FleetCarrier' then
+      if Modified and (StarSystem = self.StarSystem) then
+      begin
+        st := TJSONObject.Create;
+        st.AddPair(TJSONPair.Create('MarketType', 'market'));
+        st.AddPair(TJSONPair.Create('MarketId', MarketId));
+        st.AddPair(TJSONPair.Create('Name', StationName));
+        st.AddPair(TJSONPair.Create('Body', Body));
+        st.AddPair(TJSONPair.Create('Comment', Comment));
+        st.AddPair(TJSONPair.Create('MarketLevel', Integer(MarketLevel)));
+        sarr.Add(st);
+      end;
+}
+
+  fn := DataSrc.FWorkingDir + 'colonies\' + StarSystem + '.json';
+  if SystemAddress <> '' then
+  begin
+    DeleteFile(PChar(fn));
+    fn := DataSrc.FWorkingDir + 'colonies\' + SystemAddress + '.json';
+  end;
   TFile.WriteAllText(fn, j.Format());
   j.Free;
+end;
+
+procedure TStarSystem.Delete;
+var fn: string;
+begin
+  fn := DataSrc.FWorkingDir + 'colonies\' + StarSystem + '.json';
+  if SystemAddress <> '' then
+    fn := DataSrc.FWorkingDir + 'colonies\' + SystemAddress + '.json';
+  DeleteFile(PChar(fn));
 end;
 
 function TStarSystem.GetArchitectName: string;
@@ -709,13 +1099,23 @@ begin
   if Result = '' then Result := Architect;
 end;
 
+procedure TStarSystem.SetArchitect(s: string);
+var i: Integer;
+begin
+  FArchitect := s;
+  //update name???
+end;
+
 procedure TStarSystem.SetArchitectByName(s: string);
 var i: Integer;
 begin
-  Architect := s;
+  FArchitect := s;
   for i := 0 to DataSrc.Commanders.Count - 1 do
     if DataSrc.Commanders.ValueFromIndex[i] = s then
-      Architect := DataSrc.Commanders.Names[i];
+    begin
+      FArchitect := DataSrc.Commanders.Names[i];
+      break;
+    end;
 end;
 
 procedure TStarSystem.SetAlterName(s: string);
@@ -737,11 +1137,15 @@ end;
 constructor TStarSystem.Create;
 begin
   PopHistory := TStringList.Create;
+  FBodies := TStringList.Create;
+  FBodies.Sorted := True;
+  FBodies.Duplicates := dupIgnore;
 end;
 
 destructor TStarSystem.Destroy;
 begin
   PopHistory.Free;
+  FBodies.Free;
 end;
 
 function TSystemList.GetSystemByAlterName(const Name: string): TStarSystem;
@@ -814,14 +1218,13 @@ begin
       with sys do
       begin
         StarSystem := name;
-        SystemAddress := j.GetValue<string>('SystemAddress');
       end;
       AddObject(name,sys);
-      FAddresses.AddObject(sys.SystemAddress,sys);
     end;
 
-    if sys.LastUpdate = '' then  //loaded from file?
+    if sys.LastUpdate = '' then  //loaded from file or added from name?
     begin
+      sys.SystemAddress := j.GetValue<string>('SystemAddress');
       sys.StarPosX := px;
       sys.StarPosY := py;
       sys.StarPosZ := pz;
@@ -834,6 +1237,8 @@ begin
     sys.LastCmdr := DataSrc.FCurrentCmdr;
     sys.FFactions := ''; //extracted on demand
     sys.Status := js;
+    if sys.SystemAddress <> '' then
+      FAddresses.AddObject(sys.SystemAddress,sys);
   except
   end;
 end;
@@ -841,39 +1246,153 @@ end;
 procedure TSystemList.AddFromJSON(js: string);
 var j: TJSONObject;
     jarr: TJSONArray;
-    s, tms: string;
+    s, tms, mtyp: string;
     sys: TStarSystem;
     pop: Int64;
+    i,mlev: Integer;
+//    cd: TConstructionDepot;
+//    m: TMarket;
+    bm: TBaseMarket;
 begin
   try
     j := TJSONObject.ParseJSONValue(js) as TJSONObject;
+    try
+      sys := TStarSystem.Create;
+      with sys do
+      begin
+        StarSystem := j.GetValue<string>('StarSystem');
+        SystemAddress := j.GetValue<string>('SystemAddress');
+        try Architect := j.GetValue<string>('Architect'); except end;
+  //      try ArchitectName := j.GetValue<string>('ArchitectName'); except end;
+        try AlterName := j.GetValue<string>('AlterName'); except end;
+        try Comment := j.GetValue<string>('Comment'); except end;
+        j.TryGetValue<string>('CurrentGoals',CurrentGoals);
+        j.TryGetValue<string>('Objectives',Objectives);
+        j.TryGetValue<Boolean>('Ignored',Ignored);
+        j.TryGetValue<string>('FSystemScan_EDSM',FSystemScan_EDSM);
+        j.TryGetValue<string>('PrimaryPortId',PrimaryPortId);
+
+        if FSystemScan_EDSM <> '' then
+          UpdateFromScan_EDSM;
+
+        jarr := nil;
+        j.TryGetValue<TJSONArray>('Stations',jarr);
+        if jarr <> nil then
+        begin
+          for i := 0 to jarr.Count - 1 do
+          begin
+            jarr[i].TryGetValue<string>('MarketType',mtyp);
+            bm := nil;
+            if (mtyp = '') or (mtyp = 'depot') then bm := TConstructionDepot.Create;
+            //if mtyp = 'market' then bm := TMarket.Create;
+            if bm = nil then continue;
+
+            bm.Modified := True;
+            jarr[i].TryGetValue<string>('MarketId',bm.MarketId);
+            jarr[i].TryGetValue<string>('Name',bm.StationName);
+            jarr[i].TryGetValue<string>('Body',bm.Body);
+            bm.Body := Trim(bm.Body);
+            jarr[i].TryGetValue<string>('Comment',bm.Comment);
+            jarr[i].TryGetValue<Integer>('MarketLevel',mlev);
+            bm.StarSystem := StarSystem;
+            bm.FSysData := sys;
+
+            bm.MarketLevel := TMarketLevel(mlev);
+            if (mtyp = '') or (mtyp = 'depot') then
+            begin
+              jarr[i].TryGetValue<string>('ConstructionType',bm.ConstructionType);
+              jarr[i].TryGetValue<string>('LinkedMarketId',bm.LinkedMarketId);
+              jarr[i].TryGetValue<Boolean>('Finished',TConstructionDepot(bm).Finished);
+              jarr[i].TryGetValue<Boolean>('Planned',TConstructionDepot(bm).Planned);
+              DataSrc.FConstructions.AddObject(bm.MarketId,bm);
+            end;
+            if mtyp = 'market' then
+            begin
+              DataSrc.FRecentMarkets.AddObject(bm.MarketId,bm);
+            end;
+          end;
+        end;
+     end;
+
+      AddObject(sys.StarSystem,sys);
+      if sys.SystemAddress <> '' then
+        FAddresses.AddObject(sys.SystemAddress,sys);
+    finally
+      j.Free;
+    end;
+  except
+  end;
+end;
+
+function TSystemList.AddNeighbours_EDSM(origin: string): Integer;
+var req: TNetHTTPClient;
+    res: IHTTPResponse;
+    i: Integer;
+    j: TJSONObject;
+    jarr: TJSONArray;
+    s: string;
+begin
+  Result := 0;
+  req := TNetHTTPClient.Create(nil);
+  try
+    res := req.Get('https://www.edsm.net/api-v1/sphere-systems?systemName=' + origin + '&radius=15');
+    if res.StatusCode <> 200 then
+      raise Exception.Create('EDSM response error: ' + IntToStr(res.StatusCode) + ' ' + res.StatusText);
+    s := res.ContentAsString;
+    if Copy(s,1,1) <> '[' then
+      raise Exception.Create('EDSM response error: no data');
+
+    jarr := TJSONObject.ParseJSONValue(s) as TJSONArray;
+    try
+//      jarr := j.GetValue<TJSONArray>('');
+      for i := 0 to jarr.Count - 1 do
+      begin
+        s := '';
+        jarr[i].TryGetValue<string>('name',s);
+        if AddFromName(s) then Result := Result + 1;
+      end;
+    finally
+      jarr.Free;
+    end;
+  finally
+    req.Free;
+  end;
+end;
+
+function TSystemList.AddFromName(name: string): Boolean;
+var s: string;
+    sys: TStarSystem;
+begin
+  Result := False;
+  if GetSystemByName(name) <> nil then Exit;
+
+  try
     sys := TStarSystem.Create;
     with sys do
     begin
-      StarSystem := j.GetValue<string>('StarSystem');
-      SystemAddress := j.GetValue<string>('SystemAddress');
-      try Architect := j.GetValue<string>('Architect'); except end;
-      try AlterName := j.GetValue<string>('AlterName'); except end;
-      try Comment := j.GetValue<string>('Comment'); except end;
-      j.TryGetValue<string>('CurrentGoals',CurrentGoals);
-      j.TryGetValue<string>('Objectives',Objectives);
-      j.TryGetValue<Boolean>('Ignored',Ignored);
- {
-      jarr := j.GetValue<TJSONArray>('StarPos');
-      StarPosX := StrToFloat(jarr[0].Value,JSONFormatSettings);
-      StarPosY := StrToFloat(jarr[1].Value,JSONFormatSettings);
-      StarPosZ := StrToFloat(jarr[2].Value,JSONFormatSettings);
-      SystemSecurity := j.GetValue<string>('SystemSecurity_Localised');
-      Population := j.GetValue<Int64>('Population');
-      LastUpdate := j.GetValue<string>('timestamp');
-      Status := js;
-}
-      //FJSONObj := j;
+      StarSystem := name;
+      Save;
     end;
     AddObject(sys.StarSystem,sys);
-    FAddresses.AddObject(sys.SystemAddress,sys);
+    //FAddresses.AddObject(sys.SystemAddress,sys);
   except
   end;
+  Result := True;
+end;
+
+procedure TSystemList.RemoveFromName(name: string);
+var s: string;
+    idx: Integer;
+    sys: TStarSystem;
+begin
+  idx := IndexOf(name);
+  if idx < 0  then Exit;
+  with TStarSystem(Objects[idx]) do
+  begin
+    Delete;
+    Free;
+  end;
+  self.Delete(idx);
 end;
 
 procedure TSystemList.UpdateArchitect(cmdr: string; j: TJSONObject);
@@ -883,6 +1402,7 @@ begin
   try
     s := j.GetValue<string>('StarSystem');
     sys := GetSystemByName(s);
+
     if sys <> nil then
       sys.Architect := cmdr;
   except
@@ -1006,7 +1526,6 @@ begin
     j := TJSONObject.ParseJSONValue(js) as TJSONObject;
     try
       m.MarketID := j.GetValue<string>('MarketID');
-
       if Pos('.',m.MarketID) > 0 then m.Snapshot := True;
 
       m.Status := js;
@@ -1139,6 +1658,7 @@ end;
 procedure TEDDataSource.NotifyListeners;
 var i: Integer;
 begin
+  if FPreventNotify then Exit;
   for i := 0 to High(FListeners) do
   begin
     FListeners[i].OnEDDataUpdate;
@@ -1309,10 +1829,11 @@ begin
            (s<>'CargoTransfer') and
 //star system info
            (s<>'FSDJump') and
+           (s<>'Location') and
            (s<>'ColonisationSystemClaim') and
-           (s<>'ColonisationSystemClaimRelease') {and
+           (s<>'ColonisationSystemClaimRelease') and
            (s<>'Scan') and
-           (s<>'FSSBodySignals')   }
+           (s<>'FSSBodySignals')
            //Location ???
 
 //ModuleStore/ModuleRetrieve - to supplement Loadout event?
@@ -1351,10 +1872,20 @@ begin
 
         if event = 'FSDJump' then
         begin
+          FLastDropId := '';
           j.TryGetValue<string>('StarSystem',FCurrentSystem);
           StarSystems.UpdateFromFSDJump(js,j);
           goto LUpdateTms;
         end;
+
+        if event = 'Location' then
+        begin
+          FLastDropId := '';
+          j.TryGetValue<string>('StarSystem',FCurrentSystem);
+          StarSystems.UpdateFromFSDJump(js,j);
+          goto LUpdateTms;
+        end;
+
 
         if event = 'ColonisationSystemClaim' then
         begin
@@ -1382,16 +1913,31 @@ begin
 
         if event = 'SupercruiseExit' then
         begin
-          s:= j.GetValue<string>('StarSystem');
-          cd := DepotFromId(FLastDropId);
-          if cd <> nil then
-            cd.Body := Copy(j.GetValue<string>('Body'),Length(s)+1,200);
-          {
-          m := MarketFromId(FLastDropId);
-          if m <> nil then
-            m.Body := Copy(j.GetValue<string>('Body'),Length(s)+1,200);
-          }
-          FLastDropId := '';
+          if FLastDropId <> '' then
+          begin
+            s := j.GetValue<string>('StarSystem');
+            FLastBody := '';
+            try
+              FLastBody := j.GetValue<string>('Body');
+              if not FLastBody.StartsWith(s) then
+                FLastBody := ''
+              else
+                FLastBody := Copy(FLastBody,Length(s)+2,200);
+            except end;
+            if FLastBody <> '' then
+            begin
+              cd := DepotFromId(FLastDropId);
+              if (cd <> nil) and (cd.Body = '') and (cd.StarSystem = s) then
+                cd.Body := FLastBody
+              else
+              begin
+                m := MarketFromId(FLastDropId); //station drops are at 'Station' body after weekly tick! :(((
+                if (m <> nil) and (m.Body = '')  and (m.StarSystem = s) then
+                  m.Body := FLastBody;
+              end;
+            end;
+            FLastDropId := '';
+          end;
           goto LUpdateTms;
         end;
 
@@ -1422,7 +1968,34 @@ begin
 
         if event = 'ApproachSettlement' then
         begin
-          FLastDropId := mID;
+//          FLastDropId := mID;
+          FLastDropId := '';
+
+          s := j.GetValue<string>('SystemAddress');
+          sys := FStarSystems.SystemByAddr[s];
+          if sys <> nil then
+          begin
+            FLastBody := '';
+            try
+              FLastBody := j.GetValue<string>('BodyName');
+              if not FLastBody.StartsWith(sys.StarSystem) then
+                FLastBody := ''
+              else
+                FLastBody := Copy(FLastBody,Length(sys.StarSystem)+2,200);
+            except end;
+            if FLastBody <> '' then
+            begin
+              cd := DepotFromId(mID);
+              if (cd <> nil) and (cd.Body = '') then
+                cd.Body := FLastBody
+              else
+              begin
+                m := MarketFromId(mID);
+                if (m <> nil) and (m.Body = '') then
+                  m.Body := FLastBody;
+              end;
+            end;
+          end;
         end;
 
         if event = 'Undocked' then
@@ -1432,8 +2005,9 @@ begin
               RemoveIdleDockTime(tms);
         end;
 
-        if event = 'Docked' then
+        if event = 'Docked' {or (event = 'Location')} then
         begin
+          FLastDropId := '';
           s := j.GetValue<string>('StationType');
           if s = 'FleetCarrier' then FLastFC := mID;
           s2 := j.GetValue<string>('StationName');
@@ -1454,6 +2028,8 @@ begin
             try
               cd.DistFromStar := Trunc(j.GetValue<single>('DistFromStarLS')); 
             except end;
+            if cd.Body = '' then cd.Body := FLastBody;
+
             cd.LastDock := tms;
             cd.LastUpdate := tms;
 
@@ -1465,7 +2041,6 @@ begin
             try
               m := MarketForMarketId(mID);
 //              m := MarketFromId(mID);
-
               if m <> nil then
               begin
 
@@ -1479,6 +2054,15 @@ begin
                   if s = '' then s := j.GetValue<string>('StationName');
                   m.StationName := s;
                 end;
+
+                //this one is very tricky, let's see how it works...
+                {if m.Body = '' then
+                  if FLastConstructionDone <> '' then
+                  begin
+                    cd := DepotFromId(FLastConstructionDone);
+                    if cd.StarSystem = m.StarSystem then
+                      m.Body := cd.Body;
+                  end; }
 
                 try
                   m.DistFromStar := Trunc(j.GetValue<single>('DistFromStarLS'));
@@ -1517,13 +2101,15 @@ begin
         if event = 'ColonisationConstructionDepot' then
         begin
           cd := DepotForMarketId(mID);
-          if not cd.Finished then
+          if not cd.DepotComplete then
           begin
             cd.Status := jrnl[i];
+            if (cd.FirstUpdate = '') or (tms < cd.FirstUpdate) then cd.FirstUpdate := tms;
             cd.LastUpdate := tms;
             s := j.GetValue<string>('ConstructionComplete');
             if s = 'true' then
             begin
+              cd.DepotComplete := true;
               cd.Finished := true;
               sys := FStarSystems.SystemByName[cd.StarSystem];
               if sys <> nil then sys.PrimaryDone := True;
@@ -1660,6 +2246,11 @@ end;
 function TEDDataSource.LastFC;
 begin
   LastFC := MarketFromId(FLastFC);
+end;
+
+function TEDDataSource.CurrentSystem;
+begin
+  Result := TStarSystem(self.FStarSystems.SystemByName[FCurrentSystem]);
 end;
 
 procedure TEDDataSource.LoadMarket(fn: string);
@@ -1894,27 +2485,43 @@ end;
 procedure TEDDataSource.DoBackup;
 var sl: TStringList;
     fn,jsd: string;
-    res: Integer;
+    res,fnr,fcnt: Integer;
     fa: DWord;
     srec: TSearchRec;
+    dt: TDateTime;
+
+    procedure SetBkpFileName;
+    begin
+      FBackupFile := 'journal.' + DateToISO8601(dt) + '.backup' + IntToStr(fnr).PadLeft(3,'0') + '.log';
+      FBackupFile := FBackupFile.Replace(':','');
+    end;
 begin
   sl := TStringList.Create;
   try
     FDoingBackup := True;
-    FBackupFile := 'journal.' + DateToISO8601(Date-2) + '.log';
-    FBackupFile := FBackupFile.Replace(':','');
+    dt := Now;
+    fnr := 1;
+    SetBkpFileName;
     fn := '';
     jsd := Opts['JournalStart'];
     res := FindFirst(FJournalDir + 'journal.*.log', faAnyFile, srec);
+    fcnt := 0;
     while res = 0 do
     begin
       fn := LowerCase(srec.Name);
       if fn >= ('journal.' + jsd) then
-      if fn <= FBackupFile then
+      //if fn <= FBackupFile then
       begin
         sl.Clear;
         try _share_LoadFromFile(sl,FJournalDir + srec.Name); except end;
         UpdateFromJournal(srec.Name,sl);
+        fcnt := fcnt + 1;
+        if fcnt > 100 then
+        begin
+          fcnt := 0;
+          fnr := fnr + 1;
+          SetBkpFileName;
+        end;
       end;
       res := FindNext(srec);
     end;
@@ -1949,11 +2556,23 @@ end;
 
 procedure TEDDataSource.BeginUpdate;
 begin
+  FPreventNotify := True;
 end;
 
 procedure TEDDataSource.EndUpdate;
 begin
+  FPreventNotify := False;
   NotifyListeners;
+end;
+
+procedure TEDDataSource.RemoveConstruction(cd: TConstructionDepot);
+var idx: Integer;
+begin
+  idx := FConstructions.IndexOf(cd.MarketID);
+  if idx > -1 then
+    FConstructions.Delete(idx);
+  NotifyListeners;
+  cd.Free;
 end;
 
 procedure TEDDataSource.MarketToSimDepot(mID: string);
@@ -2138,9 +2757,13 @@ begin
   FItemCategories := THashedStringList.Create;
   FItemNames := THashedStringList.Create;
   FLastJrnlTimeStamps := THashedStringList.Create;
+  FConstructionTypes := TConstructionTypes.Create;
   FDataChanged := false;
 
   FInitialLoad := true;
+
+
+  FConstructionTypes.Load;
 
   LoadAllColonies;
   LoadAllMarkets;

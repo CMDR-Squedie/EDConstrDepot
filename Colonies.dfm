@@ -98,6 +98,7 @@ object ColoniesForm: TColoniesForm
     ViewStyle = vsReport
     OnColumnClick = ListViewColumnClick
     OnCompare = ListViewCompare
+    OnCustomDrawItem = ListViewCustomDrawItem
     OnDblClick = ListViewAction
     OnMouseDown = ListViewMouseDown
   end
@@ -245,6 +246,28 @@ object ColoniesForm: TColoniesForm
     OnPopup = PopupMenuPopup
     Left = 648
     Top = 232
+    object SystemPictureMenuItem: TMenuItem
+      Tag = 17
+      Caption = 'System Picture'
+      OnClick = ListViewAction
+    end
+    object SystemInfoMenuItem: TMenuItem
+      Tag = 1
+      Caption = 'System Info'
+      OnClick = ListViewAction
+    end
+    object DistancesFromMenuItem: TMenuItem
+      Tag = 16
+      Caption = 'Set As Reference System'
+      OnClick = ListViewAction
+    end
+    object AddToTargetsMenuItem: TMenuItem
+      Caption = 'Add To Targets'
+      OnClick = AddToTargetsMenuItemClick
+    end
+    object N6: TMenuItem
+      Caption = '-'
+    end
     object EditArchitectMenuItem: TMenuItem
       Tag = 2
       Caption = 'Architect...'
@@ -273,19 +296,17 @@ object ColoniesForm: TColoniesForm
     object N4: TMenuItem
       Caption = '-'
     end
-    object AddToTargetsMenuItem: TMenuItem
-      Caption = 'Add To Targets'
-      OnClick = AddToTargetsMenuItemClick
+    object AddSystemToScanMenuItem: TMenuItem
+      Caption = 'Add System To Scan...'
+      OnClick = AddSystemToScanMenuItemClick
     end
-    object DistancesFromMenuItem: TMenuItem
-      Tag = 16
-      Caption = 'Reference System'
-      OnClick = ListViewAction
+    object AddNeighboursMenuItem: TMenuItem
+      Caption = 'Add Neighbours (EDSM)'
+      OnClick = AddNeighboursMenuItemClick
     end
-    object SystemPictureMenuItem: TMenuItem
-      Tag = 17
-      Caption = 'System Picture'
-      OnClick = ListViewAction
+    object RemoveSystemToScanMenuItem: TMenuItem
+      Caption = 'Remove System To Scan'
+      OnClick = RemoveSystemToScanMenuItemClick
     end
     object N5: TMenuItem
       Caption = '-'
@@ -330,5 +351,12 @@ object ColoniesForm: TColoniesForm
       Caption = 'Copy System Name'
       OnClick = ListViewAction
     end
+  end
+  object EditTimer: TTimer
+    Enabled = False
+    Interval = 500
+    OnTimer = EditTimerTimer
+    Left = 88
+    Top = 136
   end
 end

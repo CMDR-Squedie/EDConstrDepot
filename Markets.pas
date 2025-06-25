@@ -48,11 +48,14 @@ type
     ConstructionsSubMenu: TMenuItem;
     MarketsSubMenu: TMenuItem;
     N2: TMenuItem;
+    EditTimer: TTimer;
+    SystemInfoMenuItem: TMenuItem;
+    N4: TMenuItem;
+    ConstructionInfoMenuItem: TMenuItem;
     procedure ListViewColumnClick(Sender: TObject; Column: TListColumn);
     procedure ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
     procedure FormShow(Sender: TObject);
-    procedure UpdateItems;
     procedure FilterEditChange(Sender: TObject);
     procedure ListViewMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
@@ -74,6 +77,9 @@ type
     procedure Panel1MouseMove(Sender: TObject; Shift: TShiftState; X,
       Y: Integer);
     procedure GroupDepotGroupMenuItemClick(Sender: TObject);
+    procedure EditTimerTimer(Sender: TObject);
+    procedure ListViewCustomDrawItem(Sender: TCustomListView; Item: TListItem;
+      State: TCustomDrawState; var DefaultDraw: Boolean);
   private
     { Private declarations }
     SortColumn: Integer;
@@ -90,6 +96,7 @@ type
     procedure UpdateAndShow;
     procedure SetColony(sid: string);
     procedure SetMarketFilter(fs: string);
+    procedure UpdateItems(const _autoSizeCol: Boolean = false);
   end;
 
 var
@@ -97,7 +104,7 @@ var
 
 implementation
 
-uses Main,Clipbrd,Settings, MarketInfo, Splash;
+uses Main,Clipbrd,Settings, MarketInfo, Splash, SystemInfo, StationInfo;
 
 {$R *.dfm}
 
@@ -262,7 +269,7 @@ end;
 
 procedure TMarketsForm.MarketsCheckClick(Sender: TObject);
 begin
-  UpdateItems;
+  UpdateItems(true);
 end;
 
 procedure TMarketsForm.MarketSnapshotMenuItemClick(Sender: TObject);
@@ -366,9 +373,19 @@ begin
   Clipboard.SetTextBuf(PChar(s));
 end;
 
+procedure TMarketsForm.EditTimerTimer(Sender: TObject);
+begin
+  try
+    UpdateItems;
+  finally
+    EditTimer.Enabled := False;
+  end;
+end;
+
 procedure TMarketsForm.FilterEditChange(Sender: TObject);
 begin
-  UpdateItems;
+  EditTimer.Enabled := False;
+  EditTimer.Enabled := True;
 end;
 
 procedure TMarketsForm.ApplySettings;
@@ -393,9 +410,13 @@ begin
       Color := $4A4136; //$484848;
       Font.Color := clr;
       GridLines := False;
-      //GridLines := False;
     end;
 
+  end;
+  with ListView do
+  begin
+    Font.Name := Opts['FontName2'];
+    Font.Size := Opts.Int['FontSize2'];
   end;
 
 end;
@@ -433,7 +454,7 @@ end;
 
 procedure TMarketsForm.FormShow(Sender: TObject);
 begin
-  UpdateItems;
+  UpdateItems(true);
   FilterEdit.SetFocus;
 end;
 
@@ -461,19 +482,29 @@ end;
 
 procedure TMarketsForm.RestoreSelection;
 var i: Integer;
+    scrollf: Boolean;
 begin
+  scrollf := true;
   for i := 0 to ListView.Items.Count - 1 do
   begin
     if ListView.Items[i].Data <> nil then
     if FSelectedItems.IndexOf(TBaseMarket(ListView.Items[i].Data).MarketID) > -1 then
+    begin
       if CompareCheck.Checked then
         ListView.Items[i].Checked := True
       else
         ListView.Items[i].Selected := True;
+      if scrollf then
+      begin
+        ListView.ItemIndex := i;
+        ListView.Items[i].MakeVisible(false);
+        scrollf := false;
+      end;
+    end;
   end;
 end;
 
-procedure TMarketsForm.UpdateItems;
+procedure TMarketsForm.UpdateItems(const _autoSizeCol: Boolean = false);
 var
   i,j: Integer;
   cd: TConstructionDepot;
@@ -485,6 +516,8 @@ var
   lev: TMarketLevel;
   ignoredf,partialf,findcmdtyf: Boolean;
   d: Extended;
+  colSz: array [0..100] of Integer;
+  autoSizeCol: Boolean;
 
   function CheckFilter: Boolean;
   var i: Integer;
@@ -521,6 +554,10 @@ var
 
 begin
 
+  autoSizeCol := _autoSizeCol;
+  if ListView.Items.Count = 0 then autoSizeCol := True;
+
+
   SaveSelection;
 
   items := THashedStringList.Create;
@@ -537,8 +574,10 @@ begin
     ListView.SortType := stNone;
 
     for i := 0 to ListView.Columns.Count - 1 do
-       ListView.Column[i].Width := 0;
-
+    begin
+      colSz[i] := ListView.Column[i].Width;
+      ListView.Column[i].Width := 0;
+    end;
 
     orgfs := FilterEdit.Text;
     fs := LowerCase(orgfs);
@@ -550,8 +589,8 @@ begin
     for i := 0 to DataSrc.Constructions.Count - 1 do
     begin
       cd := TConstructionDepot(DataSrc.Constructions.Objects[i]);
-      if cd.Status = '' then
-        if not partialf then continue; //docked but no depot info
+      //if cd.Status = '' then
+      //  if not partialf then continue; //docked but no depot info? user-added depots work like this
       lev := DataSrc.GetMarketLevel(cd.MarketId);
       if not ignoredf then
         if lev = miIgnore then continue;
@@ -559,13 +598,22 @@ begin
       item := ListView.Items.Add;
       item.Data := cd;
       item.Caption := cd.StationName_full;
+      if cd.LinkedMarketId <> '' then
+      begin
+        m := DataSrc.MarketFromID(cd.LinkedMarketId);
+        if m <> nil then
+          item.Caption := m.StationName_full;
+      end;
       if cd.Finished then
         item.SubItems.Add('FinishedConstruction')
       else
-        if cd.Simulated then
-          item.SubItems.Add('SimulatedDepot')
+        if cd.Planned then
+          item.SubItems.Add('PlannedConstruction')
         else
-          item.SubItems.Add('ConstructionDepot');
+          if cd.Simulated then
+            item.SubItems.Add('SimulatedDepot')
+          else
+            item.SubItems.Add('ConstructionDepot');
       item.SubItems.Add(cd.StarSystem_nice);
       item.SubItems.Add(cd.Body);
       s := cd.LastDock;
@@ -609,12 +657,22 @@ begin
           s := s + '  *';
       item.SubItems.Add(s);
       s := '';
-      if EDCDForm.CurrentDepot <> nil then
-      begin
-        d := m.DistanceTo(EDCDForm.CurrentDepot);
-        if d > 0 then
-          s := FloatToStrF(d,ffFixed,7,2);
+      try
+        if EDCDForm.CurrentDepot <> nil then
+        begin
+          d := m.DistanceTo(EDCDForm.CurrentDepot);
+          if d > 0 then
+            s := FloatToStrF(d,ffFixed,7,2);
+        end
+        else
+        begin
+          d := m.System.DistanceTo(DataSrc.CurrentSystem);
+          if d > 0 then
+            s := FloatToStrF(d,ffFixed,7,2);
+        end;
+      except
       end;
+
       item.SubItems.Add(s);
       s := '';
       if m.DistFromStar >= 0 then
@@ -673,12 +731,23 @@ begin
 
     //set columns to auto-size;  nice, but ListView is EXTREMELY slow with this!!!
     //todo: set the column widths and add "auto-size" option for user to decide
+    if autoSizeCol then
+    begin
+      for i := 0 to ListView.Columns.Count - 2 do
+         ListView.Column[i].Width := -2;
+      ListView.Column[ListView.Columns.Count - 1].Width := -1;
+
+      for i := 0 to ListView.Columns.Count - 1 do
+        colSz[i] := ListView.Column[i].Width;
+    end;
+
     for i := 0 to ListView.Columns.Count - 1 do
-       ListView.Column[i].Width := -2;
+      ListView.Column[i].Width := colSz[i];
 
     if findcmdtyf then
     begin
       ListView.Columns[7].Caption := 'Stock';
+      ListView.Columns[7].Width := -2;
     end
     else
     begin
@@ -740,11 +809,28 @@ begin
   if not SortAscending then Compare := -Compare;
 end;
 
+procedure TMarketsForm.ListViewCustomDrawItem(Sender: TCustomListView;
+  Item: TListItem; State: TCustomDrawState; var DefaultDraw: Boolean);
+begin
+  if cdsSelected in State then
+  begin
+    Sender.Canvas.Brush.Color := clHighLight;
+  end
+  else
+  begin
+    Sender.Canvas.Brush.Color := ListView.Color;
+    if Item.Index mod 2 = 0 then
+      Sender.Canvas.Brush.Color := Sender.Canvas.Brush.Color - $202020;
+  end;
+end;
+
 procedure TMarketsForm.ListViewAction(Sender: TObject);
 var mid: string;
     lev: TMarketLevel;
     s,orgs: string;
     action: Integer;
+    sys: TStarSystem;
+    bm: TBaseMarket;
 begin
   if ListView.Selected = nil then Exit;
   action := -1;
@@ -755,11 +841,15 @@ begin
   end;
   if Sender is TMenuItem then action := TMenuItem(Sender).Tag;
   if action = -1 then Exit;
-  mid := TBaseMarket(ListView.Selected.Data).MarketId;
+  bm := TBaseMarket(ListView.Selected.Data);
+  mid := bm.MarketId;
+  if (action = 21) then
+    if bm is TMarket then action := 14;
+
   case action  of
   2:
     begin
-      FilterEdit.Text := TBaseMarket(ListView.Selected.Data).StarSystem_nice;
+      FilterEdit.Text := bm.StarSystem_nice;
       UpdateItems;
     end;
   3:
@@ -789,7 +879,7 @@ begin
   6:
     begin
       orgs := DataSrc.MarketComments.Values[mid];
-      s := Vcl.Dialogs.InputBox(TBaseMarket(ListView.Selected.Data).StationName, 'Info', orgs);
+      s := Vcl.Dialogs.InputBox(bm.StationName, 'Info', orgs);
       if s <> orgs then
       begin
         DataSrc.UpdateMarketComment(mid,s);
@@ -798,7 +888,7 @@ begin
   8:
     begin
       orgs := DataSrc.MarketGroups.Values[mid];
-      s := Vcl.Dialogs.InputBox(TBaseMarket(ListView.Selected.Data).StationName, 'Group', orgs);
+      s := Vcl.Dialogs.InputBox(bm.StationName, 'Group', orgs);
       if s <> orgs then
       begin
         DataSrc.UpdateMarketGroup(mid,s,false);
@@ -807,27 +897,27 @@ begin
     end;
   11:
     begin
-      if TBaseMarket(ListView.Selected.Data) is TConstructionDepot then
+      if bm is TConstructionDepot then
         EDCDForm.SetDepot(mid,true);
     end;
   12:
     begin
-      if TBaseMarket(ListView.Selected.Data) is TMarket then
-        EDCDForm.MarketAsDepotDlg(TMarket(ListView.Selected.Data));
+      if bm is TMarket then
+        EDCDForm.MarketAsDepotDlg(TMarket(bm));
     end;
   13:
     begin
-      if TBaseMarket(ListView.Selected.Data) is TMarket then
-        EDCDForm.MarketAsExtCargoDlg(TMarket(ListView.Selected.Data),-1);
+      if bm is TMarket then
+        EDCDForm.MarketAsExtCargoDlg(TMarket(bm),-1);
     end;
   14:
     begin
-      if TBaseMarket(ListView.Selected.Data) is TMarket then
+      if bm is TMarket then
       begin
 //        with MarketInfoForm do
         with TMarketInfoForm.Create(Application) do
         begin
-          SetMarket(TMarket(self.ListView.Selected.Data),false);
+          SetMarket(TMarket(bm),false);
           FormStyle := fsStayOnTop;
           Show;
         end;
@@ -835,21 +925,37 @@ begin
     end;
   15:
     begin
-      with TBaseMarket(ListView.Selected.Data) do
-        Clipboard.SetTextBuf(PChar(StarSystem));
+       Clipboard.SetTextBuf(PChar(bm.StarSystem));
+    end;
+  20:
+    begin
+      sys := bm.System;
+      if sys <> nil then
+      begin
+        SystemInfoForm.SetSystem(sys);
+        SystemInfoForm.Show;
+      end;
+    end;
+  21:
+    begin
+      if bm is TConstructionDepot then
+      begin
+        StationInfoForm.SetStation(bm);
+        StationInfoForm.Show;
+      end;
     end;
   else
     begin
-      if TBaseMarket(ListView.Selected.Data) is TConstructionDepot then
+      if bm is TConstructionDepot then
       begin
-        EDCDForm.SetDepot(mid,false);
         SplashForm.ShowInfo('Switching construction depot...',1000);
+        EDCDForm.SetDepot(mid,false);
       end;
-      if TBaseMarket(ListView.Selected.Data) is TMarket then
-        if not TMarket(ListView.Selected.Data).Snapshot then
+      if bm is TMarket then
+        if not TMarket(bm).Snapshot then
         begin
-          EDCDForm.SetSecondaryMarket(mid);
           SplashForm.ShowInfo('Switching market...',1000);
+          EDCDForm.SetSecondaryMarket(mid);
         end;
     end;
   end;

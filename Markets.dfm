@@ -31,7 +31,7 @@ object MarketsForm: TMarketsForm
       end
       item
         Caption = 'Station Type'
-        Tag = 3
+        Tag = 21
       end
       item
         Caption = 'System'
@@ -39,10 +39,11 @@ object MarketsForm: TMarketsForm
       end
       item
         Caption = 'Body'
+        Tag = 20
       end
       item
         Caption = 'Last Visit (UTC)'
-        Tag = 3
+        Tag = 20
       end
       item
         Alignment = taRightJustify
@@ -52,7 +53,7 @@ object MarketsForm: TMarketsForm
       item
         Alignment = taRightJustify
         Caption = 'Dist. (Ls)'
-        Tag = 9
+        Tag = 20
       end
       item
         Alignment = taRightJustify
@@ -100,6 +101,7 @@ object MarketsForm: TMarketsForm
     ViewStyle = vsReport
     OnColumnClick = ListViewColumnClick
     OnCompare = ListViewCompare
+    OnCustomDrawItem = ListViewCustomDrawItem
     OnDblClick = ListViewAction
     OnMouseDown = ListViewMouseDown
   end
@@ -264,6 +266,14 @@ object MarketsForm: TMarketsForm
         Caption = 'Group Add/Remove'
         OnClick = ListViewAction
       end
+      object N4: TMenuItem
+        Caption = '-'
+      end
+      object ConstructionInfoMenuItem: TMenuItem
+        Tag = 21
+        Caption = 'Construction Info'
+        OnClick = ListViewAction
+      end
     end
     object MarketsSubMenu: TMenuItem
       Caption = 'Markets'
@@ -329,10 +339,22 @@ object MarketsForm: TMarketsForm
     object N2: TMenuItem
       Caption = '-'
     end
+    object SystemInfoMenuItem: TMenuItem
+      Tag = 20
+      Caption = 'System Info'
+      OnClick = ListViewAction
+    end
     object CopySystemNameMenuItem: TMenuItem
       Tag = 15
       Caption = 'Copy System Name'
       OnClick = ListViewAction
     end
+  end
+  object EditTimer: TTimer
+    Enabled = False
+    Interval = 500
+    OnTimer = EditTimerTimer
+    Left = 312
+    Top = 184
   end
 end

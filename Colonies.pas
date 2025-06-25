@@ -43,6 +43,12 @@ type
     N4: TMenuItem;
     CurrentGoalsMenuItem: TMenuItem;
     LongtermObjectivesMenuItem: TMenuItem;
+    N6: TMenuItem;
+    AddSystemToScanMenuItem: TMenuItem;
+    RemoveSystemToScanMenuItem: TMenuItem;
+    EditTimer: TTimer;
+    AddNeighboursMenuItem: TMenuItem;
+    SystemInfoMenuItem: TMenuItem;
     procedure ListViewColumnClick(Sender: TObject; Column: TListColumn);
     procedure ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
@@ -66,6 +72,12 @@ type
     procedure PopupMenuPopup(Sender: TObject);
     procedure AddToTargetsMenuItemClick(Sender: TObject);
     procedure ToggleIgnoredMenuItemClick(Sender: TObject);
+    procedure AddSystemToScanMenuItemClick(Sender: TObject);
+    procedure RemoveSystemToScanMenuItemClick(Sender: TObject);
+    procedure EditTimerTimer(Sender: TObject);
+    procedure AddNeighboursMenuItemClick(Sender: TObject);
+    procedure ListViewCustomDrawItem(Sender: TCustomListView; Item: TListItem;
+      State: TCustomDrawState; var DefaultDraw: Boolean);
   private
     { Private declarations }
     SortColumn: Integer;
@@ -80,7 +92,7 @@ type
     { Public declarations }
     procedure OnEDDataUpdate;
     procedure ApplySettings;
-    procedure UpdateItems;
+    procedure UpdateItems(const autoSizeCol: Boolean = false);
     procedure UpdateAndShow;
   end;
 
@@ -89,7 +101,7 @@ var
 
 implementation
 
-uses Main,Clipbrd,Settings,Splash, Markets, SystemPict;
+uses Main,Clipbrd,Settings,Splash, Markets, SystemPict, SystemInfo;
 
 {$R *.dfm}
 
@@ -163,7 +175,7 @@ begin
 end;
 
 procedure TColoniesForm.PopupMenuPopup(Sender: TObject);
-var colf,canf,tf,othf: Boolean;
+var colf,canf,tf,othf,visitedf: Boolean;
     sys: TStarSystem;
     sl: TStringList;
     i: Integer;
@@ -173,6 +185,7 @@ begin
   canf := False;
   tf := False;
   othf := False;
+  visitedf := True;
   sys := nil;
   if ListView.Selected <> nil then
   begin
@@ -181,13 +194,15 @@ begin
     if (sys.Architect <> '') and (sys.Population = 0) and not sys.PrimaryDone then tf := True;
     if (sys.Architect = '') and (sys.Population = 0) and (sys.Factions = '') then canf := True;
     if (sys.Architect = '') and ((sys.Population > 0) or (sys.Factions <> '')) then othf := True;
+    visitedf := sys.LastUpdate <> '';
   end;
   EditArchitectMenuItem.Enabled := sys <> nil;
   EditCommentMenuItem.Enabled := sys <> nil;
   EditAlterNameMenuItem.Enabled := sys <> nil;
   CurrentGoalsMenuItem.Enabled := sys <> nil;
   LongTermObjectivesMenuItem.Enabled := sys <> nil;
-  AddToTargetsMenuItem.Visible := canf;
+  AddToTargetsMenuItem.Enabled := canf;
+  RemoveSystemToScanMenuItem.Enabled := (sys <> nil) and not visitedf;
 {
   TaskGroupSubMenu.Enabled := colf or tf;
   AddToDepotGroupMenuItem.Enabled := colf or tf;
@@ -258,7 +273,7 @@ end;
 
 procedure TColoniesForm.ColoniesCheckClick(Sender: TObject);
 begin
-  UpdateItems;
+  UpdateItems(true);
 end;
 
 procedure TColoniesForm.CopyMenuItemClick(Sender: TObject);
@@ -299,8 +314,39 @@ begin
   Clipboard.SetTextBuf(PChar(s));
 end;
 
+procedure TColoniesForm.EditTimerTimer(Sender: TObject);
+begin
+  try
+    UpdateItems;
+  finally
+    EditTimer.Enabled := False;
+  end;
+end;
+
 procedure TColoniesForm.FilterEditChange(Sender: TObject);
 begin
+  EditTimer.Enabled := False;
+  EditTimer.Enabled := True;
+end;
+
+procedure TColoniesForm.AddNeighboursMenuItemClick(Sender: TObject);
+var cnt: Integer;
+begin
+  cnt := DataSrc.StarSystems.AddNeighbours_EDSM(TStarSystem(ListView.Selected.Data).StarSystem);
+  ShowMessage('EDSM query successful, ' + IntToStr(cnt) + ' new systems added.');
+  if cnt > 0 then UpdateItems;
+end;
+
+procedure TColoniesForm.AddSystemToScanMenuItemClick(Sender: TObject);
+var s: string;
+begin
+  s := Vcl.Dialogs.InputBox('Add System To Scan', 'System Name', '');
+  if s = '' then Exit;
+  if not DataSrc.StarSystems.AddFromName(s) then
+  begin
+    ShowMessage('System already listed, check filters if not visible.');
+    Exit;
+  end;
   UpdateItems;
 end;
 
@@ -312,7 +358,11 @@ begin
     for i := 0 to ListView.Items.Count -1 do
       if IsSelected(ListView.Items[i]) then
         with TStarSystem(ListView.Items[i].Data) do
-          if Architect = '' then Architect := '(target)';
+          if Architect = '' then
+          begin
+            Architect := '(target)';
+            Save;
+          end;
   finally
     DataSrc.EndUpdate;
   end;
@@ -343,6 +393,11 @@ begin
       //GridLines := False;
     end;
 
+  end;
+  with ListView do
+  begin
+    Font.Name := Opts['FontName2'];
+    Font.Size := Opts.Int['FontSize2'];
   end;
 
 end;
@@ -380,7 +435,7 @@ end;
 
 procedure TColoniesForm.FormShow(Sender: TObject);
 begin
-  UpdateItems;
+  UpdateItems(true);
   FilterEdit.SetFocus;
 end;
 
@@ -391,6 +446,15 @@ begin
   for i := 0 to ListView.Items.Count - 1 do
     if IsSelected(ListView.Items[i]) then
       FSelectedItems.Add(TStarSystem(ListView.Items[i].Data).StarSystem);
+end;
+
+procedure TColoniesForm.RemoveSystemToScanMenuItemClick(Sender: TObject);
+var i: Integer;
+begin
+  for i := 0 to ListView.Items.Count - 1 do
+    if IsSelected(ListView.Items[i]) then
+      DataSrc.StarSystems.RemoveFromName(TStarSystem(ListView.Items[i].Data).StarSystem);
+  UpdateItems;
 end;
 
 procedure TColoniesForm.RestoreSelection;
@@ -407,7 +471,7 @@ begin
   end;
 end;
 
-procedure TColoniesForm.UpdateItems;
+procedure TColoniesForm.UpdateItems(const autoSizeCol: Boolean = false);
 var
   i,j: Integer;
   sys: TStarSystem;
@@ -417,6 +481,7 @@ var
   items: THashedStringList;
   coloniesf,targetf,candidf,otherf,okf,ignf: Boolean;
   d: Extended;
+  colSz: array [0..100] of Integer;
 
   function CheckFilter: Boolean;
   var i: Integer;
@@ -458,13 +523,16 @@ begin
   ignf := InclIgnoredCheck.Checked;
 
   try
+
     ListView.Items.BeginUpdate;
+
+    if autoSizeCol then
+      for i := 0 to ListView.Columns.Count - 1 do
+         ListView.Column[i].Width := 0;
+
 
     ListView.Items.Clear;
     ListView.SortType := stNone;
-
-    for i := 0 to ListView.Columns.Count - 1 do
-       ListView.Column[i].Width := 0;
 
 
     orgfs := FilterEdit.Text;
@@ -489,7 +557,8 @@ begin
       if otherf then
         if (sys.Architect = '') and ((sys.Population > 0) or (sys.Factions <> '')) then okf := True;
       if not okf then continue;
-      
+
+
 
       item := ListView.Items.Add;
       item.Data := sys;
@@ -501,11 +570,14 @@ begin
       item.SubItems.Add(s);
       s := '';
       if FReferenceSystem <> nil then
-      begin
-        d := sys.DistanceTo(FReferenceSystem);
-        if d > 0 then
-          s := FloatToStrF(d,ffFixed,7,2);
-      end;
+        if sys.LastUpdate = '' then
+          s := '?'
+        else
+        begin
+          d := sys.DistanceTo(FReferenceSystem);
+          if d > 0 then
+            s := FloatToStrF(d,ffFixed,7,2);
+        end;
       item.SubItems.Add(s);
       item.SubItems.Add(niceTime(sys.LastUpdate));
       item.SubItems.Add(sys.AlterName);
@@ -528,14 +600,23 @@ begin
 
     //set columns to auto-size;  nice, but ListView is EXTREMELY slow with this!!!
     //todo: set the column widths and add "auto-size" option for user to decide
-    for i := 0 to ListView.Columns.Count - 1 do
-       ListView.Column[i].Width := -2;
+    if autoSizeCol then
+    begin
+      for i := 0 to ListView.Columns.Count - 2 do
+         ListView.Column[i].Width := -2;
+      ListView.Column[ListView.Columns.Count - 1].Width := -1;
+      for i := 0 to ListView.Columns.Count - 1 do
+        colSz[i] := ListView.Column[i].Width;
+      for i := 0 to ListView.Columns.Count - 1 do
+        ListView.Column[i].Width := colSz[i];
+    end;
 
 //    if FReferenceSystem = nil then
 //      ListView.Column[3].Width := 0;
 
     ListView.SortType := stText;
     ListView.Items.EndUpdate;
+
 
     RestoreSelection;
   finally
@@ -581,6 +662,22 @@ begin
   if not SortAscending then Compare := -Compare;
 end;
 
+procedure TColoniesForm.ListViewCustomDrawItem(Sender: TCustomListView;
+  Item: TListItem; State: TCustomDrawState; var DefaultDraw: Boolean);
+begin
+  if cdsSelected in State then
+  begin
+    Sender.Canvas.Brush.Color := clHighLight;
+  end
+  else
+  begin
+    Sender.Canvas.Brush.Color := ListView.Color;
+    if Item.Index mod 2 = 0 then
+      Sender.Canvas.Brush.Color := Sender.Canvas.Brush.Color - $202020;
+  end;
+
+end;
+
 procedure TColoniesForm.ListViewAction(Sender: TObject);
 var sid: string;
     s,orgs: string;
@@ -594,6 +691,7 @@ begin
     if ClickedColumn = -1 then Exit;
     action := ListView.Columns[ClickedColumn].Tag;
   end;
+  ClickedColumn := -1;
   if Sender is TMenuItem then action := TMenuItem(Sender).Tag;
   if action = -1 then Exit;
   sys := TStarSystem(ListView.Selected.Data);
@@ -601,7 +699,9 @@ begin
   case action of
   1:
     begin
-      MarketsForm.SetColony(sid);
+      if MarketsForm.Visible then MarketsForm.SetColony(sid);
+      SystemInfoForm.SetSystem(sys);
+      SystemInfoForm.Show;
     end;
   2:
     begin
@@ -674,6 +774,7 @@ begin
       Clipboard.SetTextBuf(PChar(sys.StarSystem));
   16:
     begin
+      if (sys.LastUpdate = '') and (sys.StarPosX = 0) then Exit; //no xyz
       FReferenceSystem := sys;
       DistFromLabel.Caption := 'Dist. from: ' + sys.StarSystem;
       SortColumn := 3;
@@ -687,7 +788,6 @@ begin
     end;
 
   end;
-  ClickedColumn := -1;
 end;
 
 procedure TColoniesForm.ListViewMouseDown(Sender: TObject; Button: TMouseButton;
@@ -699,7 +799,6 @@ var
 begin
   ClickedColumn := -1;
   w := 0;
-  xm := x;
   xm := x + GetScrollPos(ListView.Handle,SB_HORZ);
   for i := 0 to ListView.Columns.Count -1  do
   begin

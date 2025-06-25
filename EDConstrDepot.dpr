@@ -11,13 +11,15 @@ uses
   Settings in 'Settings.pas',
   DataSource in 'DataSource.pas',
   SettingsGUI in 'SettingsGUI.pas' {SettingsForm},
-  MarketInfo in 'MarketInfo.pas' {MarketInfoForm},
   Colonies in 'Colonies.pas' {ColoniesForm},
-  SystemPict in 'SystemPict.pas' {SystemPictForm};
+  SystemPict in 'SystemPict.pas' {SystemPictForm},
+  SystemInfo in 'SystemInfo.pas' {SystemInfoForm},
+  StationInfo in 'StationInfo.pas' {StationInfoForm},
+  MarketInfo in 'MarketInfo.pas' {MarketInfoForm};
 
 {$R *.res}
 
-const gNiceVersion: string = 'Release 23, build 1';
+const gNiceVersion: string = 'Release 24, build 1';
 
 begin
   Application.Initialize;
@@ -36,6 +38,8 @@ begin
   Application.CreateForm(TSettingsForm, SettingsForm);
   Application.CreateForm(TMarketInfoForm, MarketInfoForm);
   Application.CreateForm(TSystemPictForm, SystemPictForm);
+  Application.CreateForm(TSystemInfoForm, SystemInfoForm);
+  Application.CreateForm(TStationInfoForm, StationInfoForm);
   SettingsForm.VersionLabel.Caption := gNiceVersion;
 
   Application.OnActivate :=  EDCDForm.AppActivate;

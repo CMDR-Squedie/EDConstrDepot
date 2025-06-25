@@ -46,7 +46,7 @@ implementation
 
 {$R *.dfm}
 
-uses Clipbrd, Main, Colonies;
+uses Clipbrd, Main, Colonies, SystemInfo;
 
 procedure TSystemPictForm.ClearPictureMenuItemClick(Sender: TObject);
 begin
@@ -133,17 +133,20 @@ begin
   FImageChanged := False;
   if ColoniesForm.Visible then
     ColoniesForm.UpdateItems;
+  if SystemInfoForm.Visible then
+    if SystemInfoForm.CurrentSystem = FCurrentSystem then
+      SystemInfoForm.UpdateData;
 end;
 
 procedure TSystemPictForm.ScaleWindow;
 var w,h: Integer;
 begin
-  w := Screen.Width div 2;
-  h := Screen.Height div 4;
-  try
-    w := Max(w,SysImage.Picture.Width);
-    h := Max(h,SysImage.Picture.Height);
-  except
+  w := Min(Screen.Width div 2,600);
+  h := Min(Screen.Height div 4,200);
+  if SysImage.Picture.Width > 0 then
+  begin
+    w := SysImage.Picture.Width;
+    h := SysImage.Picture.Height
   end;
   SysImage.Width := w;
   SysImage.Height := h;

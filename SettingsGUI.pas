@@ -44,7 +44,8 @@ implementation
 
 {$R *.dfm}
 
-uses Settings, Main, Markets, MarketInfo, DataSource, Splash, Colonies;
+uses Settings, Main, Markets, MarketInfo, DataSource, Splash, Colonies,
+  SystemInfo, StationInfo;
 
 procedure TSettingsForm.BackupJournalLinkLinkClick(Sender: TObject;
   const Link: string; LinkType: TSysLinkType);
@@ -114,6 +115,8 @@ begin
   DefineFlag('ShowCloseBox','');
   DefineFlag('TransparentTitle','');
   DefineFlag('MarketsDarkMode','changes market and colony list background to dark');
+  DefineOpt('FontName2','font name for secondary windows (markets, colonies etc.)',0,0,'font');
+  DefineOpt('FontSize2','font size for secondary windows',1,255,'');
 
   for i := 0 to ListView.Columns.Count - 1 do
   begin
@@ -212,6 +215,8 @@ begin
   MarketsForm.ApplySettings;
   MarketInfoForm.ApplySettings;
   ColoniesForm.ApplySettings;
+  SystemInfoForm.ApplySettings;
+  StationInfoForm.ApplySettings;
 end;
 
 end.

@@ -154,7 +154,7 @@ implementation
 
 {$R *.dfm}
 
-uses Splash, Markets, SettingsGUI, MarketInfo, Clipbrd, Colonies;
+uses Splash, Markets, SettingsGUI, MarketInfo, Clipbrd, Colonies, StationInfo;
 
 const cDefaultCapacity: Integer = 784;
 
@@ -246,10 +246,14 @@ var orgs,s: string;
 begin
   if FCurrentDepot = nil then Exit;
 
+  StationInfoForm.SetStation(FCurrentDepot);
+  StationInfoForm.Show;
+  {
   orgs := DataSrc.MarketComments.Values[FCurrentDepot.MarketID];
   s := Vcl.Dialogs.InputBox(FCurrentDepot.StationName_full, 'Info', orgs);
   if s <> orgs then
     DataSrc.UpdateMarketComment(FCurrentDepot.MarketID,s);
+  }
 end;
 
 
@@ -655,8 +659,12 @@ begin
       FCurrentDepot := cd;
 //      if cnames <> '' then cnames := cnames + ', ';
       s := cd.StationName_full;
-      if DataSrc.MarketComments.Values[cd.MarketID] <> '' then
-        s := s + ' (' + DataSrc.MarketComments.Values[cd.MarketID] + ')';
+      s2 := DataSrc.MarketComments.Values[cd.MarketID];
+      if s2 = '' then
+        if cd.ConstructionType <> '' then
+          try s2 := cd.GetConstrType.StationType except end;
+      if s2 <> '' then
+        s := s + ' (' + s2 + ')';
       if FSelectedConstructions.Count > 1 then
         s := Copy(s,1,30 div FSelectedConstructions.Count) + '…';
       cnames := cnames + s;
@@ -1067,8 +1075,8 @@ LSkipDepotSelection:;
 
   if FCurrentDepot <> nil then
     if prevSys <> FCurrentDepot.StarSystem then
-      if MarketsForm.Visible then
-        MarketsForm.UpdateItems;  //update distances
+      if MarketsForm.Visible and MarketsForm.MarketsCheck.Checked then
+        MarketsForm.UpdateItems;  //update distances to markets
 end;
 
 procedure TEDCDForm.FormShow(Sender: TObject);
@@ -1264,7 +1272,7 @@ begin
 }
     FShadowTimer := FShadowTimer - UpdTimer.Interval;
     if FShadowTimer <= 0 then
-    if Opts.Flags['AutoAlphaBlend']  then
+    if Opts.Flags['AutoAlphaBlend'] and (FLayer1 <> nil)  then
     begin
       orgc := FLayer1.AlphaBlendValue;
       sdc:= GetDC(0);
@@ -1314,7 +1322,7 @@ begin
 
     if Opts.Flags['ScanClipboard'] then
       if Clipboard.HasFormat(CF_TEXT) then
-      if Clipboard.GetTextBuf(carr,sizeof(carr)-1) > 0 then
+      if Clipboard.GetTextBuf(carr,High(carr)-1) > 0 then
       begin
         s := PChar(@carr);
         if  s <> FLastClipbrdStr then
@@ -1901,6 +1909,13 @@ begin
   end;
 
   mitem := TMenuItem.Create(SelectDepotSubMenu);
+  mitem.Caption := '( No depot, show ship cargo only )';
+  mitem.Tag := -2;
+  mitem.Checked := FUseEmptyDepot;
+  mitem.OnClick := SwitchDepotMenuItemClick;
+  SelectDepotSubMenu.Insert(0,mitem);
+
+  mitem := TMenuItem.Create(SelectDepotSubMenu);
   mitem.Caption := '( Recent construction in progress )';
   mitem.Checked := (FSelectedConstructions.Count = 0) and not FUseEmptyDepot; //not activef;
 //  mitem.Enabled := activef;
@@ -1908,12 +1923,6 @@ begin
   mitem.OnClick := SwitchDepotMenuItemClick;
   SelectDepotSubMenu.Insert(0,mitem);
 
-  mitem := TMenuItem.Create(SelectDepotSubMenu);
-  mitem.Caption := '( No depot, show ship cargo only )';
-  mitem.Tag := -2;
-  mitem.Checked := FUseEmptyDepot;
-  mitem.OnClick := SwitchDepotMenuItemClick;
-  SelectDepotSubMenu.Add(mitem);
 
 
   mitem := TMenuItem.Create(SelectDepotSubMenu);
@@ -2087,6 +2096,8 @@ end;
 procedure TEDCDForm.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
   Action := caFree;
+  UpdTimer.Enabled := False;
+  DataSrc.RemoveListener(self);
   if self = EDCDForm then
   begin
 
@@ -2110,9 +2121,11 @@ begin
         Opts['SelectedMarket'] := FSecondaryMarket.MarketID;
     Opts.Save;
   end;
-  DataSrc.RemoveListener(self);
   if FLayer1 <> nil then
+  begin
     FLayer1.Free;
+    FLayer1 := nil;
+  end;
 end;
 
 procedure TEDCDForm.FormCreate(Sender: TObject);

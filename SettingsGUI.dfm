@@ -2,7 +2,7 @@ object SettingsForm: TSettingsForm
   Left = 0
   Top = 0
   Caption = 'Settings'
-  ClientHeight = 591
+  ClientHeight = 637
   ClientWidth = 623
   Color = clSilver
   Font.Charset = DEFAULT_CHARSET
@@ -18,7 +18,7 @@ object SettingsForm: TSettingsForm
     Left = 0
     Top = 0
     Width = 623
-    Height = 570
+    Height = 616
     Align = alClient
     BevelEdges = []
     BevelInner = bvNone
@@ -49,16 +49,18 @@ object SettingsForm: TSettingsForm
     TabOrder = 0
     ViewStyle = vsReport
     OnDblClick = ListViewDblClick
+    ExplicitHeight = 570
   end
   object Panel1: TPanel
     Left = 0
-    Top = 570
+    Top = 616
     Width = 623
     Height = 21
     Align = alBottom
     BevelOuter = bvNone
     ParentBackground = False
     TabOrder = 1
+    ExplicitTop = 570
     object VersionLabel: TLabel
       Left = 0
       Top = 0
@@ -93,7 +95,6 @@ object SettingsForm: TSettingsForm
       AutoSize = False
       Caption = '<a>Backup journal...</a>'
       TabOrder = 1
-      Visible = False
       OnLinkClick = BackupJournalLinkLinkClick
     end
   end

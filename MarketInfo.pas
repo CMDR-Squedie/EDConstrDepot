@@ -422,6 +422,11 @@ begin
       Font.Color := clr;
     end;
   end;
+  with ListView do
+  begin
+    Font.Name := Opts['FontName2'];
+    Font.Size := Opts.Int['FontSize2'];
+  end;
 
 end;
 

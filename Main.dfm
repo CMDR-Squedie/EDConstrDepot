@@ -15,7 +15,6 @@ object EDCDForm: TEDCDForm
   Font.Height = -13
   Font.Name = 'Bahnschrift SemiCondensed'
   Font.Style = []
-  FormStyle = fsStayOnTop
   OnClose = FormClose
   OnCreate = FormCreate
   OnShow = FormShow
@@ -286,7 +285,7 @@ object EDCDForm: TEDCDForm
       Caption = '-'
     end
     object AddDepotInfoMenuItem: TMenuItem
-      Caption = 'Add Construction Info'
+      Caption = 'Construction Info'
       OnClick = AddDepotInfoMenuItemClick
     end
     object ManageColoniesMenuItem: TMenuItem
