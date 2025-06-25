@@ -63,7 +63,8 @@ Market score for market auto-selection is generally based on how many requested 
 Advanced Features (.ini file only):
  - display multiple overlays, each with its own construction depot. Either run multiple copies of the app, or use **AllowMoreWindows** option and New Window command (this option is experimental and will not save your workspace though).
  - run the app on a PC tablet next to your main screen (old tablets with Win10 32-bit will do). You need to share your ED Saved Games folder for that and use **JournalDir** option to enter full UNC path.
- - if you are only interested in current constructions tracking, you can speed up application launch and/or skip long finished constructions, change the **IncludeFinished** and **JournalStart** options in the .ini file as shown in the template file. 
+ - if you are only interested in current constructions tracking, you can speed up application launch and/or skip long finished constructions, change the **IncludeFinished** and **JournalStart** options in the .ini file as shown in the template file.
+ - if you copy system name in game's Galaxy Map, you can see your own comments about the system (if any); use **ScanClipboard** option to activate
 
 o7, CMDRs!
 
