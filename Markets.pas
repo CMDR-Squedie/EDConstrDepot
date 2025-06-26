@@ -666,7 +666,7 @@ begin
         end
         else
         begin
-          d := m.System.DistanceTo(DataSrc.CurrentSystem);
+          d := m.GetSys.DistanceTo(DataSrc.CurrentSystem);
           if d > 0 then
             s := FloatToStrF(d,ffFixed,7,2);
         end;
@@ -929,7 +929,7 @@ begin
     end;
   20:
     begin
-      sys := bm.System;
+      sys := bm.GetSys;
       if sys <> nil then
       begin
         SystemInfoForm.SetSystem(sys);

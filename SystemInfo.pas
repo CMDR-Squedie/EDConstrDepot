@@ -62,6 +62,7 @@ type
     GoalsEdit: TEdit;
     ObjectivesEdit: TEdit;
     NoPictureLabel: TLabel;
+    SetTypeSubMenu: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure EDSMScanButtonClick(Sender: TObject);
@@ -92,16 +93,25 @@ type
     procedure SystemAddrLabelDblClick(Sender: TObject);
     procedure CommentEditChange(Sender: TObject);
     procedure SaveDataButtonClick(Sender: TObject);
+    procedure ListViewMouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    procedure SetStationTypeMenuItemClick(Sender: TObject);
   private
     { Private declarations }
     FCurrentSystem: TStarSystem;
     FStartPos,FScrollPos: TPoint;
     FImageChanged: Boolean;
     FDataChanged: Boolean;
+    FSelectedObj: TObject;
+    FListViewVScrollPos: Integer;
+    FClickedColumn: Integer;
     procedure TryPasteImage;
     procedure SavePicture;
     procedure SaveData;
     procedure SystemSaveQuery;
+    procedure SaveSelection;
+    procedure RestoreSelection;
+    function TryOpenMarket: Boolean;
   public
     { Public declarations }
     procedure SetSystem(s: TStarSystem);
@@ -233,10 +243,7 @@ begin
     self.BringToFront;
     if Vcl.Dialogs.MessageDlg('Save system data?',
       mtConfirmation, [mbYes, mbNo], 0, mbNo) = mrYes then
-    begin
-      if FImageChanged then SavePicture;
-      if FDataChanged then SaveData;
-    end;
+      SaveDataButtonClick(nil);
   end;
   FImageChanged := False;
   FDataChanged := False;
@@ -251,6 +258,8 @@ end;
 procedure TSystemInfoForm.SavePictureMenuItemClick(Sender: TObject);
 begin
   SavePicture;
+  if ColoniesForm.Visible then
+    ColoniesForm.UpdateItems;
 end;
 
 procedure TSystemInfoForm.QuickAddStationMenuItemClick(Sender: TObject);
@@ -276,12 +285,26 @@ begin
   end;
 end;
 
+procedure TSystemInfoForm.SetStationTypeMenuItemClick(Sender: TObject);
+var cd: TConstructionDepot;
+begin
+  if ListView.Selected = nil then Exit;
+  if TObject(ListView.Selected.Data) is TConstructionDepot then
+  begin
+    cd := TConstructionDepot(ListView.Selected.Data);
+    cd.ConstructionType := DataSrc.ConstructionTypes[TMenuItem(Sender).Tag];
+    FCurrentSystem.Save;
+    UpdateData;
+  end;
+end;
 
 procedure TSystemInfoForm.PopupMenu2Popup(Sender: TObject);
 var mf,cdf,bf: Boolean;
     sl: TStringList;
-    i: Integer;
+    i,d,matchHaul: Integer;
     mitem: TMenuItem;
+    ct: TConstructionType;
+    matchOrbital: Boolean;
 begin
   mf := False;
   cdf := False;
@@ -293,13 +316,19 @@ begin
     bf := TObject(ListView.Selected.Data) is TSystemBody;
   end;
   AddConstructionMenuItem.Enabled := bf or mf;
+  QuickAddOrbitalSubMenu.Enabled := bf;
+  QuickAddSurfaceSubMenu.Enabled := bf;
+  SetTypeSubMenu.Enabled := cdf;
   DeleteConstructionMenuItem.Enabled := cdf;
+  MarketInfoMenuItem.Enabled := mf or
+    (cdf and (TConstructionDepot(ListView.Selected.Data).LinkedMarketId <> ''));
+
+  sl := TStringList.Create;
+  DataSrc.ConstructionTypes.PopulateList(sl);
+  sl.Sort;
 
   if QuickAddOrbitalSubMenu.Count = 0 then
   begin
-    sl := TStringList.Create;
-    DataSrc.ConstructionTypes.PopulateList(sl);
-    sl.Sort;
     for i := 0 to sl.Count - 1 do
     begin
       if TConstructionType(sl.Objects[i]).Location = 'Orbital' then
@@ -317,9 +346,47 @@ begin
       mitem.Tag := DataSrc.ConstructionTypes.IndexOfObject(sl.Objects[i]);
       mitem.OnClick := QuickAddStationMenuItemClick;
     end;
-    sl.Free;
+  end;
+
+  SetTypeSubMenu.Clear;
+  if cdf then
+  with TConstructionDepot(ListView.Selected.Data) do
+  begin
+    matchHaul := ActualHaul;
+    if matchHaul = 0 then
+    begin
+      ct := GetConstrType;
+      if ct <> nil then matchHaul := ct.EstCargo;
+    end;
+    if matchHaul > 0 then
+    begin
+      for i := 0 to sl.Count - 1 do
+      begin
+        ct := TConstructionType(sl.Objects[i]);
+        if (IsOrbital = ct.IsOrbital) and (ct.EstCargo > 0) then
+        begin
+          d := Abs(100 * (matchHaul - ct.EstCargo) div ct.EstCargo);
+          if (d <= 5) or (IsPrimary and (d <= 35)) then  //max. 5% dev., or 35% for primaryport
+          begin
+            mitem := TMenuItem.Create(SetTypeSubMenu);
+            mitem.Caption := ct.StationType_full;
+            mitem.Tag := DataSrc.ConstructionTypes.IndexOfObject(sl.Objects[i]);
+            mitem.OnClick := SetStationTypeMenuItemClick;
+            mitem.Enabled := ct.Id <> ConstructionType;
+            mitem.Checked := ct.Id = ConstructionType;
+            SetTypeSubMenu.Add(mitem);
+          end;
+        end;
+      end;
+    end;
+
+    mitem := TMenuItem.Create(SetTypeSubMenu);
+    mitem.Caption := 'Other...';
+    mitem.OnClick := ListViewDblClick;
+    SetTypeSubMenu.Add(mitem);
   end;
 //  MarketInfoMenuItem.Enabled := mf;
+  sl.Free;
 end;
 
 procedure TSystemInfoForm.PopupMenuPopup(Sender: TObject);
@@ -357,14 +424,14 @@ begin
   FCurrentSystem.Objectives := ObjectivesEdit.Text;
   FCurrentSystem.Save;
   FDataChanged := False;
-
-  if ColoniesForm.Visible then
-    ColoniesForm.UpdateItems;
 end;
 
 procedure TSystemInfoForm.SaveDataButtonClick(Sender: TObject);
 begin
   SaveData;
+  SavePicture;
+  if ColoniesForm.Visible then
+    ColoniesForm.UpdateItems;
 end;
 
 procedure TSystemInfoForm.SavePicture;
@@ -373,13 +440,12 @@ begin
   if FCurrentSystem = nil then Exit;
   if SysImage.Picture = nil then Exit;
   if SysImage.Picture.Width = 0 then Exit;
+  if not FImageChanged then Exit;
 
   png := TPngImage.Create;
   png.Assign(SysImage.Picture.Bitmap);
   png.SaveToFile(FCurrentSystem.ImagePath);
   FImageChanged := False;
-  if ColoniesForm.Visible then
-    ColoniesForm.UpdateItems;
 end;
 
 
@@ -478,6 +544,10 @@ var data: TObject;
 begin
   if ListView.Selected = nil then Exit;
   data := TObject(ListView.Selected.Data);
+
+  if FClickedColumn = 4 then
+    if TryOpenMarket then Exit;
+
   if data is TConstructionDepot then
   begin
     if TConstructionDepot(data).Simulated then Exit;
@@ -486,13 +556,37 @@ begin
   end;
 
   if data is TMarket then
-    ShowMessage('Link this market to its construction, or choose Add Construction command to create one.');
+     ShowMessage('Link this market to its construction, or choose Add Construction command to create one.');
     //AddConstructionMenuItemClick(nil);
+  FClickedColumn := -1;
 end;
 
-procedure TSystemInfoForm.MarketInfoMenuItemClick(Sender: TObject);
+procedure TSystemInfoForm.ListViewMouseDown(Sender: TObject;
+  Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+var
+  l: TListItem;
+  i: integer;
+  w,xm: integer;
+begin
+  FClickedColumn := -1;
+  w := 0;
+  xm := x;
+  xm := x + GetScrollPos(ListView.Handle,SB_HORZ);
+  for i := 0 to ListView.Columns.Count -1  do
+  begin
+    w := w + ListView.Column[i].Width;
+    if w >= xm then
+    begin
+      FClickedColumn := i;
+      break;
+    end;
+  end;
+end;
+
+function TSystemInfoForm.TryOpenMarket: Boolean;
 var m: TMarket;
 begin
+  Result := False;
   if ListView.Selected = nil then Exit;
   m := nil;
   if TObject(ListView.Selected.Data) is TMarket then
@@ -505,7 +599,14 @@ begin
   begin
     MarketInfoForm.SetMarket(m,false);
     MarketInfoForm.Show;
+    Result := True;
   end;
+end;
+
+procedure TSystemInfoForm.MarketInfoMenuItemClick(Sender: TObject);
+var m: TMarket;
+begin
+  TryOpenMarket;
 end;
 
 procedure TSystemInfoForm.OnEDDataUpdate;
@@ -516,7 +617,7 @@ end;
 procedure TSystemInfoForm.SetSystem(s: TStarSystem);
 var png: TPngImage;
 begin
-  if FCurrentSystem <> nil then
+  if Visible and (FCurrentSystem <> nil) then
     SystemSaveQuery;
 
 
@@ -526,6 +627,7 @@ begin
   NoPictureLabel.Visible := s.Architect <> '';
   Scrollbox.HorzScrollBar.Position := 0;
   Scrollbox.VertScrollBar.Position := 0;
+  FSelectedObj := nil;
 
   png := TPngImage.Create;
   try
@@ -546,6 +648,7 @@ begin
 
   FDataChanged := False;
   FImageChanged := False;
+
 
 end;
 
@@ -636,6 +739,8 @@ var  i,i2,idx,cp2idx,cp3idx: Integer;
      lab.Caption := s;
    end;
 begin
+  SaveSelection;
+
   ListView.Items.Clear;
 
   if FCurrentSystem = nil then Exit;
@@ -656,7 +761,7 @@ begin
     if bm <> nil then
     begin
       ct := bm.GetConstrType;
-      if ct.Tier >= '2' then
+      if (ct <> nil) and (ct.Tier >= '2') then
         PrimaryLabel.Caption := '(T2/T3 primary)';
     end;
   end;
@@ -819,6 +924,7 @@ begin
             item.Data := bm;
             item.Caption := '';        //🚩🚧🏭◌◍⚪⚫⧂ ⨀ ⦵⦿
             if bm.Body <> b.BodyName then item.Caption := '?';
+            m := nil;
             if bm is TConstructionDepot then
             begin
               s := '  ';     //⧂ ⚪•🌐🏙🌆🌇💰📋📝✍⛰✏⚒   ⌂🏠🏭  🏗 ⚐ ⚑  ⛿⛺
@@ -849,6 +955,15 @@ begin
              if s = '' then
               s := DataSrc.MarketComments.Values[bm.MarketId];
             item.SubItems.Add(s);
+            item.SubItems.Add('');
+            s := '';
+            if bm is TMarket then
+              s := TMarket(bm).Economies
+            else
+              if m <> nil then
+                s := m.Economies;
+            item.SubItems.Add(s);
+
             ml.Delete(i2);
           end;
         end;
@@ -864,6 +979,9 @@ begin
   begin
      ListView.Column[i].Width := -2;
   end;
+
+  RestoreSelection;
+
   ml.Free;
   sl.Free;
   t23sl.Free;
@@ -931,6 +1049,40 @@ begin
     Font.Size := Opts.Int['FontSize2'];
   end;
 
+end;
+
+procedure TSystemInfoForm.SaveSelection;
+var r: TRect;
+begin
+  FListViewVScrollPos := 0;
+  if ListView.TopItem <> nil then
+  begin
+    FListViewVScrollPos := GetScrollPos(ListView.Handle,SB_VERT); //this is not in pixels!
+    r := ListView.TopItem.DisplayRect(drBounds);
+    FListViewVScrollPos := FListViewVScrollPos * r.Height;
+  end;
+  FSelectedObj := nil;
+  if ListView.Selected <> nil then
+  begin
+    FSelectedObj := TObject(ListView.Selected.Data);
+  end;
+end;
+
+procedure TSystemInfoForm.RestoreSelection;
+var i: Integer;
+begin
+  ListView.Scroll(0,FListViewVScrollPos);
+  for i := 0 to ListView.Items.Count - 1 do
+  begin
+    if TObject(ListView.Items[i].Data) = FSelectedObj  then
+    begin
+      ListView.Items[i].Selected := True;
+      ListView.Items[i].Focused := True;
+      ListView.ItemIndex := i;
+      ListView.Items[i].MakeVisible(false);
+      break;
+    end;
+  end;
 end;
 
 

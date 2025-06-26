@@ -113,7 +113,7 @@ begin
 end;
 
 procedure TStationInfoForm.Save;
-var t: TConstructionType;
+var ct: TConstructionType;
     m: TMarket;
     UUID: TGUID;
     b: TSystemBody;
@@ -122,6 +122,7 @@ begin
   begin
     DataSrc.BeginUpdate;
     try
+
       if FCurrentStation is TConstructionDepot then
       with TConstructionDepot(FCurrentStation) do
       begin
@@ -133,7 +134,6 @@ begin
         Planned := PlannedStatus.Checked;
       end;
 
-
       if FCurrentStation.MarketId = '' then
       begin
         CreateGUID(UUID);
@@ -143,12 +143,13 @@ begin
         DataSrc.Constructions.AddObject(FCurrentStation.MarketID,FCurrentStation);
       end;
 
+      ct := nil;
       FCurrentStation.ConstructionType := '';
       if TypeCombo.ItemIndex > -1 then
       begin
-        t := TConstructionType(TypeCombo.Items.Objects[TypeCombo.ItemIndex]);
-        if t <> nil then
-          FCurrentStation.ConstructionType := t.Id;
+        ct := TConstructionType(TypeCombo.Items.Objects[TypeCombo.ItemIndex]);
+        if ct <> nil then
+          FCurrentStation.ConstructionType := ct.Id;
       end;
 
       FCurrentStation.LinkedMarketId := '';
@@ -181,13 +182,13 @@ begin
       end;
 
       if PrimaryCheck.Checked then
-        FCurrentStation.System.PrimaryPortId := FCurrentStation.MarketID
+        FCurrentStation.GetSys.PrimaryPortId := FCurrentStation.MarketID
       else
-        if FCurrentStation.System.PrimaryPortId = FCurrentStation.MarketID then
-          FCurrentStation.System.PrimaryPortId := '';
+        if FCurrentStation.GetSys.PrimaryPortId = FCurrentStation.MarketID then
+          FCurrentStation.GetSys.PrimaryPortId := '';
 
       FCurrentStation.Modified := True;
-      FCurrentStation.System.Save;
+      FCurrentStation.GetSys.Save;
       FDataChanged := False;
     finally
       DataSrc.EndUpdate;
@@ -248,16 +249,16 @@ begin
     Abort;
   end;
   FCurrentStation := st; //
-  FCurrentSystem := st.System;
+  FCurrentSystem := st.GetSys;
   NameEdit.Text := FCurrentStation.StationName;
   CommentEdit.Text := FCurrentStation.GetComment;
   BodyCombo.Text := FCurrentStation.Body;
   BodyCombo.Items.Clear;
-  if FCurrentStation.System <> nil then
-    for i := 0 to FCurrentStation.System.Bodies.Count - 1 do
-      with TSystemBody(FCurrentStation.System.Bodies.Objects[i]) do
+  if FCurrentStation.GetSys <> nil then
+    for i := 0 to FCurrentStation.GetSys.Bodies.Count - 1 do
+      with TSystemBody(FCurrentStation.GetSys.Bodies.Objects[i]) do
       begin
-        BodyCombo.Items.AddObject(BodyName.PadRight(20,' ') + BodyType,FCurrentStation.System.Bodies.Objects[i]);
+        BodyCombo.Items.AddObject(BodyName.PadRight(20,' ') + BodyType,FCurrentStation.GetSys.Bodies.Objects[i]);
       end;
 
   TypeCombo.ItemIndex := TypeCombo.Items.IndexOfObject(
@@ -299,7 +300,8 @@ begin
     FinishedStatus.Enabled := true;
   end;
 
-  PrimaryCheck.Checked := (FCurrentStation.System.PrimaryPortId = FCurrentStation.MarketID);
+  PrimaryCheck.Checked := (FCurrentStation.GetSys.PrimaryPortId <> '') and
+    (FCurrentStation.GetSys.PrimaryPortId = FCurrentStation.MarketID);
   FDataChanged := False;
 end;
 
@@ -334,7 +336,7 @@ procedure TStationInfoForm.AddLinkedConstruction(m: TMarket);
 var i: Integer;
     cd: TConstructionDepot;
 begin
-  FCurrentSystem := m.System;
+  FCurrentSystem := m.GetSys;
   cd := TConstructionDepot.Create;
   cd.StarSystem := FCurrentSystem.StarSystem;
   cd.LinkedMarketId := m.MarketID;
@@ -388,13 +390,13 @@ var t,dummy: TConstructionType;
      Result := '';
      if costf then
      begin
-       if cp2 < 0 then Result := IntToStr(cp2) + ' T1';
-       if cp3 < 0 then Result := IntToStr(cp3) + ' T2';
+       if cp2 < 0 then Result := IntToStr(cp2) + ' T2';
+       if cp3 < 0 then Result := IntToStr(cp3) + ' T3';
      end
      else
      begin
-       if cp2 > 0 then Result := '+' + IntToStr(cp2) + ' T1';
-       if cp3 > 0 then Result := '+' + IntToStr(cp3) + ' T2';
+       if cp2 > 0 then Result := '+' + IntToStr(cp2) + ' T2';
+       if cp3 > 0 then Result := '+' + IntToStr(cp3) + ' T3';
      end;
    end;
 
@@ -417,6 +419,11 @@ begin
   CPCostLabel.Caption := FormatCP(t.CP2,t.CP3,true);
   CPRewardLabel.Caption := FormatCP(t.CP2,t.CP3,false);
   EstHaulLabel.Caption := IntToStr(t.EstCargo);
+  if FCurrentStation is TConstructionDepot then
+    with TConstructionDepot(FCurrentStation) do
+      if ActualHaul > 0 then
+        EstHaulLabel.Caption := EstHaulLabel.Caption + ' / ' + IntToStr(ActualHaul);
+
   ReqLabel.Caption := t.Requirements;
   dummy.Free;
   FDataChanged := True;

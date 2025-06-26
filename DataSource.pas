@@ -67,12 +67,15 @@ type TConstructionType = class
   InitPopInc: Integer;
   EstCargo: Integer;
   function StationType_full: string;
+  function IsOrbital: Boolean;
 end;
 
 type TConstructionTypes = class (THashedStringList)
   function GetTypeById(const Id: string): TConstructionType;
+  function GetTypeByIdx(const Idx: Integer): TConstructionType;
 public
   property TypeById[const Id: string]: TConstructionType read GetTypeById;
+  property TypeByIdx[const Idx: Integer]: TConstructionType read GetTypeByIdx;
   procedure PopulateList(sl: TStrings);
   procedure Load;
 end;
@@ -162,6 +165,8 @@ end;
 type TBaseMarket = class
 private
   FSysData: TStarSystem;
+  FConstrType: TConstructionType;
+  FOrbital_JRNL: Integer;
 public
   MarketID: string;
   StationName: string;
@@ -181,7 +186,7 @@ public
   ConstructionType: string;
   Modified: Boolean;
   LinkedMarketId: string;
-  function System: TStarSystem;
+  function GetSys: TStarSystem;
   function FullName: string;
   function StationName_full: string;
   function StarSystem_nice: string;
@@ -189,6 +194,8 @@ public
   function DistanceTo_string(m: TBaseMarket): string;
   function GetComment: string;
   function GetConstrType: TConstructionType;
+  function IsPrimary: Boolean;
+  function IsOrbital: Boolean;
   procedure Clear;
   constructor Create;
   destructor Destroy;
@@ -206,6 +213,8 @@ type TConstructionDepot = class (TBaseMarket)
   DepotComplete: Boolean; //player actually docked and finished the construction?
   Planned: Boolean;
   Simulated: Boolean;
+  ActualHaul: Integer;
+  procedure UpdateHaul;
 end;
 
 type TSystemList = class (THashedStringList)
@@ -392,6 +401,10 @@ begin
   Result := StationType + ' ' + Category + ' (T' + Tier + ' ' + Location + s + ')';
 end;
 
+function TConstructionType.IsOrbital: Boolean;
+begin
+  Result := Location = 'Orbital';
+end;
 
 function TConstructionTypes.GetTypeById(const Id: string): TConstructionType;
 var idx: Integer;
@@ -400,6 +413,11 @@ begin
   idx := IndexOf(Id);
   if idx > -1 then
     Result := TConstructionType(Objects[idx]);
+end;
+
+function TConstructionTypes.GetTypeByIdx(const Idx: Integer): TConstructionType;
+begin
+  Result := TConstructionType(Objects[Idx]);
 end;
 
 procedure TConstructionTypes.PopulateList(sl: TStrings);
@@ -581,7 +599,23 @@ end;
 
 function TBaseMarket.GetConstrType: TConstructionType;
 begin
-  Result := DataSrc.ConstructionTypes.TypeById[ConstructionType];
+  if (FConstrType = nil) or (ConstructionType <> FConstrType.Id) then
+    FConstrType := DataSrc.ConstructionTypes.TypeById[ConstructionType];
+  Result := FConstrType;
+end;
+
+function TBaseMarket.IsPrimary: Boolean;
+begin
+  Result := False;
+  if GetSys <> nil then
+    Result := (FSysData.PrimaryPortId = MarketId);
+end;
+
+function TBaseMarket.IsOrbital: Boolean;
+begin
+  Result := (FOrbital_JRNL = 1);
+  if GetConstrType <> nil then
+    Result := FConstrType.IsOrbital;
 end;
 
 procedure TBaseMarket.Clear;
@@ -630,7 +664,7 @@ begin
       try Result := '(' + self.GetConstrType.StationType + ')'; except end;
 end;
 
-function TBaseMarket.System: TStarSystem;
+function TBaseMarket.GetSys: TStarSystem;
 begin
   if FSysData = nil then
     FSysData := DataSrc.StarSystems.SystemByName[self.StarSystem];
@@ -640,17 +674,17 @@ end;
 function TBaseMarket.DistanceTo_string(m: TBaseMarket): string;
 begin
   Result := '';
-  if self.System <> nil then
-    if m.System <> nil then
-      Result := FloatToStrF(System.DistanceTo(m.System),ffFixed,7,2);
+  if self.GetSys <> nil then
+    if m.GetSys <> nil then
+      Result := FloatToStrF(GetSys.DistanceTo(m.GetSys),ffFixed,7,2);
 end;
 
 function TBaseMarket.DistanceTo(m: TBaseMarket): Extended;
 begin
   Result := 0;
-  if self.System <> nil then
-    if m.System <> nil then
-      Result := System.DistanceTo(m.System);
+  if self.GetSys <> nil then
+    if m.GetSys <> nil then
+      Result := GetSys.DistanceTo(m.GetSys);
 end;
 
 constructor TBaseMarket.Create;
@@ -664,6 +698,25 @@ destructor TBaseMarket.Destroy;
 begin
   Stock.Free;
   DockToDockTimes.Free;
+end;
+
+procedure TConstructionDepot.UpdateHaul;
+var j: TJSONObject;
+    resReq: TJSONArray;
+    i: Integer;
+begin
+  ActualHaul := 0;
+  try
+    j := TJSONObject.ParseJSONValue(Status) as TJSONObject;
+    try
+      resReq := j.GetValue<TJSONArray>('ResourcesRequired');
+      for i := 0 to resReq.Count - 1 do
+        ActualHaul := ActualHaul + StrToInt(resReq.Items[i].GetValue<string>('RequiredAmount'));
+    finally
+      j.Free;
+    end;
+  except
+  end;
 end;
 
 function TStarSystem.DistanceTo(s: TStarSystem): Double;
@@ -1253,6 +1306,7 @@ var j: TJSONObject;
 //    cd: TConstructionDepot;
 //    m: TMarket;
     bm: TBaseMarket;
+    ct: TConstructionType;
 begin
   try
     j := TJSONObject.ParseJSONValue(js) as TJSONObject;
@@ -2014,17 +2068,24 @@ begin
           if (Pos('Construction',s) > 0) or (Pos('ColonisationShip',s2) > 0) then
           begin
             cd := DepotForMarketId(mID);
+            cd.StarSystem := j.GetValue<string>('StarSystem');
             s := '';
             try s := j.GetValue<string>('StationName_Localised'); except end;
             if s = '' then s := j.GetValue<string>('StationName');
+            if cd.Status = '' then
+              cd.FOrbital_JRNL := Ord((Pos('Orbital ',s) > 0));
             cpos := Pos(': ',s);
             if cpos > 0 then
               s := Copy(s,cpos+2,200);
             cpos := Pos('_ColonisationShip; ',s);
             if cpos > 0 then
+            begin
               s := Copy(s,cpos+19,200) + '/Primary';
+              cd.FOrbital_JRNL := 1;
+              if cd.GetSys <> nil then
+                cd.GetSys.PrimaryPortId := mID;
+            end;
             cd.StationName := s;
-            cd.StarSystem := j.GetValue<string>('StarSystem');
             try
               cd.DistFromStar := Trunc(j.GetValue<single>('DistFromStarLS')); 
             except end;
@@ -2104,6 +2165,7 @@ begin
           if not cd.DepotComplete then
           begin
             cd.Status := jrnl[i];
+            if cd.ActualHaul = 0 then cd.UpdateHaul;
             if (cd.FirstUpdate = '') or (tms < cd.FirstUpdate) then cd.FirstUpdate := tms;
             cd.LastUpdate := tms;
             s := j.GetValue<string>('ConstructionComplete');

@@ -351,9 +351,9 @@ object StationInfoForm: TStationInfoForm
   object Label30: TLabel
     Left = 8
     Top = 430
-    Width = 116
+    Width = 107
     Height = 19
-    Caption = 'Estimated Haul (t)'
+    Caption = 'Est./Req. Haul (t)'
   end
   object EstHaulLabel: TLabel
     Left = 146

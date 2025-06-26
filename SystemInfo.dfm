@@ -98,6 +98,7 @@ object SystemInfoForm: TSystemInfoForm
     OnClick = ListViewClick
     OnCustomDrawItem = ListViewCustomDrawItem
     OnDblClick = ListViewDblClick
+    OnMouseDown = ListViewMouseDown
     ExplicitTop = 495
     ExplicitHeight = 366
   end
@@ -568,6 +569,9 @@ object SystemInfoForm: TSystemInfoForm
     end
     object QuickAddSurfaceSubMenu: TMenuItem
       Caption = 'Quick Add Surface'
+    end
+    object SetTypeSubMenu: TMenuItem
+      Caption = 'Set Type'
     end
     object DeleteConstructionMenuItem: TMenuItem
       Caption = 'Delete Construction'

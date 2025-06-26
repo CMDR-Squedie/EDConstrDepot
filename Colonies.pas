@@ -413,6 +413,7 @@ begin
 end;
 
 procedure TColoniesForm.FormCreate(Sender: TObject);
+var i: Integer;
 begin
   SortColumn := 4; //last visit
   SortAscending := False;
@@ -434,7 +435,12 @@ begin
 end;
 
 procedure TColoniesForm.FormShow(Sender: TObject);
+var i: Integer;
 begin
+  if FilterEdit.Items.Count = 0 then
+    for i := 0 to DataSrc.Commanders.Count - 1 do
+      FilterEdit.Items.Add(DataSrc.Commanders.ValueFromIndex[i]);
+
   UpdateItems(true);
   FilterEdit.SetFocus;
 end;
