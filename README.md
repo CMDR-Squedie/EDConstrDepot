@@ -16,7 +16,7 @@ You can manage all your colonies, visited markets and constructions using the **
 
 _(Markets are only updated if you actually visit them, merely docking is not sufficient)._
 
-The app uses local journal files only (ie. no cAPI/INARA/EDDB interface), so it is of limited use for team effort (ie. you get no updates from other commanders until you dock to FC/construction depot). The app scans all journals since Trailblazers update 2 launch, from all game accounts (alts) used on current Windows user account. 
+The app uses local journal files only, so it is of limited use for team effort (ie. you get no updates from other commanders until you dock to FC/construction depot). The app scans all journals since Trailblazers update 2 launch, from all game accounts (alts) used on current Windows user account. 
 
 Some advanced options can be customized in the **EDConstrDepot.ini** file.
 
