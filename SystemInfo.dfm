@@ -18,13 +18,13 @@ object SystemInfoForm: TSystemInfoForm
   TextHeight = 16
   object Splitter1: TSplitter
     Left = 0
-    Top = 506
+    Top = 473
     Width = 1184
     Height = 5
     Cursor = crVSplit
     Align = alTop
-    ExplicitTop = 233
-    ExplicitWidth = 586
+    ExplicitLeft = 8
+    ExplicitTop = 468
   end
   object ListView: TListView
     Left = 0
@@ -289,7 +289,7 @@ object SystemInfoForm: TSystemInfoForm
   end
   object Panel2: TPanel
     Left = 0
-    Top = 473
+    Top = 478
     Width = 1184
     Height = 33
     Align = alTop
@@ -569,6 +569,25 @@ object SystemInfoForm: TSystemInfoForm
     end
     object QuickAddSurfaceSubMenu: TMenuItem
       Caption = 'Quick Add Surface'
+    end
+    object QuickAddAsSubMenu: TMenuItem
+      Caption = 'Quick Add as'
+      object QuickAddAsPlannedMenuItem: TMenuItem
+        AutoCheck = True
+        Caption = 'Planned'
+        Checked = True
+        RadioItem = True
+      end
+      object QuickAddAsInProgressMenuItem: TMenuItem
+        AutoCheck = True
+        Caption = 'In Progress'
+        RadioItem = True
+      end
+      object QuickAddAsFinishedMenuItem: TMenuItem
+        AutoCheck = True
+        Caption = 'Finished'
+        RadioItem = True
+      end
     end
     object SetTypeSubMenu: TMenuItem
       Caption = 'Set Type'

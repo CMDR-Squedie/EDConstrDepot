@@ -288,6 +288,17 @@ object EDCDForm: TEDCDForm
       Caption = 'Construction Info'
       OnClick = AddDepotInfoMenuItemClick
     end
+    object SystemInfoMenuItem: TMenuItem
+      Caption = 'System Info'
+      OnClick = SystemInfoMenuItemClick
+    end
+    object SystemInfoCurrentMenuItem: TMenuItem
+      Caption = 'Current System'
+      OnClick = SystemInfoCurrentMenuItemClick
+    end
+    object N6: TMenuItem
+      Caption = '-'
+    end
     object ManageColoniesMenuItem: TMenuItem
       Caption = 'Manage Colonies'
       OnClick = ManageColoniesMenuItemClick

@@ -83,6 +83,8 @@ type
     procedure LinkedStationComboChange(Sender: TObject);
     procedure NextButtonClick(Sender: TObject);
     procedure PrimaryCheckClick(Sender: TObject);
+    procedure Label2Click(Sender: TObject);
+    procedure Label12Click(Sender: TObject);
   private
     { Private declarations }
     FCurrentStation: TBaseMarket;
@@ -227,6 +229,17 @@ begin
     NameEdit.SetFocus
   else
     CommentEdit.SetFocus;
+end;
+
+procedure TStationInfoForm.Label12Click(Sender: TObject);
+begin
+  PrimaryCheck.Checked := not PrimaryCheck.Checked;
+end;
+
+procedure TStationInfoForm.Label2Click(Sender: TObject);
+begin
+  with TLabel(Sender) do
+    TRadioButton(FocusControl).Checked := not TRadioButton(FocusControl).Checked;
 end;
 
 procedure TStationInfoForm.LinkedStationComboChange(Sender: TObject);

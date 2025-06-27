@@ -87,18 +87,22 @@ object StationInfoForm: TStationInfoForm
     Caption = 'Name'
   end
   object Label2: TLabel
-    Left = 176
+    Left = 173
     Top = 52
     Width = 51
     Height = 19
     Caption = 'Planned'
+    FocusControl = PlannedStatus
+    OnClick = Label2Click
   end
   object Label3: TLabel
-    Left = 288
+    Left = 285
     Top = 52
     Width = 72
     Height = 19
     Caption = 'In Progress'
+    FocusControl = StatusRadio2
+    OnClick = Label2Click
   end
   object Label4: TLabel
     Left = 506
@@ -109,11 +113,13 @@ object StationInfoForm: TStationInfoForm
     Visible = False
   end
   object Label5: TLabel
-    Left = 411
+    Left = 408
     Top = 52
     Width = 53
     Height = 19
     Caption = 'Finished'
+    FocusControl = FinishedStatus
+    OnClick = Label2Click
   end
   object Label6: TLabel
     Left = 8
@@ -445,6 +451,7 @@ object StationInfoForm: TStationInfoForm
     Width = 80
     Height = 19
     Caption = 'Primary Port'
+    OnClick = Label12Click
   end
   object Panel1: TPanel
     Left = 0

@@ -54,6 +54,9 @@ type
     DeliveriesSubMenu: TMenuItem;
     ManageColoniesMenuItem: TMenuItem;
     ManageMarketsMenuItem: TMenuItem;
+    N6: TMenuItem;
+    SystemInfoMenuItem: TMenuItem;
+    SystemInfoCurrentMenuItem: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure UpdTimerTimer(Sender: TObject);
     procedure TextColLabelMouseMove(Sender: TObject; Shift: TShiftState; X,
@@ -99,6 +102,8 @@ type
     procedure ActiveConstrMenuItemClick(Sender: TObject);
     procedure ManageMarketsMenuItemClick(Sender: TObject);
     procedure ManageColoniesMenuItemClick(Sender: TObject);
+    procedure SystemInfoMenuItemClick(Sender: TObject);
+    procedure SystemInfoCurrentMenuItemClick(Sender: TObject);
 private
     { Private declarations }
     FSelectedConstructions: TStringList;
@@ -154,7 +159,8 @@ implementation
 
 {$R *.dfm}
 
-uses Splash, Markets, SettingsGUI, MarketInfo, Clipbrd, Colonies, StationInfo;
+uses Splash, Markets, SettingsGUI, MarketInfo, Clipbrd, Colonies, StationInfo,
+  SystemInfo;
 
 const cDefaultCapacity: Integer = 784;
 
@@ -192,7 +198,7 @@ begin
          else
            Exit;
        end;
-       MarketsForm.SetMarketFilter(s);
+       MarketsForm.SetMarketFilter(s,idx<FItemsShown);
 
      end;
    finally
@@ -1318,6 +1324,8 @@ begin
         orgactivewnd := GetForegroundWindow;
         if orgactivewnd = FEliteWnd then
           Application.BringToFront;
+        if GetKeyState(VK_CONTROL) < 0 then
+          SystemInfoMenuItemClick(nil);
       end;
 
     if Opts.Flags['ScanClipboard'] then
@@ -1804,6 +1812,24 @@ begin
     DataSrc.TaskGroup := TMenuItem(Sender).Hint;
 end;
 
+procedure TEDCDForm.SystemInfoCurrentMenuItemClick(Sender: TObject);
+begin
+  if DataSrc.CurrentSystem <> nil then
+  begin
+    SystemInfoForm.SetSystem(DataSrc.CurrentSystem);
+    SystemInfoForm.Show;
+  end;
+end;
+
+procedure TEDCDForm.SystemInfoMenuItemClick(Sender: TObject);
+begin
+  if FCurrentDepot <> nil then
+  begin
+    SystemInfoForm.SetSystem(FCurrentDepot.GetSys);
+    SystemInfoForm.Show;
+  end;
+end;
+
 procedure TEDCDForm.MarketInfoMenuItemClick(Sender: TObject);
 begin
   if FSecondaryMarket <> nil then
@@ -1843,11 +1869,20 @@ end;
 
 procedure TEDCDForm.ActiveConstrMenuItemClick(Sender: TObject);
 begin
-  MarketsForm.InclIgnoredCheck.Checked := False;
-  MarketsForm.MarketsCheck.Checked := False;
-  MarketsForm.ConstrCheck.Checked := True;
-  MarketsForm.FilterEdit.Text := 'ConstructionDepot';
-  MarketsForm.UpdateAndShow;
+  MarketsForm.BeginFilterChange;
+  try
+    MarketsForm.FilterEdit.Text := '';
+    MarketsForm.InclIgnoredCheck.Checked := False;
+    MarketsForm.MarketsCheck.Checked := False;
+    MarketsForm.ConstrCheck.Checked := True;
+    if TMenuItem(Sender).Tag = 1 then
+      MarketsForm.FilterEdit.Text := 'PlannedConstruction'
+    else
+      MarketsForm.FilterEdit.Text := 'ConstructionDepot';
+  finally
+    MarketsForm.EndFilterChange;
+    MarketsForm.UpdateAndShow;
+  end;
 end;
 
 
@@ -1869,6 +1904,9 @@ begin
   CurrentTGMenuItem.Visible := DataSrc.TaskGroup <> '';
   DeliveriesSubMenu.Visible := Opts.Flags['ShowDelTime'];
   FlightHistoryMenuItem.Checked := FFlightHistory;
+  SystemInfoMenuItem.Visible := (FCurrentDepot <> nil);
+  SystemInfoCurrentMenuItem.Visible := (DataSrc.CurrentSystem <> nil) and
+    (DataSrc.CurrentSystem <> FCurrentDepot.GetSys);
 
   SelectDepotSubMenu.Clear;
   activef := False;
@@ -1940,8 +1978,14 @@ begin
   SelectDepotSubMenu.Add(mitem);
 
   mitem := TMenuItem.Create(SelectDepotSubMenu);
-  mitem.Caption := 'All Active Constructions';
+  mitem.Caption := 'Active Constructions';
   mitem.OnClick := ActiveConstrMenuItemClick;
+  SelectDepotSubMenu.Add(mitem);
+
+  mitem := TMenuItem.Create(SelectDepotSubMenu);
+  mitem.Caption := 'Planned Constructions';
+  mitem.OnClick := ActiveConstrMenuItemClick;
+  mitem.Tag := 1;
   SelectDepotSubMenu.Add(mitem);
 
 

@@ -82,6 +82,7 @@ type
       State: TCustomDrawState; var DefaultDraw: Boolean);
   private
     { Private declarations }
+    FHoldUpdate: Boolean;
     SortColumn: Integer;
     ClickedColumn: Integer;
     SortAscending: Boolean;
@@ -95,7 +96,9 @@ type
     procedure ApplySettings;
     procedure UpdateAndShow;
     procedure SetColony(sid: string);
-    procedure SetMarketFilter(fs: string);
+    procedure SetMarketFilter(fs: string; const cmdtyf: Boolean = false);
+    procedure BeginFilterChange;
+    procedure EndFilterChange;
     procedure UpdateItems(const _autoSizeCol: Boolean = false);
   end;
 
@@ -118,21 +121,34 @@ end;
 
 procedure TMarketsForm.SetColony(sid: string);
 begin
-  MarketsCheck.Checked := True;
-  ConstrCheck.Checked := True;
-  FilterEdit.Text := sid;
-  SortColumn := 6;
-  SortAscending := True;
+  BeginFilterChange;
+  try
+    MarketsCheck.Checked := True;
+    ConstrCheck.Checked := True;
+    FilterEdit.Text := sid;
+    SortColumn := 6;
+    SortAscending := True;
+  finally
+    EndFilterChange;
+  end;
   UpdateAndShow;
 end;
 
-procedure TMarketsForm.SetMarketFilter(fs: string);
+procedure TMarketsForm.SetMarketFilter(fs: string; const cmdtyf: Boolean);
 begin
-  MarketsCheck.Checked := True;
-  ConstrCheck.Checked := False;
-  FilterEdit.Text := fs;
-  SortColumn := 5;
-  SortAscending := True;
+  BeginFilterChange;
+  try
+    MarketsCheck.Checked := True;
+    ConstrCheck.Checked := False;
+    FilterEdit.Text := fs;
+    if cmdtyf then
+      if FilterEdit.Items.IndexOf(fs) = -1 then
+        FilterEdit.Items.Add(fs);
+    SortColumn := 5;
+    SortAscending := True;
+  finally
+    EndFilterChange;
+  end;
   UpdateAndShow;
 end;
 
@@ -553,6 +569,9 @@ var
   end;
 
 begin
+
+  if FHoldUpdate then Exit;
+  
 
   autoSizeCol := _autoSizeCol;
   if ListView.Items.Count = 0 then autoSizeCol := True;
@@ -983,6 +1002,20 @@ begin
       break;
     end;
   end;
+end;
+
+procedure TMarketsForm.BeginFilterChange;
+begin
+  FHoldUpdate := True;
+
+  //this is only needed because changing checkboxes immediately trigger their Clicked event
+  //not the case with edits
+end;
+
+procedure TMarketsForm.EndFilterChange;
+begin
+  FHoldUpdate := false;
+//  UpdateItems;
 end;
 
 end.

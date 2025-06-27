@@ -174,6 +174,8 @@ public
   StationType: string;
   StarSystem: string;
   Body: string;
+  Faction: string;
+  Services: string;
   FirstUpdate: string;
   LastUpdate: string;
   LastDock: string;
@@ -187,6 +189,7 @@ public
   Modified: Boolean;
   LinkedMarketId: string;
   function GetSys: TStarSystem;
+  function Faction_short: string;
   function FullName: string;
   function StationName_full: string;
   function StarSystem_nice: string;
@@ -242,6 +245,16 @@ public
   constructor Create;
 end;
 
+type TConstructionList = class (THashedStringList)
+  function GetConstrByName(const Sys,Name: string): TConstructionDepot;
+  function GetConstrByIdx(const idx: Integer): TConstructionDepot;
+public
+  function FindCustomConstr(Sys,Name,Body: string; ActHaul: Integer): TConstructionDepot;
+  property ConstrByName[const Sys,Name: string]: TConstructionDepot read GetConstrByName;
+  property ConstrByIdx[const idx: Integer]: TConstructionDepot read GetConstrByIdx; default;
+//  constructor Create;
+end;
+
 //not used
 const cDefaultCapacity: Integer = 784;
 
@@ -260,7 +273,7 @@ type TEDDataSource = class (TDataModule)
     FItemNames: THashedStringList;
     FRecentMarkets: THashedStringList;
     FMarketSnapshots: THashedStringList;
-    FConstructions: THashedStringList;
+    FConstructions: TConstructionList;
     FCargoExt: TMarket;
     FSimDepot: TConstructionDepot;
     FMarket: TMarket;
@@ -311,7 +324,7 @@ type TEDDataSource = class (TDataModule)
     procedure CalcShipRanges(j: TJSONObject);
   public
     //todo: switch to THashedStringList and TDictionary
-    property Constructions: THashedStringList read FConstructions;
+    property Constructions: TConstructionList read FConstructions;
     property StarSystems: TSystemList read FStarSystems;
     property Commanders: TStringList read FCommanders;
     property RecentMarkets: THashedStringList read FRecentMarkets;
@@ -359,7 +372,7 @@ type TEDDataSource = class (TDataModule)
 //    property DataChanged: Boolean read FDataChanged;
     procedure Load;
     procedure BeginUpdate;
-    procedure EndUpdate;
+    procedure EndUpdate(const forceNotifyf: Boolean = True);
     procedure DoBackup;
     constructor Create(Owner: TComponent); override;
 end;
@@ -391,6 +404,17 @@ begin
         Exception(ExceptObject).StackTrace + Chr(13),
         TEncoding.ASCII);
     end;
+end;
+
+function GetFactionAbbrev(name: string): string;
+var i: Integer;
+    sarr: TStringDynArray;
+begin
+  Result := '';
+  sarr := SplitString(name,' ');
+  for i := 0 to High(sarr) - 1 do
+    Result := Result + Copy(sarr[i],1,1);
+  Result := Result + Copy(sarr[High(sarr)],1,3);
 end;
 
 function TConstructionType.StationType_full: string;
@@ -671,6 +695,11 @@ begin
   Result := FSysData;
 end;
 
+function TBaseMarket.Faction_short: string;
+begin
+  Result := GetFactionAbbrev(Faction);
+end;
+
 function TBaseMarket.DistanceTo_string(m: TBaseMarket): string;
 begin
   Result := '';
@@ -758,7 +787,6 @@ var j: TJSONObject;
     s,s2,name: string;
     infl: Extended;
     sl,sl2: TStringList;
-    sarr: TStringDynArray;
 begin
   Result := '';
   sl := TStringList.Create;
@@ -770,11 +798,7 @@ begin
       for i := 0 to jarr.Count - 1 do
       begin
         name := jarr.Items[i].GetValue<string>('Name');
-        sarr := SplitString(name,' ');
-        s := '';
-        for i2 := 0 to High(sarr) - 1 do
-          s := s + Copy(sarr[i2],1,1);
-        s := s + Copy(sarr[High(sarr)],1,3);
+        s := GetFactionAbbrev(name);
 
         if not abbrevf then
           s := s + '   ' + name;
@@ -1381,20 +1405,22 @@ end;
 function TSystemList.AddNeighbours_EDSM(origin: string): Integer;
 var req: TNetHTTPClient;
     res: IHTTPResponse;
-    i: Integer;
+    i,bcnt: Integer;
     j: TJSONObject;
     jarr: TJSONArray;
     s: string;
+    sys: TStarSystem;
 begin
   Result := 0;
   req := TNetHTTPClient.Create(nil);
   try
-    res := req.Get('https://www.edsm.net/api-v1/sphere-systems?systemName=' + origin + '&radius=15');
+    s := origin.Replace(' ','%20');
+    res := req.Get('https://www.edsm.net/api-v1/sphere-systems?systemName=' + s + '&radius=15&showCoordinates=1');
     if res.StatusCode <> 200 then
       raise Exception.Create('EDSM response error: ' + IntToStr(res.StatusCode) + ' ' + res.StatusText);
     s := res.ContentAsString;
     if Copy(s,1,1) <> '[' then
-      raise Exception.Create('EDSM response error: no data');
+      raise Exception.Create('EDSM response error: no data, try again later');
 
     jarr := TJSONObject.ParseJSONValue(s) as TJSONArray;
     try
@@ -1403,7 +1429,19 @@ begin
       begin
         s := '';
         jarr[i].TryGetValue<string>('name',s);
-        if AddFromName(s) then Result := Result + 1;
+        if GetSystemByName(s) <> nil then continue;
+        sys := TStarSystem.Create;
+        sys.StarSystem := s;
+        jarr[i].TryGetValue<double>('coords.x',sys.StarPosX);
+        jarr[i].TryGetValue<double>('coords.y',sys.StarPosY);
+        jarr[i].TryGetValue<double>('coords.z',sys.StarPosZ);
+        bcnt := 0;
+        jarr[i].TryGetValue<Integer>('bodyCount',bcnt);
+        if bcnt > 0 then sys.Comment := 'bodies: ' + IntToStr(bcnt);
+        sys.Save;
+        AddObject(sys.StarSystem,sys);
+        Result := Result + 1;
+        if Result > 50 then Exit; //just in case things get really bad...
       end;
     finally
       jarr.Free;
@@ -1487,6 +1525,69 @@ begin
       sys.AddSignals(js,j);
   except
   end;
+end;
+
+function TConstructionList.GetConstrByName(const Sys,Name: string): TConstructionDepot;
+var i: Integer;
+    cd: TConstructionDepot;
+begin
+  Result := nil;
+  for i := 0 to Count - 1 do
+  begin
+    cd := TConstructionDepot(Objects[i]);
+    if cd.StarSystem = Sys then
+      if cd.StationName = Name then
+      begin
+        Result := cd;
+        break;
+      end;
+  end;
+end;
+
+function TConstructionList.FindCustomConstr(Sys,Name,Body: string; ActHaul: Integer): TConstructionDepot;
+var i: Integer;
+    cd: TConstructionDepot;
+    ct: TConstructionType;
+    d: Integer;
+begin
+  Result := nil;
+  for i := 0 to Count - 1 do
+  begin
+    cd := TConstructionDepot(Objects[i]);
+    //check if this is user-added construction, id being UUID would also be fine
+    if cd.LastUpdate = '' then
+    if (cd.Planned or not cd.Finished) and (cd.StarSystem = Sys) then
+    begin
+      if cd.StationName = Name then
+      begin
+        Result := cd;
+        break;
+      end;
+      Result := cd;
+      if (Result <> nil) and (Body <> '') then
+        if Result.Body <> body then
+          Result := nil;
+     {if (Result <> nil) and (StationType <> '') then
+        if Result.StationType <> StationType then
+          Result := nil; }
+      if (Result <> nil) and (ActHaul > 0) then
+      begin
+        ct := cd.GetConstrType;
+        if ct <> nil then
+        begin
+          d := Abs(100 * (ActHaul - ct.EstCargo) div ct.EstCargo);
+          if (d > 5) then  //max. 5% dev.
+            Result := nil;
+        end;
+      end;
+    end;
+  end;
+end;
+
+function TConstructionList.GetConstrByIdx(const idx: Integer): TConstructionDepot;
+var i: Integer;
+begin
+  Result := TConstructionDepot(Objects[idx]);
 end;
 
 function TEDDataSource.CheckLoadFromFile(var sl: TStringList; fn: string): Boolean;
@@ -1795,18 +1896,22 @@ var j: TJSONObject;
     jarr: TJSONArray;
     js,s,s2,tms,event,mID,entryId: string;
     i,i2,cpos,q: Integer;
-    cd: TConstructionDepot;
+    cd,cd2: TConstructionDepot;
     m: TMarket;
     sys: TStarSystem;
+    docked: Boolean;
+    newcdf: Boolean;
 label LUpdateTms;
 
     function DepotForMarketId(mID: string): TConstructionDepot;
     var midx: Integer;
     begin
       Result := nil;
+      newcdf := False;
       midx := FConstructions.IndexOf(mID);
       if midx < 0 then
       begin
+        newcdf := true;
         Result := TConstructionDepot.Create;
         Result.MarketID := mID;
         Result.StationName := '#' + mID;
@@ -1936,8 +2041,14 @@ begin
         begin
           FLastDropId := '';
           j.TryGetValue<string>('StarSystem',FCurrentSystem);
-          StarSystems.UpdateFromFSDJump(js,j);
-          goto LUpdateTms;
+          try StarSystems.UpdateFromFSDJump(js,j); except end;
+
+          docked := false;
+          j.TryGetValue<Boolean>('Docked',docked);
+          if docked then
+            event := 'Docked'
+          else
+           goto LUpdateTms;
         end;
 
 
@@ -2059,7 +2170,7 @@ begin
               RemoveIdleDockTime(tms);
         end;
 
-        if event = 'Docked' {or (event = 'Location')} then
+        if event = 'Docked' then
         begin
           FLastDropId := '';
           s := j.GetValue<string>('StationType');
@@ -2072,7 +2183,7 @@ begin
             s := '';
             try s := j.GetValue<string>('StationName_Localised'); except end;
             if s = '' then s := j.GetValue<string>('StationName');
-            if cd.Status = '' then
+            if newcdf then
               cd.FOrbital_JRNL := Ord((Pos('Orbital ',s) > 0));
             cpos := Pos(': ',s);
             if cpos > 0 then
@@ -2137,20 +2248,30 @@ begin
                       UpdateDockTime(tms,FSimDepot);
                   end;
 
-                s := '';
-                jarr := j.GetValue<TJSONArray>('StationEconomies');
-                for i2 := 0 to jarr.Count - 1 do
+                j.TryGetValue<string>('StationFaction.Name',m.Faction);
+                if j.TryGetValue<TJSONArray>('StationServices',jarr) then
                 begin
-                  s := s +
-                    Copy(jarr.Items[i2].GetValue<string>('Name_Localised'),1,4) + ' ' +
-                    Copy(jarr.Items[i2].GetValue<string>('Proportion'),1,4) + '; ';
+                  m.Services := '';
+                  for i2 := 0 to jarr.Count - 1 do
+                    m.Services := m.Services + jarr[i2].Value + ',';
                 end;
-                m.Economies := s;
-                if tms <= m.LastUpdate then
-                  m.MarketEconomies := s;
+                if j.TryGetValue<TJSONArray>('StationEconomies',jarr) then
+                begin
+                  s := '';
+                  for i2 := 0 to jarr.Count - 1 do
+                  begin
+                    s := s +
+                      Copy(jarr.Items[i2].GetValue<string>('Name_Localised'),1,4) + ' ' +
+                      Copy(jarr.Items[i2].GetValue<string>('Proportion'),1,4) + '; ';
+                  end;
+                  m.Economies := s;
+                  if tms <= m.LastUpdate then
+                    m.MarketEconomies := s;
 
-                if FMarket.MarketID = mID then
-                  FMarket.MarketEconomies := s;
+                  if FMarket.MarketID = mID then
+                    FMarket.MarketEconomies := s;
+                end;
+
 
               end;
             except
@@ -2164,6 +2285,7 @@ begin
           cd := DepotForMarketId(mID);
           if not cd.DepotComplete then
           begin
+            newcdf := (cd.Status = '');
             cd.Status := jrnl[i];
             if cd.ActualHaul = 0 then cd.UpdateHaul;
             if (cd.FirstUpdate = '') or (tms < cd.FirstUpdate) then cd.FirstUpdate := tms;
@@ -2179,6 +2301,20 @@ begin
               if FLastConstrTimes.Values[cd.StarSystem] < tms  then
                 FLastConstrTimes.Values[cd.StarSystem] := tms;
             end;
+
+            if newcdf and not FInitialLoad then
+            begin
+              cd2 := FConstructions.FindCustomConstr(cd.StarSystem,cd.StationName,cd.Body,cd.ActualHaul);
+              if cd2 <> nil then
+              begin
+                cd.ConstructionType := cd2.ConstructionType;
+                cd.Comment := cd2.Comment;
+                cd.Modified := True;
+                RemoveConstruction(cd2);
+                cd.GetSys.Save;
+              end;
+            end;
+
           end;
         end;
 
@@ -2407,7 +2543,7 @@ begin
   fn := FWorkingDir + 'markets\' + m.MarketID + '.json';
   DeleteFile(PChar(fn));
   FFileDates.Values[fn] := '';
-  FRecentMarkets.Objects[idx].Free;
+  //FRecentMarkets.Objects[idx].Free;
   FRecentMarkets.Delete(idx);
   SetDataChanged;
 end;
@@ -2498,6 +2634,7 @@ begin
 
 //  FDataChanged := False;
 
+  BeginUpdate;
   try
 
 //  tc := GetTickCount;
@@ -2539,6 +2676,7 @@ begin
     //UpdateCapacity; //if Loadout event turns out to be not enough
 
   finally
+    EndUpdate(false);
     sl.Free;
   end;
 
@@ -2621,10 +2759,11 @@ begin
   FPreventNotify := True;
 end;
 
-procedure TEDDataSource.EndUpdate;
+procedure TEDDataSource.EndUpdate(const forceNotifyf: Boolean);
 begin
   FPreventNotify := False;
-  NotifyListeners;
+  if forceNotifyf then
+    NotifyListeners;
 end;
 
 procedure TEDDataSource.RemoveConstruction(cd: TConstructionDepot);
@@ -2634,7 +2773,7 @@ begin
   if idx > -1 then
     FConstructions.Delete(idx);
   NotifyListeners;
-  cd.Free;
+//  cd.Free;
 end;
 
 procedure TEDDataSource.MarketToSimDepot(mID: string);
@@ -2708,7 +2847,7 @@ begin
   fn := FWorkingDir + 'markets\' + mID + '_snapshot.json';
   DeleteFile(PChar(fn));
   FFileDates.Values[fn] := '';
-  FMarketSnapshots.Objects[idx].Free;
+//  FMarketSnapshots.Objects[idx].Free;
   FMarketSnapshots.Delete(idx);
   SetDataChanged;
 end;
@@ -2809,7 +2948,7 @@ begin
   FSimDepot.Simulated := True;
   FFileDates := THashedStringList.Create;
   FLastConstrTimes := THashedStringList.Create;
-  FConstructions := THashedStringList.Create;
+  FConstructions := TConstructionList.Create;
   FRecentMarkets := THashedStringList.Create;
   FMarketSnapshots := THashedStringList.Create;
   FMarketComments := THashedStringList.Create;

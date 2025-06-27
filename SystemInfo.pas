@@ -63,6 +63,10 @@ type
     ObjectivesEdit: TEdit;
     NoPictureLabel: TLabel;
     SetTypeSubMenu: TMenuItem;
+    QuickAddAsSubMenu: TMenuItem;
+    QuickAddAsFinishedMenuItem: TMenuItem;
+    QuickAddAsPlannedMenuItem: TMenuItem;
+    QuickAddAsInProgressMenuItem: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure EDSMScanButtonClick(Sender: TObject);
@@ -274,7 +278,9 @@ begin
     cd.StarSystem := FCurrentSystem.StarSystem;
     cd.Body := TSystemBody(ListView.Selected.Data).BodyName;
     cd.ConstructionType := DataSrc.ConstructionTypes[TMenuItem(Sender).Tag];
-    cd.Finished := True;
+    if QuickAddAsFinishedMenuItem.Checked then cd.Finished := True;
+    if QuickAddAsPlannedMenuItem.Checked then cd.Planned := True;
+ 
     cd.Modified := True;
 
     CreateGUID(UUID);
@@ -627,6 +633,7 @@ begin
   NoPictureLabel.Visible := s.Architect <> '';
   Scrollbox.HorzScrollBar.Position := 0;
   Scrollbox.VertScrollBar.Position := 0;
+  ListView.Scroll(0,0);
   FSelectedObj := nil;
 
   png := TPngImage.Create;
@@ -744,247 +751,259 @@ begin
   ListView.Items.Clear;
 
   if FCurrentSystem = nil then Exit;
-  SystemNameLabel.Caption := FCurrentSystem.StarSystem;
-  ArchitectLabel.Caption := 'Architect: ' + FCurrentSystem.ArchitectName;
-  PopulationLabel.Caption := 'Population: ' + Format('%.0n', [double(FCurrentSystem.Population)]);;
-  FactionsLabel.Caption := FCurrentSystem.Factions;
-  LastUpdateLabel.Caption := 'Last Update: ' +
-    Copy(FCurrentSystem.LastUpdate,1,10) + ' ' + Copy(FCurrentSystem.LastUpdate,12,8) + ' UTC';
-  SystemAddrLabel.Caption := '#' + FCurrentSystem.SystemAddress;
-  SecurityLabel.Caption := 'Security: ' + FCurrentSystem.SystemSecurity;
-
-  PrimaryLabel.Caption := '(no primary port)';
-  if FCurrentSystem.PrimaryPortId <> '' then
-  begin
-    PrimaryLabel.Caption := '(T1 primary)';
-    bm := DataSrc.DepotFromId(FCurrentSystem.PrimaryPortId);
-    if bm <> nil then
-    begin
-      ct := bm.GetConstrType;
-      if (ct <> nil) and (ct.Tier >= '2') then
-        PrimaryLabel.Caption := '(T2/T3 primary)';
-    end;
-  end;
-
-  for i := 0 to 2 do
-  begin
-    seclev[i] := 0;
-    devlev[i] := 0;
-    techlev[i] := 0;
-    wealthlev[i] := 0;
-    livlev[i] := 0;
-  end;
-  techBonus := 35;
-
-  PrimaryLabel.Hint := 'T2/T3 Port Order:' + Chr(13);
-
-  ml := TList.Create;
-  sl := TStringList.Create; //orphan market ids
-  t23sl := TStringList.Create; //list of t2/t3 stations sorted by finish date
-  for i := 0 to DataSrc.Constructions.Count - 1 do
-    with TConstructionDepot(DataSrc.Constructions.Objects[i]) do
-      if StarSystem = FCurrentSystem.StarSystem then
-        if not Simulated and (StationType <> 'FleetCarrier') then
-        begin
-          ct := GetConstrType;
-          if ct <> nil then
-          begin
-            idx := 0;
-            if not Finished then idx := 1;
-            if Planned then idx := 2;
-            seclev[idx] := seclev[idx] + ct.SecLev;
-            devlev[idx] := devlev[idx] + ct.DevLev;
-            techlev[idx] := techlev[idx] + ct.TechLev;
-            wealthlev[idx] := wealthlev[idx] + ct.WealthLev;
-            livlev[idx] := livlev[idx] + ct.StdLivLev;
-
-
-            //primary port has no CP cost
-            if MarketId = FCurrentSystem.PrimaryPortId then
-            begin
-              if ct.CP2 > 0 then cp2[idx] := cp2[idx] + ct.CP2;
-              if ct.CP3 > 0 then cp3[idx] := cp3[idx] + ct.CP3;
-            end
-            else
-            begin
-              cp2idx := idx;
-              cp3idx := idx;
-             //started constructions already use up CPs
-              if idx = 1 then
-              begin
-                if ct.CP2 < 0 then cp2idx := 0;
-                if ct.CP3 < 0 then cp3idx := 0;
-              end;
-              cp2[cp2idx] := cp2[cp2idx] + ct.CP2;
-              cp3[cp3idx] := cp3[cp3idx] + ct.CP3;
-            end;
-
-            if ct.Tier >= '2' then
-              if (ct.Category = 'Starport') or (ct.Category = 'Planetary Port') then
-              begin
-                techlev[idx] := techlev[idx] + techBonus;
-                techBonus := 0;
-
-                if MarketId <> FCurrentSystem.PrimaryPortId then
-                begin
-                  s := 'B';
-                  if Status = '' then s := 'A'; //built before Updated 2 come first?
-                  if not Finished then s := 'Y';
-                  if Planned then s := 'Z';
-                  s := s + FirstUpdate;
-                  t23sl.AddObject(s,DataSrc.Constructions.Objects[i]);
-                end
-                else
-                  PrimaryLabel.Hint := PrimaryLabel.Hint + StationName + ' (primary)' + Chr(13);
-              end;
-          end;
-
-          ml.Add(DataSrc.Constructions.Objects[i]);
-          if LinkedMarketId <> '' then sl.Add(LinkedMarketId);
-        end;
-
-  t23sl.Sort;
-  for i := 1 to t23sl.Count do
-  begin
-    with TConstructionDepot(t23sl.Objects[i-1]) do
-    begin
-      ct := GetConstrType;
-      if i > 2 then
-      begin
-        t2penalty := -2 * (i-2);
-        t3penalty := -6 * (i-2);
-        idx := 0;
-        if Planned then idx := 2;
-        if ct.Tier = '2' then
-          cp2[idx] := cp2[idx] + t2penalty;
-        if ct.Tier = '3' then
-          cp3[idx] := cp3[idx] + t3penalty;
-      end;
-      PrimaryLabel.Hint := PrimaryLabel.Hint + StationName + ' T' + ct.Tier + Chr(13);
-    end;
-  end;
-
-  dispStat(seclev,SecLabel);
-  dispStat(devlev,devLabel);
-  dispStat(techlev,TechLabel);
-  dispStat(wealthlev,WealthLabel);
-  dispStat(livlev,LivLabel);
-
-  dispStat(cp2,CP2Label);
-  dispStat(cp3,CP3Label);
-
-  for i := 0 to DataSrc.RecentMarkets.Count - 1 do
-    with TBaseMarket(DataSrc.RecentMarkets.Objects[i]) do
-      if StarSystem = FCurrentSystem.StarSystem then
-        if StationType <> 'FleetCarrier' then
-          if sl.IndexOf(MarketId) = -1 then
-            ml.Add(DataSrc.RecentMarkets.Objects[i]);
-
 
   try
-    ListView.Items.BeginUpdate;
-    try
+    SystemNameLabel.Caption := FCurrentSystem.StarSystem;
+    ArchitectLabel.Caption := 'Architect: ' + FCurrentSystem.ArchitectName;
+    PopulationLabel.Caption := 'Population: ' + Format('%.0n', [double(FCurrentSystem.Population)]);;
+    FactionsLabel.Caption := FCurrentSystem.Factions;
+    LastUpdateLabel.Caption := 'Last Update: ' +
+      Copy(FCurrentSystem.LastUpdate,1,10) + ' ' + Copy(FCurrentSystem.LastUpdate,12,8) + ' UTC';
+    SystemAddrLabel.Caption := '#' + FCurrentSystem.SystemAddress;
+    SecurityLabel.Caption := 'Security: ' + FCurrentSystem.SystemSecurity;
 
-      for i := 0 to FCurrentSystem.Bodies.Count - 1 do
+    PrimaryLabel.Caption := '(no primary port)';
+    if FCurrentSystem.PrimaryPortId <> '' then
+    begin
+      PrimaryLabel.Caption := '(T1 primary)';
+      bm := DataSrc.DepotFromId(FCurrentSystem.PrimaryPortId);
+      if bm <> nil then
       begin
-        b := TSystemBody(FCurrentSystem.Bodies.Objects[i]);
-        item := ListView.Items.Add;
-        item.Caption := b.BodyName;
-        item.SubItems.Add(b.BodyType);
-        item.Data := b;
-        s := '';
-        s := s + b.ReserveLevel;
-        item.SubItems.Add(s);
-        item.SubItems.Add(IfThen(b.Landable,'Yes',''));
-        item.SubItems.Add(b.Atmosphere);
-        item.SubItems.Add(FloatToStrF(b.DistanceFromArrivalLS,ffFixed,7,1));
-        s := '';
-        if b.BiologicalSignals > 0 then s := s + 'Bio: ' + IntToStr(b.BiologicalSignals) + '; ';
-        if b.GeologicalSignals > 0 then s := s + 'Geo: ' + IntToStr(b.GeologicalSignals) + '; ';
-        if b.HumanSignals > 0 then s := s + 'Hum: ' + IntToStr(b.HumanSignals) + '; ';
-        if b.OtherSignals > 0 then s := s + 'Oth: ' + IntToStr(b.OtherSignals) + '; ';
-        item.SubItems.Add(s);
-        item.SubItems.Add(b.Volcanism);
-        item.SubItems.Add(FloatToStrF(b.SurfaceGravity,ffFixed,7,2));
-        item.SubItems.Add(IfThen(b.TidalLock,'Yes',''));
-        item.SubItems.Add(FloatToStrF(b.OrbitalInclination,ffFixed,7,1));
-        item.SubItems.Add(FloatToStrF(b.RotationPeriod,ffFixed,7,1));
-        item.SubItems.Add(FloatToStrF(b.OrbitalPeriod,ffFixed,7,1));
-        item.SubItems.Add(FloatToStrF(b.SemiMajorAxis,ffFixed,12,1));
+        ct := bm.GetConstrType;
+        if (ct <> nil) and (ct.Tier >= '2') then
+          PrimaryLabel.Caption := '(T2/T3 primary)';
+      end;
+    end;
 
+    for i := 0 to 2 do
+    begin
+      seclev[i] := 0;
+      devlev[i] := 0;
+      techlev[i] := 0;
+      wealthlev[i] := 0;
+      livlev[i] := 0;
+    end;
+    techBonus := 35;
 
-        listUnassigned := (i = FCurrentSystem.Bodies.Count - 1);
-        for i2 := ml.Count - 1 downto 0  do
-        begin
-          bm := TBaseMarket(ml[i2]);
-          if (bm.Body = b.BodyName) or listUnassigned then
+    PrimaryLabel.Hint := 'T2/T3 Port Order:' + Chr(13);
+
+    ml := TList.Create;
+    sl := TStringList.Create; //orphan market ids
+    t23sl := TStringList.Create; //list of t2/t3 stations sorted by finish date
+    for i := 0 to DataSrc.Constructions.Count - 1 do
+      with TConstructionDepot(DataSrc.Constructions.Objects[i]) do
+        if StarSystem = FCurrentSystem.StarSystem then
+          if not Simulated and (StationType <> 'FleetCarrier') then
           begin
-            ct := DataSrc.ConstructionTypes.TypeById[bm.ConstructionType];
-            item := ListView.Items.Add;
-            item.Data := bm;
-            item.Caption := '';        //🚩🚧🏭◌◍⚪⚫⧂ ⨀ ⦵⦿
-            if bm.Body <> b.BodyName then item.Caption := '?';
-            m := nil;
-            if bm is TConstructionDepot then
+            ct := GetConstrType;
+            if ct <> nil then
             begin
-              s := '  ';     //⧂ ⚪•🌐🏙🌆🌇💰📋📝✍⛰✏⚒   ⌂🏠🏭  🏗 ⚐ ⚑  ⛿⛺
-              //s := s + IfThen((ct <> nil) and (ct.Location = 'Orbital'),'⚪• ','🏭 ');
-              //s := s + IfThen(TConstructionDepot(bm).Finished,'','🚧');
-              s := s + IfThen(TConstructionDepot(bm).Planned,'✏',
-                       IfThen(TConstructionDepot(bm).Finished,'🚩','🚧'));
-              if bm.LinkedMarketId <> '' then
+              idx := 0;
+              if not Finished then idx := 1;
+              if Planned then idx := 2;
+              seclev[idx] := seclev[idx] + ct.SecLev;
+              devlev[idx] := devlev[idx] + ct.DevLev;
+              techlev[idx] := techlev[idx] + ct.TechLev;
+              wealthlev[idx] := wealthlev[idx] + ct.WealthLev;
+              livlev[idx] := livlev[idx] + ct.StdLivLev;
+
+
+              //primary port has no CP cost
+              if MarketId = FCurrentSystem.PrimaryPortId then
               begin
-                m := DataSrc.MarketFromID(bm.LinkedMarketId);
-                if m <> nil then
-                begin
-                  s := s + '🛒 ' + m.StationName;
-                  //ml.Remove(m);
-                end;
+                if ct.CP2 > 0 then cp2[idx] := cp2[idx] + ct.CP2;
+                if ct.CP3 > 0 then cp3[idx] := cp3[idx] + ct.CP3;
               end
               else
-                s := s + ' ' + bm.StationName;
-              item.SubItems.Add(s);
-            end
-            else
-            begin
-              item.SubItems.Add('  🛒 '+ bm.StationName);
+              begin
+                cp2idx := idx;
+                cp3idx := idx;
+               //started constructions already use up CPs
+                if idx = 1 then
+                begin
+                  if ct.CP2 < 0 then cp2idx := 0;
+                  if ct.CP3 < 0 then cp3idx := 0;
+                end;
+                cp2[cp2idx] := cp2[cp2idx] + ct.CP2;
+                cp3[cp3idx] := cp3[cp3idx] + ct.CP3;
+              end;
+
+              if ct.Tier >= '2' then
+                if (ct.Category = 'Starport') or (ct.Category = 'Planetary Port') then
+                begin
+                  techlev[idx] := techlev[idx] + techBonus;
+                  techBonus := 0;
+
+                  if MarketId <> FCurrentSystem.PrimaryPortId then
+                  begin
+                    s := 'B';
+                    if Status = '' then s := 'A'; //built before Updated 2 come first?
+                    if not Finished then s := 'Y';
+                    if Planned then s := 'Z';
+                    s := s + FirstUpdate;
+                    t23sl.AddObject(s,DataSrc.Constructions.Objects[i]);
+                  end
+                  else
+                    PrimaryLabel.Hint := PrimaryLabel.Hint + StationName + ' (primary)' + Chr(13);
+                end;
             end;
-            s := '';
-            if ct <> nil then
-             s := ct.StationType_full;
-             if s = '' then
-              s := DataSrc.MarketComments.Values[bm.MarketId];
-            item.SubItems.Add(s);
-            item.SubItems.Add('');
-            s := '';
-            if bm is TMarket then
-              s := TMarket(bm).Economies
-            else
-              if m <> nil then
-                s := m.Economies;
-            item.SubItems.Add(s);
 
-            ml.Delete(i2);
+            ml.Add(DataSrc.Constructions.Objects[i]);
+            if LinkedMarketId <> '' then sl.Add(LinkedMarketId);
           end;
+
+    t23sl.Sort;
+    for i := 1 to t23sl.Count do
+    begin
+      with TConstructionDepot(t23sl.Objects[i-1]) do
+      begin
+        ct := GetConstrType;
+        if i > 2 then
+        begin
+          t2penalty := -2 * (i-2);
+          t3penalty := -6 * (i-2);
+          idx := 0;
+          if Planned then idx := 2;
+          if ct.Tier = '2' then
+            cp2[idx] := cp2[idx] + t2penalty;
+          if ct.Tier = '3' then
+            cp3[idx] := cp3[idx] + t3penalty;
         end;
-
-
+        PrimaryLabel.Hint := PrimaryLabel.Hint + StationName + ' T' + ct.Tier + Chr(13);
       end;
-    finally
-      ListView.Items.EndUpdate;
     end;
-  except
-  end;
-  for i := 0 to ListView.Columns.Count -2 do
-  begin
-     ListView.Column[i].Width := -2;
-  end;
 
-  RestoreSelection;
+    dispStat(seclev,SecLabel);
+    dispStat(devlev,devLabel);
+    dispStat(techlev,TechLabel);
+    dispStat(wealthlev,WealthLabel);
+    dispStat(livlev,LivLabel);
 
-  ml.Free;
-  sl.Free;
-  t23sl.Free;
+    dispStat(cp2,CP2Label);
+    dispStat(cp3,CP3Label);
+
+    for i := 0 to DataSrc.RecentMarkets.Count - 1 do
+      with TBaseMarket(DataSrc.RecentMarkets.Objects[i]) do
+        if StarSystem = FCurrentSystem.StarSystem then
+          if StationType <> 'FleetCarrier' then
+            if sl.IndexOf(MarketId) = -1 then
+              ml.Add(DataSrc.RecentMarkets.Objects[i]);
+
+
+    try
+      ListView.Items.BeginUpdate;
+      try
+
+        for i := 0 to FCurrentSystem.Bodies.Count - 1 do
+        begin
+          b := TSystemBody(FCurrentSystem.Bodies.Objects[i]);
+          item := ListView.Items.Add;
+          item.Caption := b.BodyName;
+          item.SubItems.Add(b.BodyType);
+          item.Data := b;
+          s := '';
+          s := s + b.ReserveLevel;
+          item.SubItems.Add(s);
+          item.SubItems.Add(IfThen(b.Landable,'Yes',''));
+          item.SubItems.Add(b.Atmosphere);
+          item.SubItems.Add(FloatToStrF(b.DistanceFromArrivalLS,ffFixed,7,1));
+          s := '';
+          if b.BiologicalSignals > 0 then s := s + 'Bio: ' + IntToStr(b.BiologicalSignals) + '; ';
+          if b.GeologicalSignals > 0 then s := s + 'Geo: ' + IntToStr(b.GeologicalSignals) + '; ';
+          if b.HumanSignals > 0 then s := s + 'Hum: ' + IntToStr(b.HumanSignals) + '; ';
+          if b.OtherSignals > 0 then s := s + 'Oth: ' + IntToStr(b.OtherSignals) + '; ';
+          item.SubItems.Add(s);
+          item.SubItems.Add(b.Volcanism);
+          item.SubItems.Add(FloatToStrF(b.SurfaceGravity,ffFixed,7,2));
+          item.SubItems.Add(IfThen(b.TidalLock,'Yes',''));
+          item.SubItems.Add(FloatToStrF(b.OrbitalInclination,ffFixed,7,1));
+          item.SubItems.Add(FloatToStrF(b.RotationPeriod,ffFixed,7,1));
+          item.SubItems.Add(FloatToStrF(b.OrbitalPeriod,ffFixed,7,1));
+          item.SubItems.Add(FloatToStrF(b.SemiMajorAxis,ffFixed,12,1));
+
+
+          listUnassigned := (i = FCurrentSystem.Bodies.Count - 1);
+          for i2 := ml.Count - 1 downto 0  do
+          begin
+            bm := TBaseMarket(ml[i2]);
+            if (bm.Body = b.BodyName) or listUnassigned then
+            begin
+              ct := DataSrc.ConstructionTypes.TypeById[bm.ConstructionType];
+              item := ListView.Items.Add;
+              item.Data := bm;
+              item.Caption := '';        //🚩🚧🏭◌◍⚪⚫⧂ ⨀ ⦵⦿
+              if bm.Body <> b.BodyName then item.Caption := '?';
+              m := nil;
+              if bm is TMarket then m := TMarket(bm);
+              if bm is TConstructionDepot then
+              begin
+                s := '  ';     //✈🚀🚢⛯⧂ ⚪•🌐🏙🌆🌇💰📋📝✍⛰✏⚒   ⌂🏠🏭  🏗 ⚐ ⚑  ⛿⛺
+                //s := s + IfThen((ct <> nil) and (ct.Location = 'Orbital'),'⚪• ','🏭 ');
+                //s := s + IfThen(TConstructionDepot(bm).Finished,'','🚧');
+                s := s + IfThen(TConstructionDepot(bm).Planned,'✏',
+                         IfThen(TConstructionDepot(bm).Finished,'🚩','🚧'));
+                if bm.LinkedMarketId <> '' then
+                begin
+                  m := DataSrc.MarketFromID(bm.LinkedMarketId);
+                  if m <> nil then
+                  begin
+                    s := s + '🛒 ' + m.StationName;
+                    //ml.Remove(m);
+                  end;
+                end
+                else
+                  s := s + ' ' + bm.StationName;
+                item.SubItems.Add(s);
+              end
+              else
+              begin
+                item.SubItems.Add('  🛒 '+ bm.StationName);
+              end;
+              s := '';
+              if ct <> nil then
+               s := ct.StationType_full;
+               if s = '' then
+                s := DataSrc.MarketComments.Values[bm.MarketId];
+              item.SubItems.Add(s);
+              item.SubItems.Add('');
+              s := '';
+              if m <> nil then s := m.Economies;
+              item.SubItems.Add(s);
+              item.SubItems.Add('');
+              s := '';
+              if m <> nil then s := m.Faction_short;
+              item.SubItems.Add(s);
+              s := '';
+              if m <> nil then
+              begin
+                if Pos('shipyard',m.Services) > 0  then s := s + '🚀SY ';
+                if Pos('outfitting',m.Services) > 0  then s := s + '⚒OF ';
+                if Pos('exploration',m.Services) > 0  then s := s + '🌐UC ';
+              end;
+              item.SubItems.Add(s);
+
+              ml.Delete(i2);
+            end;
+          end;
+
+
+        end;
+      finally
+        ListView.Items.EndUpdate;
+      end;
+    except
+    end;
+    for i := 0 to ListView.Columns.Count -2 do
+    begin
+       ListView.Column[i].Width := -2;
+    end;
+
+    RestoreSelection;
+  finally
+    ml.Free;
+    sl.Free;
+    t23sl.Free;
+  end;
 end;
 
 procedure TSystemInfoForm.AddConstructionMenuItemClick(Sender: TObject);
