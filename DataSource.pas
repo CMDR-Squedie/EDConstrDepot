@@ -167,6 +167,7 @@ private
   FSysData: TStarSystem;
   FConstrType: TConstructionType;
   FOrbital_JRNL: Integer;
+  FLinkChecked: Boolean;  //session only for auto link detection
 public
   MarketID: string;
   StationName: string;
@@ -690,7 +691,7 @@ end;
 
 function TBaseMarket.GetSys: TStarSystem;
 begin
-  if FSysData = nil then
+  if (FSysData = nil) {or (FSysData.StarSystem <> self.StarSystem)} then
     FSysData := DataSrc.StarSystems.SystemByName[self.StarSystem];
   Result := FSysData;
 end;
@@ -775,6 +776,7 @@ end;
 procedure TStarSystem.AddPopToHistory(tms: string; pop: Int64);
 var i: Integer;
 begin
+  if tms = '' then Exit;
   if PopHistory.Count > 0 then
     if pop = StrToInt64(PopHistory.ValueFromIndex[PopHistory.Count-1]) then Exit;
   PopHistory.AddPair(tms,IntToStr(pop));
@@ -1900,18 +1902,18 @@ var j: TJSONObject;
     m: TMarket;
     sys: TStarSystem;
     docked: Boolean;
-    newcdf: Boolean;
+    newstationf: Boolean;
 label LUpdateTms;
 
     function DepotForMarketId(mID: string): TConstructionDepot;
     var midx: Integer;
     begin
       Result := nil;
-      newcdf := False;
+      newstationf := False;
       midx := FConstructions.IndexOf(mID);
       if midx < 0 then
       begin
-        newcdf := true;
+        newstationf := true;
         Result := TConstructionDepot.Create;
         Result.MarketID := mID;
         Result.StationName := '#' + mID;
@@ -1926,9 +1928,11 @@ label LUpdateTms;
     var midx: Integer;
     begin
       Result := nil;
+      newstationf := False;
       midx := FRecentMarkets.IndexOf(mID);
       if midx < 0 then
       begin
+        newstationf := true;
         Result := TMarket.Create;
         Result.MarketID := mID;
         Result.StationName := '#' + mID;
@@ -2183,7 +2187,7 @@ begin
             s := '';
             try s := j.GetValue<string>('StationName_Localised'); except end;
             if s = '' then s := j.GetValue<string>('StationName');
-            if newcdf then
+            if newstationf then
               cd.FOrbital_JRNL := Ord((Pos('Orbital ',s) > 0));
             cpos := Pos(': ',s);
             if cpos > 0 then
@@ -2198,7 +2202,7 @@ begin
             end;
             cd.StationName := s;
             try
-              cd.DistFromStar := Trunc(j.GetValue<single>('DistFromStarLS')); 
+              cd.DistFromStar := Trunc(j.GetValue<single>('DistFromStarLS'));
             except end;
             if cd.Body = '' then cd.Body := FLastBody;
 
@@ -2272,6 +2276,23 @@ begin
                     FMarket.MarketEconomies := s;
                 end;
 
+//                if newstationf and not FInitialLoad then
+
+                if not m.FLinkChecked then
+                if m.StationType <> 'FleetCarrier' then
+                if m.GetSys <> nil then
+                if m.GetSys.Architect <> '' then
+                begin
+                  cd2 := FConstructions.ConstrByName[m.StarSystem,m.StationName];
+                  if (cd2 <> nil) and (cd2.LinkedMarketId = '') then
+                  begin
+                    cd2.LinkedMarketId := m.MarketId;
+                    cd2.Modified := True;
+                    cd2.GetSys.Save;
+                  end;
+                end;
+                m.FLinkChecked := True;
+
 
               end;
             except
@@ -2285,7 +2306,7 @@ begin
           cd := DepotForMarketId(mID);
           if not cd.DepotComplete then
           begin
-            newcdf := (cd.Status = '');
+            newstationf := (cd.Status = '');
             cd.Status := jrnl[i];
             if cd.ActualHaul = 0 then cd.UpdateHaul;
             if (cd.FirstUpdate = '') or (tms < cd.FirstUpdate) then cd.FirstUpdate := tms;
@@ -2302,7 +2323,7 @@ begin
                 FLastConstrTimes.Values[cd.StarSystem] := tms;
             end;
 
-            if newcdf and not FInitialLoad then
+            if newstationf and not FInitialLoad then
             begin
               cd2 := FConstructions.FindCustomConstr(cd.StarSystem,cd.StationName,cd.Body,cd.ActualHaul);
               if cd2 <> nil then

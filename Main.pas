@@ -559,7 +559,7 @@ var j: TJSONObject;
     jarr,resReq: TJSONArray;
     sl: TStringList;
     js,s,s2,fn,cnames,cprogress,lastUpdate,itemName,normItem,prevSys: string;
-    i,ci,res,lastWIP,h,q,prec,sortPrefixLen: Integer;
+    i,ci,res,lastWIP,h,w,q,prec,sortPrefixLen: Integer;
     fa: DWord;
     reqQty,delQty,cargo,stock,prevQty,maxQty: Integer;
     totReqQty,totDelQty,validCargo: Integer;
@@ -1073,6 +1073,13 @@ LSkipDepotSelection:;
         FLayer1.Height := h;
     end;
 
+    {
+    w := StockColLabel.Tag;
+    if DataSrc.Capacity >= 1000 then
+      w := w * 6 div 5;
+    if StockColLabel.Width <> w then StockColLabel.Width := w;
+    }
+
   finally
 
     j.Free;
@@ -1583,6 +1590,7 @@ begin
       self.Width := basew * 8;
     end;
     StockColLabel.Width := basew;
+    StockColLabel.Tag := basew;
     CloseLabel.Left := self.Width - CloseLabel.Width - 3;
 
     FTextHeight := self.Canvas.TextHeight('Wq');
@@ -1905,8 +1913,8 @@ begin
   DeliveriesSubMenu.Visible := Opts.Flags['ShowDelTime'];
   FlightHistoryMenuItem.Checked := FFlightHistory;
   SystemInfoMenuItem.Visible := (FCurrentDepot <> nil);
-  SystemInfoCurrentMenuItem.Visible := (DataSrc.CurrentSystem <> nil) and
-    (DataSrc.CurrentSystem <> FCurrentDepot.GetSys);
+  SystemInfoCurrentMenuItem.Visible := (FCurrentDepot = nil) or
+    ((DataSrc.CurrentSystem <> nil) and (DataSrc.CurrentSystem <> FCurrentDepot.GetSys));
 
   SelectDepotSubMenu.Clear;
   activef := False;
