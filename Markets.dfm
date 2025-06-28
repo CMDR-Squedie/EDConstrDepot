@@ -83,6 +83,7 @@ object MarketsForm: TMarketsForm
       item
         Caption = 'Task Group'
         Tag = 8
+        Width = 80
       end>
     Ctl3D = False
     Font.Charset = DEFAULT_CHARSET

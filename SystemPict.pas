@@ -135,7 +135,7 @@ begin
     ColoniesForm.UpdateItems;
   if SystemInfoForm.Visible then
     if SystemInfoForm.CurrentSystem = FCurrentSystem then
-      SystemInfoForm.UpdateData;
+      SystemInfoForm.UpdateView;
 end;
 
 procedure TSystemPictForm.ScaleWindow;

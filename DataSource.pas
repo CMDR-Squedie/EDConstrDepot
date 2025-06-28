@@ -1027,8 +1027,7 @@ begin
           jarr[i].TryGetValue<Extended>('rotationalPeriod',RotationPeriod);
           //RotationPeriod := RotationPeriod / (60*60*24);
           jarr[i].TryGetValue<Extended>('axialTilt',AxialTilt);
-
-          //j.TryGetValue<string>('ReserveLevel',ReserveLevel);
+          jarr[i].TryGetValue<string>('reserveLevel',ReserveLevel);
 
           try
             try
@@ -1439,7 +1438,7 @@ begin
         jarr[i].TryGetValue<double>('coords.z',sys.StarPosZ);
         bcnt := 0;
         jarr[i].TryGetValue<Integer>('bodyCount',bcnt);
-        if bcnt > 0 then sys.Comment := 'bodies: ' + IntToStr(bcnt);
+        sys.Comment := 'unvisited, bodies: ' + IntToStr(bcnt);
         sys.Save;
         AddObject(sys.StarSystem,sys);
         Result := Result + 1;

@@ -435,6 +435,7 @@ begin
     Font.Size := Opts.Int['FontSize2'];
   end;
 
+  if Visible then UpdateItems;
 end;
 
 procedure TMarketsForm.FormClose(Sender: TObject; var Action: TCloseAction);
@@ -448,6 +449,7 @@ begin
 end;
 
 procedure TMarketsForm.FormCreate(Sender: TObject);
+var i: Integer;
 begin
   SortColumn := 4; //last visit
   SortAscending := False;
@@ -460,6 +462,7 @@ begin
   self.Height := StrToIntDef(Opts['Markets.Height'],self.Height);
   self.Left := StrToIntDef(Opts['Markets.Left'],(Screen.Width - self.Width) div 2);
   self.Top := StrToIntDef(Opts['Markets.Top'],Screen.Height div 2);
+
 
   if Opts['Markets.AlphaBlend'] <> '' then
   begin
@@ -522,7 +525,7 @@ end;
 
 procedure TMarketsForm.UpdateItems(const _autoSizeCol: Boolean = false);
 var
-  i,j: Integer;
+  i,j,curCol: Integer;
   cd: TConstructionDepot;
   m: TMarket;
   s: string;
@@ -533,7 +536,35 @@ var
   ignoredf,partialf,findcmdtyf: Boolean;
   d: Extended;
   colSz: array [0..100] of Integer;
+  colMaxLen: array [0..100] of Integer;
+  colMaxTxt: array [0..100] of string;
   autoSizeCol: Boolean;
+
+  procedure addCaption(s: string);
+  var ln: Integer;
+  begin
+    curCol := 0;
+    item.Caption := s;
+    ln := Length(s);
+    if ln > colMaxLen[curCol] then
+    begin
+      colMaxLen[curCol] := ln;
+      colMaxTxt[curCol] := s;
+    end;
+  end;
+
+ procedure addSubItem(s: string);
+  var ln: Integer;
+  begin
+    curCol := curCol + 1;
+    item.SubItems.Add(s);
+    ln := Length(s);
+    if ln > colMaxLen[curCol] then
+    begin
+      colMaxLen[curCol] := ln;
+      colMaxTxt[curCol] := s;
+    end;
+  end;
 
   function CheckFilter: Boolean;
   var i: Integer;
@@ -571,11 +602,10 @@ var
 begin
 
   if FHoldUpdate then Exit;
-  
 
   autoSizeCol := _autoSizeCol;
   if ListView.Items.Count = 0 then autoSizeCol := True;
-
+  autoSizeCol := autoSizeCol and Opts.Flags['AutoSizeColumns'];
 
   SaveSelection;
 
@@ -594,8 +624,8 @@ begin
 
     for i := 0 to ListView.Columns.Count - 1 do
     begin
-      colSz[i] := ListView.Column[i].Width;
-      ListView.Column[i].Width := 0;
+      colMaxLen[i] := Length(ListView.Columns[i].Caption);
+      colMaxTxt[i] := ListView.Columns[i].Caption;
     end;
 
     orgfs := FilterEdit.Text;
@@ -616,39 +646,40 @@ begin
 
       item := ListView.Items.Add;
       item.Data := cd;
-      item.Caption := cd.StationName_full;
+      s := cd.StationName_full;
       if cd.LinkedMarketId <> '' then
       begin
         m := DataSrc.MarketFromID(cd.LinkedMarketId);
         if m <> nil then
-          item.Caption := m.StationName_full;
+          s := m.StationName_full;
       end;
+      addCaption(s);
       if cd.Finished then
-        item.SubItems.Add('FinishedConstruction')
+        addSubItem('FinishedConstruction')
       else
         if cd.Planned then
-          item.SubItems.Add('PlannedConstruction')
+          addSubItem('PlannedConstruction')
         else
           if cd.Simulated then
-            item.SubItems.Add('SimulatedDepot')
+            addSubItem('SimulatedDepot')
           else
-            item.SubItems.Add('ConstructionDepot');
-      item.SubItems.Add(cd.StarSystem_nice);
-      item.SubItems.Add(cd.Body);
+            addSubItem('ConstructionDepot');
+      addSubItem(cd.StarSystem_nice);
+      addSubItem(cd.Body);
       s := cd.LastDock;
       if s < cd.LastUpdate then s := cd.LastUpdate;
-      item.SubItems.Add(niceTime(s));
-      item.SubItems.Add('');
+      addSubItem(niceTime(s));
+      addSubItem('');
       s := '';
       if cd.DistFromStar >= 0 then
         s := Format('%.0n', [double(cd.DistFromStar)]);
-      item.SubItems.Add(s);
-      item.SubItems.Add('');
-      item.SubItems.Add(cMarketIgnoreInd[DataSrc.GetMarketLevel(cd.MarketId)]);
-      item.SubItems.Add('');
-      item.SubItems.Add(DataSrc.MarketComments.Values[cd.MarketID]);
-      item.SubItems.Add('');
-      item.SubItems.Add(DataSrc.MarketGroups.Values[cd.MarketID]);
+      addSubItem(s);
+      addSubItem('');
+      addSubItem(cMarketIgnoreInd[DataSrc.GetMarketLevel(cd.MarketId)]);
+      addSubItem('');
+      addSubItem(DataSrc.MarketComments.Values[cd.MarketID]);
+      addSubItem('');
+      addSubItem(DataSrc.MarketGroups.Values[cd.MarketID]);
 
       if not CheckFilter then item.Delete;
     end;
@@ -664,17 +695,17 @@ begin
         if lev = miIgnore then continue;
       item := ListView.Items.Add;
       item.Data := m;
-      item.Caption := m.StationName_full;
-      item.SubItems.Add(m.StationType);
-      item.SubItems.Add(m.StarSystem_nice);
-      item.SubItems.Add(m.Body);
+      addCaption(m.StationName_full);
+      addSubItem(m.StationType);
+      addSubItem(m.StarSystem_nice);
+      addSubItem(m.Body);
       s := m.LastDock;
       if s < m.LastUpdate then s := m.LastUpdate;
       s := niceTime(s);
       if m.StationType <> 'FleetCarrier' then
         if DataSrc.LastConstrTimes.Values[m.StarSystem] > m.LastDock then
           s := s + '  *';
-      item.SubItems.Add(s);
+      addSubItem(s);
       s := '';
       try
         if EDCDForm.CurrentDepot <> nil then
@@ -692,21 +723,21 @@ begin
       except
       end;
 
-      item.SubItems.Add(s);
+      addSubItem(s);
       s := '';
       if m.DistFromStar >= 0 then
         s := Format('%.0n', [double(m.DistFromStar)]);
-      item.SubItems.Add(s);
+      addSubItem(s);
       s := '';
       if findcmdtyf then
         s := Format('%.0n', [double(m.Stock.Qty[fs])]);
-      item.SubItems.Add(s);
-      item.SubItems.Add(cMarketIgnoreInd[lev]);
-      item.SubItems.Add(cMarketFavInd[lev]);
-//      item.SubItems.Add(s);
-      item.SubItems.Add(DataSrc.MarketComments.Values[m.MarketID]);
-      item.SubItems.Add(m.Economies);
-      item.SubItems.Add(DataSrc.MarketGroups.Values[m.MarketID]);
+      addSubItem(s);
+      addSubItem(cMarketIgnoreInd[lev]);
+      addSubItem(cMarketFavInd[lev]);
+//      addSubItem(s);
+      addSubItem(DataSrc.MarketComments.Values[m.MarketID]);
+      addSubItem(m.Economies);
+      addSubItem(DataSrc.MarketGroups.Values[m.MarketID]);
 
       for j := 0 to m.Stock.Count - 1 do
       begin
@@ -726,42 +757,37 @@ begin
       m := TMarket(DataSrc.MarketSnapshots.Objects[i]);
       item := ListView.Items.Add;
       item.Data := m;
-      item.Caption := m.StationName;
-      item.SubItems.Add(m.StationType);
-      item.SubItems.Add(m.StarSystem_nice);
-      item.SubItems.Add('');
+      addCaption(m.StationName);
+      addSubItem(m.StationType);
+      addSubItem(m.StarSystem_nice);
+      addSubItem('');
       s := niceTime(m.LastUpdate);
-      item.SubItems.Add(s);
-      item.SubItems.Add('');
-      item.SubItems.Add('');
+      addSubItem(s);
+      addSubItem('');
+      addSubItem('');
       s := '';
       if findcmdtyf then
         s := Format('%.0n', [double(m.Stock.Qty[fs])]);
-      item.SubItems.Add(s);
-      item.SubItems.Add('');
-      item.SubItems.Add('');
-      item.SubItems.Add(DataSrc.MarketComments.Values[m.MarketID]);
-      item.SubItems.Add(m.Economies);
-      item.SubItems.Add('');
+      addSubItem(s);
+      addSubItem('');
+      addSubItem('');
+      addSubItem(DataSrc.MarketComments.Values[m.MarketID]);
+      addSubItem(m.Economies);
+      addSubItem('');
       if not CheckFilter then item.Delete;
     end;
 
     FilterEdit.Items.AddStrings(items);
 
-    //set columns to auto-size;  nice, but ListView is EXTREMELY slow with this!!!
-    //todo: set the column widths and add "auto-size" option for user to decide
     if autoSizeCol then
     begin
-      for i := 0 to ListView.Columns.Count - 2 do
-         ListView.Column[i].Width := -2;
-      ListView.Column[ListView.Columns.Count - 1].Width := -1;
+      //for i := 0 to ListView.Columns.Count - 2 do
+      //   ListView.Column[i].Width := -2;  //this is EXTREMELY slow!
+      //ListView.Column[ListView.Columns.Count - 1].Width := -1;  //this stays at -1
 
       for i := 0 to ListView.Columns.Count - 1 do
-        colSz[i] := ListView.Column[i].Width;
+        ListView.Column[i].Width := ListView.Canvas.TextWidth(colMaxTxt[i]) + 15; //margins
     end;
-
-    for i := 0 to ListView.Columns.Count - 1 do
-      ListView.Column[i].Width := colSz[i];
 
     if findcmdtyf then
     begin

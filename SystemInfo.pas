@@ -121,7 +121,7 @@ type
     procedure SetSystem(s: TStarSystem);
     procedure ApplySettings;
     procedure OnEDDataUpdate;
-    procedure UpdateData;
+    procedure UpdateView;
     property CurrentSystem: TStarSystem read FCurrentSystem;
     function GetNextConstruction(bm: TBaseMarket): TBaseMarket;
   end;
@@ -287,7 +287,7 @@ begin
     cd.MarketId := GUIDToString(UUID);
     DataSrc.Constructions.AddObject(cd.MarketID,cd);
     FCurrentSystem.Save;
-    UpdateData;
+    UpdateView;
   end;
 end;
 
@@ -300,7 +300,7 @@ begin
     cd := TConstructionDepot(ListView.Selected.Data);
     cd.ConstructionType := DataSrc.ConstructionTypes[TMenuItem(Sender).Tag];
     FCurrentSystem.Save;
-    UpdateData;
+    UpdateView;
   end;
 end;
 
@@ -463,7 +463,7 @@ begin
 
   FCurrentSystem.UpdateBodies_EDSM;
   FCurrentSystem.Save;
-  UpdateData;
+  UpdateView;
 end;
 
 procedure TSystemInfoForm.FormClose(Sender: TObject; var Action: TCloseAction);
@@ -617,7 +617,7 @@ end;
 
 procedure TSystemInfoForm.OnEDDataUpdate;
 begin
-  if Visible then UpdateData;
+  if Visible then UpdateView;
 end;
 
 procedure TSystemInfoForm.SetSystem(s: TStarSystem);
@@ -630,6 +630,7 @@ begin
   FCurrentSystem := s;
 
   SysImage.Picture := nil;
+  ListView.Items.Clear;
   NoPictureLabel.Visible := s.Architect <> '';
   Scrollbox.HorzScrollBar.Position := 0;
   Scrollbox.VertScrollBar.Position := 0;
@@ -645,18 +646,14 @@ begin
   end;
   png.Free;
 
-
-  UpdateData;
-
   CommentEdit.Text := FCurrentSystem.Comment;
   GoalsEdit.Text := FCurrentSystem.CurrentGoals;
   ObjectivesEdit.Text := FCurrentSystem.Objectives;
 
-
   FDataChanged := False;
   FImageChanged := False;
 
-
+  UpdateView;
 end;
 
 
@@ -710,8 +707,8 @@ begin
   Clipboard.AsText := Copy(SystemAddrLabel.Caption,2,200);
 end;
 
-procedure TSystemInfoForm.UpdateData;
-var  i,i2,idx,cp2idx,cp3idx: Integer;
+procedure TSystemInfoForm.UpdateView;
+var  i,i2,idx,cp2idx,cp3idx,curCol: Integer;
      s: string;
      item: TListItem;
      sl,t23sl: TStringList;
@@ -722,6 +719,8 @@ var  i,i2,idx,cp2idx,cp3idx: Integer;
      ct: TConstructionType;
      listUnassigned: Boolean;
      t2penalty,t3penalty: Integer;
+     colMaxLen: array [0..100] of Integer;
+     colMaxTxt: array [0..100] of string;
 
      seclev: array [0..2] of Integer;
      devlev: array [0..2] of Integer;
@@ -731,6 +730,32 @@ var  i,i2,idx,cp2idx,cp3idx: Integer;
      cp2: array [0..2] of Integer;
      cp3: array [0..2] of Integer;
      techBonus: Integer;
+
+  procedure addCaption(s: string);
+  var ln: Integer;
+  begin
+    curCol := 0;
+    item.Caption := s;
+    ln := Length(s);
+    if ln > colMaxLen[curCol] then
+    begin
+      colMaxLen[curCol] := ln;
+      colMaxTxt[curCol] := s;
+    end;
+  end;
+
+  procedure addSubItem(s: string);
+  var ln: Integer;
+  begin
+    curCol := curCol + 1;
+    item.SubItems.Add(s);
+    ln := Length(s);
+    if ln > colMaxLen[curCol] then
+    begin
+      colMaxLen[curCol] := ln;
+      colMaxTxt[curCol] := s;
+    end;
+  end;
 
    procedure dispStat(lev: array of Integer; lab: TLabel);
    var s: string;
@@ -746,13 +771,19 @@ var  i,i2,idx,cp2idx,cp3idx: Integer;
      lab.Caption := s;
    end;
 begin
+  if FCurrentSystem = nil then Exit;
   SaveSelection;
 
-  ListView.Items.Clear;
+  for i := 0 to ListView.Columns.Count - 1 do
+  begin
+    colMaxLen[i] := Length(ListView.Columns[i].Caption);
+    colMaxTxt[i] := ListView.Columns[i].Caption;
+  end;
 
-  if FCurrentSystem = nil then Exit;
-
+  ListView.Items.BeginUpdate;
   try
+    ListView.Items.Clear;
+
     SystemNameLabel.Caption := FCurrentSystem.StarSystem;
     ArchitectLabel.Caption := 'Architect: ' + FCurrentSystem.ArchitectName;
     PopulationLabel.Caption := 'Population: ' + Format('%.0n', [double(FCurrentSystem.Population)]);;
@@ -898,28 +929,28 @@ begin
         begin
           b := TSystemBody(FCurrentSystem.Bodies.Objects[i]);
           item := ListView.Items.Add;
-          item.Caption := b.BodyName;
-          item.SubItems.Add(b.BodyType);
+          addCaption(b.BodyName);
+          addSubItem(b.BodyType);
           item.Data := b;
           s := '';
           s := s + b.ReserveLevel;
-          item.SubItems.Add(s);
-          item.SubItems.Add(IfThen(b.Landable,'Yes',''));
-          item.SubItems.Add(b.Atmosphere);
-          item.SubItems.Add(FloatToStrF(b.DistanceFromArrivalLS,ffFixed,7,1));
+          addSubItem(s);
+          addSubItem(IfThen(b.Landable,'Yes',''));
+          addSubItem(b.Atmosphere);
+          addSubItem(FloatToStrF(b.DistanceFromArrivalLS,ffFixed,7,1));
           s := '';
           if b.BiologicalSignals > 0 then s := s + 'Bio: ' + IntToStr(b.BiologicalSignals) + '; ';
           if b.GeologicalSignals > 0 then s := s + 'Geo: ' + IntToStr(b.GeologicalSignals) + '; ';
           if b.HumanSignals > 0 then s := s + 'Hum: ' + IntToStr(b.HumanSignals) + '; ';
           if b.OtherSignals > 0 then s := s + 'Oth: ' + IntToStr(b.OtherSignals) + '; ';
-          item.SubItems.Add(s);
-          item.SubItems.Add(b.Volcanism);
-          item.SubItems.Add(FloatToStrF(b.SurfaceGravity,ffFixed,7,2));
-          item.SubItems.Add(IfThen(b.TidalLock,'Yes',''));
-          item.SubItems.Add(FloatToStrF(b.OrbitalInclination,ffFixed,7,1));
-          item.SubItems.Add(FloatToStrF(b.RotationPeriod,ffFixed,7,1));
-          item.SubItems.Add(FloatToStrF(b.OrbitalPeriod,ffFixed,7,1));
-          item.SubItems.Add(FloatToStrF(b.SemiMajorAxis,ffFixed,12,1));
+          addSubItem(s);
+          addSubItem(b.Volcanism);
+          addSubItem(FloatToStrF(b.SurfaceGravity,ffFixed,7,2));
+          addSubItem(IfThen(b.TidalLock,'Yes',''));
+          addSubItem(FloatToStrF(b.OrbitalInclination,ffFixed,7,1));
+          addSubItem(FloatToStrF(b.RotationPeriod,ffFixed,7,1));
+          addSubItem(FloatToStrF(b.OrbitalPeriod,ffFixed,7,1));
+          addSubItem(FloatToStrF(b.SemiMajorAxis,ffFixed,12,1));
 
 
           listUnassigned := (i = FCurrentSystem.Bodies.Count - 1);
@@ -931,7 +962,7 @@ begin
               ct := DataSrc.ConstructionTypes.TypeById[bm.ConstructionType];
               item := ListView.Items.Add;
               item.Data := bm;
-              item.Caption := '';        //🚩🚧🏭◌◍⚪⚫⧂ ⨀ ⦵⦿
+              addCaption('');        //🚩🚧🏭◌◍⚪⚫⧂ ⨀ ⦵⦿
               if bm.Body <> b.BodyName then item.Caption := '?';
               m := nil;
               if bm is TMarket then m := TMarket(bm);
@@ -953,26 +984,26 @@ begin
                 end
                 else
                   s := s + ' ' + bm.StationName;
-                item.SubItems.Add(s);
+                addSubItem(s);
               end
               else
               begin
-                item.SubItems.Add('  🛒 '+ bm.StationName);
+                addSubItem('  🛒 '+ bm.StationName);
               end;
               s := '';
               if ct <> nil then
                s := ct.StationType_full;
                if s = '' then
                 s := DataSrc.MarketComments.Values[bm.MarketId];
-              item.SubItems.Add(s);
-              item.SubItems.Add('');
+              addSubItem(s);
+              addSubItem('');
               s := '';
               if m <> nil then s := m.Economies;
-              item.SubItems.Add(s);
-              item.SubItems.Add('');
+              addSubItem(s);
+              addSubItem('');
               s := '';
               if m <> nil then s := m.Faction_short;
-              item.SubItems.Add(s);
+              addSubItem(s);
               s := '';
               if m <> nil then
               begin
@@ -980,7 +1011,7 @@ begin
                 if Pos('outfitting',m.Services) > 0  then s := s + '⚒OF ';
                 if Pos('exploration',m.Services) > 0  then s := s + '🌐UC ';
               end;
-              item.SubItems.Add(s);
+              addSubItem(s);
 
               ml.Delete(i2);
             end;
@@ -993,17 +1024,18 @@ begin
       end;
     except
     end;
-    for i := 0 to ListView.Columns.Count -2 do
-    begin
-       ListView.Column[i].Width := -2;
-    end;
 
-    RestoreSelection;
+    for i := 0 to ListView.Columns.Count - 1 do
+      ListView.Column[i].Width := ListView.Canvas.TextWidth(colMaxTxt[i]) + 15; //margins
+
   finally
+    ListView.Items.EndUpdate;
     ml.Free;
     sl.Free;
     t23sl.Free;
-  end;
+   end;
+
+  RestoreSelection;
 end;
 
 procedure TSystemInfoForm.AddConstructionMenuItemClick(Sender: TObject);
@@ -1068,6 +1100,7 @@ begin
     Font.Size := Opts.Int['FontSize2'];
   end;
 
+  if Visible then UpdateView;
 end;
 
 procedure TSystemInfoForm.SaveSelection;

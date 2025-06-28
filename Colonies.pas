@@ -92,7 +92,7 @@ type
     { Public declarations }
     procedure OnEDDataUpdate;
     procedure ApplySettings;
-    procedure UpdateItems(const autoSizeCol: Boolean = false);
+    procedure UpdateItems(const _autoSizeCol: Boolean = false);
     procedure UpdateAndShow;
   end;
 
@@ -400,6 +400,7 @@ begin
     Font.Size := Opts.Int['FontSize2'];
   end;
 
+  if Visible then UpdateItems;
 end;
 
 procedure TColoniesForm.FormClose(Sender: TObject; var Action: TCloseAction);
@@ -477,9 +478,9 @@ begin
   end;
 end;
 
-procedure TColoniesForm.UpdateItems(const autoSizeCol: Boolean = false);
+procedure TColoniesForm.UpdateItems(const _autoSizeCol: Boolean = false);
 var
-  i,j: Integer;
+  i,j,curCol: Integer;
   sys: TStarSystem;
   s: string;
   item: TListItem;
@@ -487,7 +488,35 @@ var
   items: THashedStringList;
   coloniesf,targetf,candidf,otherf,okf,ignf: Boolean;
   d: Extended;
-  colSz: array [0..100] of Integer;
+  colMaxLen: array [0..100] of Integer;
+  colMaxTxt: array [0..100] of string;
+  autoSizeCol: Boolean;
+
+  procedure addCaption(s: string);
+  var ln: Integer;
+  begin
+    curCol := 0;
+    item.Caption := s;
+    ln := Length(s);
+    if ln > colMaxLen[curCol] then
+    begin
+      colMaxLen[curCol] := ln;
+      colMaxTxt[curCol] := s;
+    end;
+  end;
+
+ procedure addSubItem(s: string);
+  var ln: Integer;
+  begin
+    curCol := curCol + 1;
+    item.SubItems.Add(s);
+    ln := Length(s);
+    if ln > colMaxLen[curCol] then
+    begin
+      colMaxLen[curCol] := ln;
+      colMaxTxt[curCol] := s;
+    end;
+  end;
 
   function CheckFilter: Boolean;
   var i: Integer;
@@ -515,6 +544,9 @@ var
   end;
 
 begin
+  autoSizeCol := _autoSizeCol;
+  if ListView.Items.Count = 0 then autoSizeCol := True;
+  autoSizeCol := autoSizeCol and Opts.Flags['AutoSizeColumns'];
 
   SaveSelection;
 
@@ -528,15 +560,14 @@ begin
   otherf := OtherSystemsCheck.Checked;
   ignf := InclIgnoredCheck.Checked;
 
+  for i := 0 to ListView.Columns.Count - 1 do
+  begin
+    colMaxLen[i] := Length(ListView.Columns[i].Caption);
+    colMaxTxt[i] := ListView.Columns[i].Caption;
+  end;
+
+  ListView.Items.BeginUpdate;
   try
-
-    ListView.Items.BeginUpdate;
-
-    if autoSizeCol then
-      for i := 0 to ListView.Columns.Count - 1 do
-         ListView.Column[i].Width := 0;
-
-
     ListView.Items.Clear;
     ListView.SortType := stNone;
 
@@ -568,15 +599,15 @@ begin
 
       item := ListView.Items.Add;
       item.Data := sys;
-      item.Caption := sys.StarSystem;
-      item.SubItems.Add(sys.ArchitectName);
+      addCaption(sys.StarSystem);
+      addSubItem(sys.ArchitectName);
       s := '';
       if sys.Population >= 0 then
         s := Format('%.0n', [double(sys.Population)]);
-      item.SubItems.Add(s);
+      addSubItem(s);
       s := '';
       if FReferenceSystem <> nil then
-        if sys.LastUpdate = '' then
+        if (sys.LastUpdate = '') and (sys.StarPosX = 0) then
           s := '?'
         else
         begin
@@ -584,48 +615,46 @@ begin
           if d > 0 then
             s := FloatToStrF(d,ffFixed,7,2);
         end;
-      item.SubItems.Add(s);
-      item.SubItems.Add(niceTime(sys.LastUpdate));
-      item.SubItems.Add(sys.AlterName);
-      item.SubItems.Add(sys.SystemSecurity);
-      item.SubItems.Add(sys.Factions);
-      item.SubItems.Add(sys.Comment);
+      addSubItem(s);
+      addSubItem(niceTime(sys.LastUpdate));
+      addSubItem(sys.AlterName);
+      addSubItem(sys.SystemSecurity);
+      addSubItem(sys.Factions);
+      addSubItem(sys.Comment);
       s := '';
       if FileExists(sys.ImagePath) then
         s := '✓';
-      item.SubItems.Add(s);
-      item.SubItems.Add(sys.CurrentGoals);
-      item.SubItems.Add(sys.Objectives);
+      addSubItem(s);
+      addSubItem(sys.CurrentGoals);
+      addSubItem(sys.Objectives);
       s := '';
       if sys.Ignored then s := '●';
-      item.SubItems.Add(s);
+      addSubItem(s);
 
 
       if not CheckFilter then item.Delete;
     end;
 
-    //set columns to auto-size;  nice, but ListView is EXTREMELY slow with this!!!
-    //todo: set the column widths and add "auto-size" option for user to decide
     if autoSizeCol then
     begin
-      for i := 0 to ListView.Columns.Count - 2 do
-         ListView.Column[i].Width := -2;
-      ListView.Column[ListView.Columns.Count - 1].Width := -1;
+      //for i := 0 to ListView.Columns.Count - 2 do
+      //   ListView.Column[i].Width := -2;  //this is EXTREMELY slow!
+      //ListView.Column[ListView.Columns.Count - 1].Width := -1;  //this stays at -1
+
       for i := 0 to ListView.Columns.Count - 1 do
-        colSz[i] := ListView.Column[i].Width;
-      for i := 0 to ListView.Columns.Count - 1 do
-        ListView.Column[i].Width := colSz[i];
+        ListView.Column[i].Width := ListView.Canvas.TextWidth(colMaxTxt[i]) + 15; //margins
     end;
+
 
 //    if FReferenceSystem = nil then
 //      ListView.Column[3].Width := 0;
 
     ListView.SortType := stText;
-    ListView.Items.EndUpdate;
 
 
     RestoreSelection;
   finally
+    ListView.Items.EndUpdate;
     items.Free;
   end;
 end;

@@ -99,8 +99,6 @@ object SystemInfoForm: TSystemInfoForm
     OnCustomDrawItem = ListViewCustomDrawItem
     OnDblClick = ListViewDblClick
     OnMouseDown = ListViewMouseDown
-    ExplicitTop = 495
-    ExplicitHeight = 366
   end
   object Panel1: TPanel
     Left = 0
@@ -203,7 +201,7 @@ object SystemInfoForm: TSystemInfoForm
       Left = 660
       Top = 5
       Width = 325
-      Height = 20
+      Height = 24
       ParentColor = True
       TabOrder = 1
       OnChange = CommentEditChange
@@ -221,7 +219,7 @@ object SystemInfoForm: TSystemInfoForm
       Left = 660
       Top = 26
       Width = 325
-      Height = 22
+      Height = 24
       ParentColor = True
       TabOrder = 3
       OnChange = CommentEditChange
@@ -230,7 +228,7 @@ object SystemInfoForm: TSystemInfoForm
       Left = 660
       Top = 49
       Width = 325
-      Height = 20
+      Height = 24
       ParentColor = True
       TabOrder = 4
       OnChange = CommentEditChange
@@ -255,7 +253,6 @@ object SystemInfoForm: TSystemInfoForm
     PopupMenu = PopupMenu
     TabOrder = 2
     UseWheelForScrolling = True
-    ExplicitTop = 57
     object NoPictureLabel: TLabel
       Left = 22
       Top = 16
@@ -297,7 +294,6 @@ object SystemInfoForm: TSystemInfoForm
     Color = clBlack
     ParentBackground = False
     TabOrder = 3
-    ExplicitTop = 457
     object Label1: TLabel
       Left = 6
       Top = 6

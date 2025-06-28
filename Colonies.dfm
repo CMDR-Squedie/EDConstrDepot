@@ -80,6 +80,7 @@ object ColoniesForm: TColoniesForm
         Alignment = taCenter
         Caption = 'Ign.'
         Tag = 6
+        Width = 40
       end>
     Ctl3D = False
     Font.Charset = DEFAULT_CHARSET

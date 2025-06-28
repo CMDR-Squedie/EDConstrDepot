@@ -1177,6 +1177,7 @@ begin
   end
   else
   begin
+    ToggleTitleBar(Application.Active);
     if FLayer1 <> nil then FLayer1.FormStyle := fsNormal;
     self.FormStyle := fsNormal;
   end;

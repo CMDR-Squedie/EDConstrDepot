@@ -49,7 +49,6 @@ object SettingsForm: TSettingsForm
     TabOrder = 0
     ViewStyle = vsReport
     OnDblClick = ListViewDblClick
-    ExplicitHeight = 570
   end
   object Panel1: TPanel
     Left = 0
@@ -60,7 +59,6 @@ object SettingsForm: TSettingsForm
     BevelOuter = bvNone
     ParentBackground = False
     TabOrder = 1
-    ExplicitTop = 570
     object VersionLabel: TLabel
       Left = 0
       Top = 0
