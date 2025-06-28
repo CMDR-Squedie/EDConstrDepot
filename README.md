@@ -41,14 +41,6 @@ Features:
 - manage your colonies, colony candidates and colonisation targets [details](https://github.com/CMDR-Squedie/EDConstrDepot/wiki#colonies)
 - task groups - group markets and depots by context (personal projects/location in galaxy etc.)
 
-Indicators:
--  □/■ - commodity available at current (or recent) market; partial/full supply*
--  ○/● - commodity available at best market (auto-selected, see below); partial/full supply*
--  △/▲ - commodity available at secondary market (user or auto-selected); partial/full supply*
--  ✓ - commodity in cargo, exact match with construction request
--  (+) - commodity in cargo, hauling more than requested 
-
-(*) Full supply is either full ship capacity supply or full request supply, see Settings.
 
 Market score for market auto-selection is generally based on how many requested commodities are available. There are additional score modifiers:
 - bonus for market in current system
