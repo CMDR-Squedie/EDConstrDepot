@@ -41,22 +41,7 @@ Features:
 - manage your colonies, colony candidates and colonisation targets [details](https://github.com/CMDR-Squedie/EDConstrDepot/wiki#colonies)
 - task groups - group markets and depots by context (personal projects/location in galaxy etc.)
 
-
-Market score for market auto-selection is generally based on how many requested commodities are available. There are additional score modifiers:
-- bonus for market in current system
-- bonus for tiny quantity depot request (quickly clearing the request list is favoured)
-- bonus for favorite market
-- penalty for low stock (stock below request and capacity)
-- penalty for under capacity flight (total quantity)
-- bonus/penalty for distance from star
-- penalty for extra jumps there or back
-
-
-Advanced Features (.ini file only):
- - display multiple overlays, each with its own construction depot. Either run multiple copies of the app, or use **AllowMoreWindows** option and New Window command (this option is experimental and will not save your workspace though).
- - run the app on a PC tablet next to your main screen (old tablets with Win10 32-bit will do). You need to share your ED Saved Games folder for that and use **JournalDir** option to enter full UNC path.
- - if you are only interested in current constructions tracking, you can speed up application launch and/or skip long finished constructions, change the **IncludeFinished** and **JournalStart** options in the .ini file as shown in the template file.
- - if you copy system name in game's Galaxy Map, you can see your own comments about the system (if any); use **ScanClipboard** option to activate
+More in [Wiki](https://github.com/CMDR-Squedie/EDConstrDepot/wiki)
 
 o7, CMDRs!
 
