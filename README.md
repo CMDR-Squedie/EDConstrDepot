@@ -27,18 +27,18 @@ Features:
 - indicators for hauling under capacity or hauling more than required (for absent-minded people like myself :)
 - simulate Fleet Carrier Purchase orders as construction depot; compare orders with construction needs
 - simulate Fleet Carrier Sell offers as available cargo
-- group several active constructions as one (useful for multiple low quantity requests)
+- group several active constructions as one (useful for FC loading or multiple low quantity requests)
 - show original request for finished constructions
-- comments/custom text for construction depots and FCs
 - suggest best markets for current request; add markets to Ignored/Favorite list
 - select market to see commodity availability (double-click market name in market list)
-- select commodity to see which markets supply it (double click on commodity name)
+- select commodity to see which markets supply it (double click on commodity name in overlay window)
 - list of visited markets, with their economies
-- list of commodities sold in market
+- list of commodities sold in market (double-click market economy)
 - track colony market history with snapshots (manual or automatic)
-- compare markets or snapshots of same market (eg. after strong/weak links were added) [details](https://github.com/CMDR-Squedie/EDConstrDepot/wiki#compare-markets-and-market-history)
+- compare markets, or snapshots of same market (eg. after strong/weak links were added) [details](https://github.com/CMDR-Squedie/EDConstrDepot/wiki#compare-markets-and-market-history)
 - delivery time left, average dock-to-dock time and most recent time; delivery history with recent markets [details](https://github.com/CMDR-Squedie/EDConstrDepot/wiki#delivery-times)
 - manage your colonies, colony candidates and colonisation targets [details](https://github.com/CMDR-Squedie/EDConstrDepot/wiki#colonies)
+- add planned constructions and check construction points and other system statistics
 - task groups - group markets and depots by context (personal projects/location in galaxy etc.)
 
 More in [Wiki](https://github.com/CMDR-Squedie/EDConstrDepot/wiki)
