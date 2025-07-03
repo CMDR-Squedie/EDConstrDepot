@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls, DataSource, Settings,
-  System.StrUtils, System.DateUtils;
+  System.StrUtils, System.DateUtils, Vcl.ComCtrls;
 
 type
   TStationInfoForm = class(TForm)
@@ -71,6 +71,11 @@ type
     NextButton: TButton;
     PrimaryCheck: TCheckBox;
     Label12: TLabel;
+    Label14: TLabel;
+    BuildOrderEdit: TEdit;
+    BuildOrderUpDown: TUpDown;
+    Label15: TLabel;
+    LayoutCombo: TComboBox;
     procedure FormCreate(Sender: TObject);
     procedure TypeComboChange(Sender: TObject);
     procedure OKButtonClick(Sender: TObject);
@@ -85,6 +90,8 @@ type
     procedure PrimaryCheckClick(Sender: TObject);
     procedure Label2Click(Sender: TObject);
     procedure Label12Click(Sender: TObject);
+    procedure BuildOrderUpDownClick(Sender: TObject; Button: TUDBtnType);
+    procedure LayoutComboChange(Sender: TObject);
   private
     { Private declarations }
     FCurrentStation: TBaseMarket;
@@ -97,6 +104,7 @@ type
     procedure NewConstruction(sys: TStarSystem; body: string);
     procedure AddLinkedConstruction(m: TMarket);
     procedure ApplySettings;
+    procedure RestoreAndShow;
     property CurrentStation: TBaseMarket read FCurrentStation;
   end;
 
@@ -108,6 +116,12 @@ implementation
 {$R *.dfm}
 
 uses SystemInfo, Main;
+
+procedure TStationInfoForm.RestoreAndShow;
+begin
+  if WindowState = wsMinimized then WindowState := wsNormal;
+  Show;
+end;
 
 procedure TStationInfoForm.BodyComboChange(Sender: TObject);
 begin
@@ -140,7 +154,7 @@ begin
       begin
         CreateGUID(UUID);
         FCurrentStation.MarketId := GUIDToString(UUID);
-        FCurrentStation.FirstUpdate := DateToISO8601(Now);
+  //      FCurrentStation.FirstUpdate := DateToISO8601(Now);
   //      FCurrentStation.Status := '{}';
         DataSrc.Constructions.AddObject(FCurrentStation.MarketID,FCurrentStation);
       end;
@@ -166,7 +180,9 @@ begin
       if FCurrentStation.StationName <> NameEdit.Text then
       begin
         FCurrentStation.StationName := NameEdit.Text;
-  //      FCurrentStation.NameModified := True;
+        FCurrentStation.NameModified := False;
+        if FCurrentStation.StationName <> '' then
+          FCurrentStation.NameModified := True;
       end;
 
       if FCurrentStation.GetComment <> CommentEdit.Text then
@@ -175,7 +191,12 @@ begin
         DataSrc.UpdateMarketComment(FCurrentStation.MarketID,FCurrentStation.Comment);
       end;
 
+      if FCurrentStation.BuildOrder <> StrToIntDef(BuildOrderEdit.Text,0) then
+        FCurrentStation.BuildOrder := StrToIntDef(BuildOrderEdit.Text,0) mod 100000;
+
+
       FCurrentStation.Body := Trim(LeftStr(BodyCombo.Text,20));
+      FCurrentStation.Layout := LayoutCombo.Text;
       if FCurrentStation.DistFromStar = 0 then
       begin
         b := FCurrentSystem.BodyByName(FCurrentStation.Body);
@@ -242,6 +263,11 @@ begin
     TRadioButton(FocusControl).Checked := not TRadioButton(FocusControl).Checked;
 end;
 
+procedure TStationInfoForm.LayoutComboChange(Sender: TObject);
+begin
+  FDataChanged := True;
+end;
+
 procedure TStationInfoForm.LinkedStationComboChange(Sender: TObject);
 begin
   FDataChanged := True;
@@ -255,6 +281,7 @@ end;
 procedure TStationInfoForm.SetStation(st: TBaseMarket);
 var i: Integer;
     m: TMarket;
+    ct: TConstructionType;
 begin
   if (st is TConstructionDepot) and TConstructionDepot(st).Simulated then
   begin
@@ -265,6 +292,8 @@ begin
   FCurrentSystem := st.GetSys;
   NameEdit.Text := FCurrentStation.StationName;
   CommentEdit.Text := FCurrentStation.GetComment;
+  BuildOrderEdit.Text := IntToStr(FCurrentStation.BuildOrder);
+  try BuildOrderUpDown.Position := FCurrentStation.BuildOrder; except end;
   BodyCombo.Text := FCurrentStation.Body;
   BodyCombo.Items.Clear;
   if FCurrentStation.GetSys <> nil then
@@ -273,6 +302,7 @@ begin
       begin
         BodyCombo.Items.AddObject(BodyName.PadRight(20,' ') + BodyType,FCurrentStation.GetSys.Bodies.Objects[i]);
       end;
+  LayoutCombo.Text := FCurrentStation.Layout;
 
   TypeCombo.ItemIndex := TypeCombo.Items.IndexOfObject(
     DataSrc.ConstructionTypes.TypeById[FCurrentStation.ConstructionType]);
@@ -438,8 +468,18 @@ begin
         EstHaulLabel.Caption := EstHaulLabel.Caption + ' / ' + IntToStr(ActualHaul);
 
   ReqLabel.Caption := t.Requirements;
+  LayoutCombo.Items.CommaText := t.Layouts;
   dummy.Free;
   FDataChanged := True;
+end;
+
+procedure TStationInfoForm.BuildOrderUpDownClick(Sender: TObject;
+  Button: TUDBtnType);
+begin
+  if Button = btNext then
+    BuildOrderEdit.Text := (StrToIntDef(BuildOrderEdit.Text,0) + 1).ToString
+  else
+    BuildOrderEdit.Text := (StrToIntDef(BuildOrderEdit.Text,0) - 1).ToString;
 end;
 
 procedure TStationInfoForm.ApplySettings;
@@ -447,7 +487,7 @@ var i,fs: Integer;
     fn: string;
     clr: TColor;
 begin
-  if not Opts.Flags['MarketsDarkMode'] then
+  if not Opts.Flags['DarkMode'] then
   begin
     Color := clSilver;
     Font.Color := clBlack;

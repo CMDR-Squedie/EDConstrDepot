@@ -76,6 +76,11 @@ begin
   MaxIdleDockTime := Int['MaxIdleDockTime'];
   DockToUndockTime := Int['DockToUndockTime'];
   MaxColonyDist := Int['MaxColonyDist'];
+  if Values['MarketsDarkMode'] <> '' then
+  begin
+    Values['DarkMode'] := Values['MarketsDarkMode'];
+    Values['MarketsDarkMode'] := '';
+  end;
 end;
 
 procedure TSettings.Save;
@@ -133,7 +138,7 @@ begin
   FDefaults.Values['TrackMarkets'] := '1';
   FDefaults.Values['AutoSnapshots'] := '0';
   FDefaults.Values['AllowMoreWindows'] := '0';
-  FDefaults.Values['MarketsDarkMode'] := '0';
+  FDefaults.Values['DarkMode'] := '0';
   FDefaults.Values['AnyMarketAsDepot'] := '0'; //this enables using any market type as FC
   FDefaults.Values['BaseWidthText'] := '00000';
   FDefaults.Values['FontGlow'] := '48';

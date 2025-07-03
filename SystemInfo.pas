@@ -5,7 +5,8 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, Winapi.CommCtrl, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.ComCtrls,
-  DataSource, System.JSON, System.StrUtils, Vcl.Menus,  Vcl.Imaging.pngimage, Winapi.ShellAPI;
+  DataSource, System.Types, System.Math, System.JSON, System.StrUtils, Vcl.Menus,  Vcl.Imaging.pngimage,
+  Winapi.ShellAPI;
 
 type
   TSystemInfoForm = class(TForm, IEDDataListener)
@@ -34,7 +35,7 @@ type
     DeleteConstructionMenuItem: TMenuItem;
     N3: TMenuItem;
     MarketInfoMenuItem: TMenuItem;
-    Panel2: TPanel;
+    InfoPanel2: TPanel;
     Label1: TLabel;
     SecLabel: TLabel;
     Label2: TLabel;
@@ -67,6 +68,45 @@ type
     QuickAddAsFinishedMenuItem: TMenuItem;
     QuickAddAsPlannedMenuItem: TMenuItem;
     QuickAddAsInProgressMenuItem: TMenuItem;
+    ReloadPictureMenuItem: TMenuItem;
+    Label10: TLabel;
+    InduLinksLabel1: TLabel;
+    HighLinksLabel1: TLabel;
+    RefiLinksLabel1: TLabel;
+    AgriLinksLabel1: TLabel;
+    ExtrLinksLabel1: TLabel;
+    TourLinksLabel1: TLabel;
+    MiliLinksLabel1: TLabel;
+    N4: TMenuItem;
+    AddSignalsSubMenu: TMenuItem;
+    AddBioSignalsMenuItem: TMenuItem;
+    AddGeoSignalsMenuItem: TMenuItem;
+    N5: TMenuItem;
+    Reset1: TMenuItem;
+    SlotsLabel: TLabel;
+    SetAsActiveMenuItem: TMenuItem;
+    ResourceReserveSubMenu: TMenuItem;
+    PristineReserveMenuItem: TMenuItem;
+    Major1: TMenuItem;
+    Low1: TMenuItem;
+    Depleted1: TMenuItem;
+    N6: TMenuItem;
+    Reset2: TMenuItem;
+    FiltersPanel: TPanel;
+    Label9: TLabel;
+    PlannedCheck: TCheckBox;
+    FilterEdit: TComboBox;
+    ClearFilterButton: TButton;
+    BodiesCheck: TCheckBox;
+    StationsCheck: TCheckBox;
+    InProgressCheck: TCheckBox;
+    FinishedCheck: TCheckBox;
+    EconomiesCheck: TCheckBox;
+    Label12: TLabel;
+    FiltersCheck: TCheckBox;
+    Label13: TLabel;
+    ShowUpLinksCheck: TCheckBox;
+    Label14: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure EDSMScanButtonClick(Sender: TObject);
@@ -100,6 +140,20 @@ type
     procedure ListViewMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure SetStationTypeMenuItemClick(Sender: TObject);
+    procedure ReloadPictureMenuItemClick(Sender: TObject);
+    procedure AddBioSignalsMenuItemClick(Sender: TObject);
+    procedure SetAsActiveMenuItemClick(Sender: TObject);
+    procedure SlotsLabelClick(Sender: TObject);
+    procedure PristineReserveMenuItemClick(Sender: TObject);
+    procedure ClearFilterButtonClick(Sender: TObject);
+    procedure BodiesCheckClick(Sender: TObject);
+    procedure EconomiesCheckClick(Sender: TObject);
+    procedure FiltersCheckClick(Sender: TObject);
+    procedure FilterEditChange(Sender: TObject);
+    procedure Label12Click(Sender: TObject);
+    procedure Label13Click(Sender: TObject);
+    procedure ShowUpLinksCheckClick(Sender: TObject);
+    procedure Label14Click(Sender: TObject);
   private
     { Private declarations }
     FCurrentSystem: TStarSystem;
@@ -109,6 +163,8 @@ type
     FSelectedObj: TObject;
     FListViewVScrollPos: Integer;
     FClickedColumn: Integer;
+    FShowEconomies: Boolean;
+    FHoldUpdate: Boolean;
     procedure TryPasteImage;
     procedure SavePicture;
     procedure SaveData;
@@ -116,12 +172,20 @@ type
     procedure SaveSelection;
     procedure RestoreSelection;
     function TryOpenMarket: Boolean;
+    procedure ResolveConstructions(orgcl: TList);
+    procedure GetSystemLinks(cl: TList; var weakLinks: array of TEconomyArray;
+      var totWeakLinks: TEconomyArray);
+    procedure ResolveBodyLinks(b: TSystemBody; var surfLinks,orbLinks,bwLinks: TEconomyArray);
+    procedure ResetFilters;
+    procedure BeginFilterChange;
+    procedure EndFilterChange;
   public
     { Public declarations }
     procedure SetSystem(s: TStarSystem);
     procedure ApplySettings;
     procedure OnEDDataUpdate;
     procedure UpdateView;
+    procedure RestoreAndShow;
     property CurrentSystem: TStarSystem read FCurrentSystem;
     function GetNextConstruction(bm: TBaseMarket): TBaseMarket;
   end;
@@ -134,8 +198,42 @@ implementation
 {$R *.dfm}
 
 uses Markets, Main, Settings, SystemPict, Colonies, Clipbrd, StationInfo,
-  MarketInfo;
+  MarketInfo, Splash;
 
+procedure TSystemInfoForm.BeginFilterChange;
+begin
+  FHoldUpdate := True;
+
+  //this is only needed because changing checkboxes immediately trigger their Clicked event
+  //not the case with edits
+end;
+
+procedure TSystemInfoForm.EndFilterChange;
+begin
+  FHoldUpdate := false;
+//  UpdateItems;
+end;
+
+procedure TSystemInfoForm.ResetFilters;
+begin
+  BeginFilterChange;
+  try
+    FilterEdit.Text := '';
+    BodiesCheck.Checked := True;
+    StationsCheck.Checked := True;
+    FinishedCheck.Checked := True;
+    InProgressCheck.Checked := True;
+    PlannedCheck.Checked := True;
+  finally
+    EndFilterChange;
+  end;
+end;
+
+procedure TSystemInfoForm.RestoreAndShow;
+begin
+  if WindowState = wsMinimized then WindowState := wsNormal;
+  Show;
+end;
 
 function TSystemInfoForm.GetNextConstruction(bm: TBaseMarket): TBaseMarket;
 var i: Integer;
@@ -162,6 +260,12 @@ begin
 end;
 
 
+procedure TSystemInfoForm.ClearFilterButtonClick(Sender: TObject);
+begin
+  FilterEdit.Text := '';
+  UpdateView;
+end;
+
 procedure TSystemInfoForm.ClearPictureMenuItemClick(Sender: TObject);
 begin
   if FCurrentSystem = nil then Exit;
@@ -175,6 +279,11 @@ begin
   NoPictureLabel.Visible := True;
   if ColoniesForm.Visible then
     ColoniesForm.UpdateItems;
+end;
+
+procedure TSystemInfoForm.BodiesCheckClick(Sender: TObject);
+begin
+  UpdateView;
 end;
 
 procedure TSystemInfoForm.CommentEditChange(Sender: TObject);
@@ -224,6 +333,13 @@ begin
     DataSrc.RemoveConstruction(cd);
     FCurrentSystem.Save;
   end;
+end;
+
+procedure TSystemInfoForm.EconomiesCheckClick(Sender: TObject);
+begin
+  InfoPanel2.Height := 96 - InfoPanel2.Height;
+  FShowEconomies := not FShowEconomies;
+  UpdateView;
 end;
 
 procedure TSystemInfoForm.EditPictureMenuItemClick(Sender: TObject);
@@ -291,6 +407,34 @@ begin
   end;
 end;
 
+procedure TSystemInfoForm.SetAsActiveMenuItemClick(Sender: TObject);
+var m: TMarket;
+begin
+  if ListView.Selected = nil then Exit;
+
+  if  TObject(ListView.Selected.Data) is TConstructionDepot then
+    with TConstructionDepot(ListView.Selected.Data) do
+      if not Finished then
+      begin
+        SplashForm.ShowInfo('Switching construction depot...',1000);
+        EDCDForm.SetDepot(MarketId,false);
+      end;
+
+  m := nil;
+  if TObject(ListView.Selected.Data) is TMarket then
+    m := TMarket(ListView.Selected.Data);
+  if TObject(ListView.Selected.Data) is TConstructionDepot then
+  begin
+    m := DataSrc.MarketFromID(TConstructionDepot(ListView.Selected.Data).LinkedMarketID);
+  end;
+  if m <> nil then
+    begin
+      SplashForm.ShowInfo('Switching market...',1000);
+      EDCDForm.SetSecondaryMarket(m.MarketId);
+    end;
+
+end;
+
 procedure TSystemInfoForm.SetStationTypeMenuItemClick(Sender: TObject);
 var cd: TConstructionDepot;
 begin
@@ -311,6 +455,41 @@ var mf,cdf,bf: Boolean;
     mitem: TMenuItem;
     ct: TConstructionType;
     matchOrbital: Boolean;
+    torb,tsur,s: string;
+
+  procedure buildSubMenu(loc: string; subMenu: TMenuItem);
+  var t: string;
+      i: Integer;
+      mitem: TMenuItem;
+  begin
+    t := '';
+    mitem := TMenuItem.Create(subMenu);
+    mitem.Caption := '                     TIER 1';
+    mitem.Enabled := False;
+    subMenu.Add(mitem);
+    for i := 0 to sl.Count - 1 do
+    begin
+      if TConstructionType(sl.Objects[i]).Location = loc then
+      begin
+        if (t <> '') and (t <> TConstructionType(sl.Objects[i]).Tier) then
+        begin
+          mitem := TMenuItem.Create(subMenu);
+          mitem.Caption := '-';
+          subMenu.Add(mitem);
+          mitem := TMenuItem.Create(subMenu);
+          mitem.Caption := '                     TIER ' + TConstructionType(sl.Objects[i]).Tier;
+          mitem.Enabled := False;
+          subMenu.Add(mitem);
+        end;
+        mitem := TMenuItem.Create(subMenu);
+        mitem.Caption := sl[i];
+        mitem.Tag := DataSrc.ConstructionTypes.IndexOfObject(sl.Objects[i]);
+        mitem.OnClick := QuickAddStationMenuItemClick;
+        subMenu.Add(mitem);
+        t := TConstructionType(sl.Objects[i]).Tier;
+      end;
+    end;
+  end;
 begin
   mf := False;
   cdf := False;
@@ -322,36 +501,30 @@ begin
     bf := TObject(ListView.Selected.Data) is TSystemBody;
   end;
   AddConstructionMenuItem.Enabled := bf or mf;
+  AddSignalsSubMenu.Enabled := bf;
+  ResourceReserveSubMenu.Enabled := bf;
   QuickAddOrbitalSubMenu.Enabled := bf;
   QuickAddSurfaceSubMenu.Enabled := bf;
   SetTypeSubMenu.Enabled := cdf;
   DeleteConstructionMenuItem.Enabled := cdf;
   MarketInfoMenuItem.Enabled := mf or
     (cdf and (TConstructionDepot(ListView.Selected.Data).LinkedMarketId <> ''));
+  SetAsActiveMenuItem.Enabled := mf or cdf;
 
   sl := TStringList.Create;
   DataSrc.ConstructionTypes.PopulateList(sl);
+  for i := 0 to sl.Count - 1 do
+    sl[i] := TConstructionType(sl.Objects[i]).Tier.PadLeft(3,' ') +
+      //IntToStr(TConstructionType(sl.Objects[i]).EstCargo).PadLeft(9,'0') +
+      sl[i];
   sl.Sort;
+  for i := 0 to sl.Count - 1 do
+    sl[i] := Copy(sl[i],4,200);
 
   if QuickAddOrbitalSubMenu.Count = 0 then
   begin
-    for i := 0 to sl.Count - 1 do
-    begin
-      if TConstructionType(sl.Objects[i]).Location = 'Orbital' then
-      begin
-        mitem := TMenuItem.Create(QuickAddOrbitalSubMenu);
-        QuickAddOrbitalSubMenu.Add(mitem);
-      end
-      else
-      begin
-        mitem := TMenuItem.Create(QuickAddSurfaceSubMenu);
-        QuickAddSurfaceSubMenu.Add(mitem);
-
-      end;
-      mitem.Caption := sl[i];
-      mitem.Tag := DataSrc.ConstructionTypes.IndexOfObject(sl.Objects[i]);
-      mitem.OnClick := QuickAddStationMenuItemClick;
-    end;
+    buildSubMenu('Orbital',QuickAddOrbitalSubMenu);
+    buildSubMenu('Surface',QuickAddSurfaceSubMenu);
   end;
 
   SetTypeSubMenu.Clear;
@@ -402,6 +575,29 @@ begin
   SavePictureMenuItem.Enabled := picf;
   EditPictureMenuItem.Enabled := picf;
   FullPictureMenuItem.Enabled := picf;
+end;
+
+procedure TSystemInfoForm.PristineReserveMenuItemClick(Sender: TObject);
+begin
+  if ListView.Selected = nil then Exit;
+  if TObject(ListView.Selected.Data) is TSystemBody then
+    with TSystemBody(ListView.Selected.Data) do
+    begin
+      FeaturesModified := True;
+      case TMenuItem(Sender).Tag of
+        0: ReserveLevel := 'Pristine';
+        1: ReserveLevel := 'Major';
+        2: ReserveLevel := 'Low';
+        3: ReserveLevel := 'Depleted';
+        -1:
+          begin
+            ReserveLevel := '';
+          end;
+      end;
+      FCurrentSystem.ResetEconomies;
+      FCurrentSystem.Save;
+    end;
+  UpdateView;
 end;
 
 procedure TSystemInfoForm.TryPasteImage;
@@ -466,6 +662,17 @@ begin
   UpdateView;
 end;
 
+procedure TSystemInfoForm.FilterEditChange(Sender: TObject);
+begin
+  UpdateView;
+end;
+
+procedure TSystemInfoForm.FiltersCheckClick(Sender: TObject);
+begin
+  FiltersPanel.Visible := not FiltersPanel.Visible;
+  UpdateView;
+end;
+
 procedure TSystemInfoForm.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
   if self <> SystemInfoForm then
@@ -473,16 +680,51 @@ begin
     Action := caFree;
     DataSrc.RemoveListener(self);
   end;
+
+  Opts['System.Left'] := IntToStr(self.Left);
+  Opts['System.Top'] := IntToStr(self.Top);
+  Opts['System.Height'] := IntToStr(self.Height);
+  Opts['System.Width'] := IntToStr(self.Width);
+  Opts.Save;
+
 end;
 
 
 procedure TSystemInfoForm.FormCreate(Sender: TObject);
 begin
   FStartPos.X := -1;
+  InfoPanel2.Height := 32;
   DataSrc.AddListener(self);
   ApplySettings;
+
+  self.Width := StrToIntDef(Opts['System.Width'],self.Width);
+  self.Height := StrToIntDef(Opts['System.Height'],self.Height);
+  self.Left := StrToIntDef(Opts['System.Left'],(Screen.Width-self.Width) div 2);
+  self.Top := StrToIntDef(Opts['System.Top'],(Screen.Height-self.Height) div 2);
+
+  if Opts['Markets.AlphaBlend'] <> '' then
+  begin
+    AlphaBlendValue := StrToIntDef(Opts['Markets.AlphaBlend'],255);
+    AlphaBlend := True;
+  end;
+
 end;
 
+
+procedure TSystemInfoForm.Label12Click(Sender: TObject);
+begin
+  EconomiesCheck.Checked := not EconomiesCheck.Checked;
+end;
+
+procedure TSystemInfoForm.Label13Click(Sender: TObject);
+begin
+  FiltersCheck.Checked := not FiltersCheck.Checked;
+end;
+
+procedure TSystemInfoForm.Label14Click(Sender: TObject);
+begin
+  ShowUpLinksCheck.Checked := not ShowUpLinksCheck.Checked;
+end;
 
 procedure TSystemInfoForm.ListViewClick(Sender: TObject);
 var data: TObject;
@@ -551,7 +793,7 @@ begin
   if ListView.Selected = nil then Exit;
   data := TObject(ListView.Selected.Data);
 
-  if FClickedColumn = 4 then
+  if FClickedColumn = 3 then
     if TryOpenMarket then Exit;
 
   if data is TConstructionDepot then
@@ -629,8 +871,9 @@ begin
 
   FCurrentSystem := s;
 
-  SysImage.Picture := nil;
   ListView.Items.Clear;
+  ResetFilters;
+  SysImage.Picture := nil;
   NoPictureLabel.Visible := s.Architect <> '';
   Scrollbox.HorzScrollBar.Position := 0;
   Scrollbox.VertScrollBar.Position := 0;
@@ -656,16 +899,71 @@ begin
   UpdateView;
 end;
 
+procedure TSystemInfoForm.ShowUpLinksCheckClick(Sender: TObject);
+begin
+  UpdateView;
+end;
+
+procedure TSystemInfoForm.SlotsLabelClick(Sender: TObject);
+var sarr: TStringDynArray;
+    s,orgs: string;
+    i,orbTaken,surfTaken: Integer;
+    ct: TConstructionType;
+begin
+  orbTaken := 0;
+  surfTaken := 0;
+  for i := 0 to DataSrc.Constructions.Count - 1 do
+    with TConstructionDepot(DataSrc.Constructions.Objects[i]) do
+      if not Planned and (StarSystem = FCurrentSystem.StarSystem) then
+      begin
+        ct := GetConstrType;
+        if ct.IsOrbital then
+          Inc(orbTaken)
+        else
+          Inc(surfTaken);
+      end;
+
+
+  orgs := IntToStr(Max(FCurrentSystem.OrbitalSlots - orbTaken,0)) + '/' +
+    IntToStr(Max(FCurrentSystem.SurfaceSlots - surfTaken,0));
+  s := Vcl.Dialogs.InputBox(FCurrentSystem.StarSystem, 'CURRENT FREE Orbital / Surface Slots', orgs);
+  if s <> orgs then
+  begin
+    sarr := SplitString(s,'/');
+    if High(sarr) <> 1 then
+    begin
+      ShowMessage('Invalid slots');
+      Exit;
+    end;
+    FCurrentSystem.OrbitalSlots := StrToIntDef(sarr[0],0) + orbTaken;
+    FCurrentSystem.SurfaceSlots := StrToIntDef(sarr[1],0) + surfTaken;
+    FCurrentSystem.Save;
+    UpdateView;
+  end;
+end;
+
+var _bodyNr: Integer;
 
 procedure TSystemInfoForm.SysImageClick(Sender: TObject);
-//var bmp: TBitmap;
+var bmp: TBitmap;
+    pt: TPoint;
 begin
-{  bmp := TBitmap.Create;
+{
+  bmp := TBitmap.Create;
   bmp.Assign(SysImage.Picture.Graphic);
 
+  pt := Mouse.CursorPos;
+  pt := SysImage.ScreenToClient(pt);
   with bmp.Canvas do
-    TextOut(100,100,'A 1');
-  SysImage.Picture.Bitmap.Assign(bmp);}
+  begin
+    Brush.Color := clBlack;
+    Font := self.Font;
+    TextOut(pt.X,pt.Y,'A ' + _bodyNr.ToString);
+  end;
+  _bodyNr := _bodyNr + 1;
+  SysImage.Picture.Bitmap.Assign(bmp);
+  bmp.Free;
+  }
 end;
 
 procedure TSystemInfoForm.SysImageDblClick(Sender: TObject);
@@ -707,20 +1005,191 @@ begin
   Clipboard.AsText := Copy(SystemAddrLabel.Caption,2,200);
 end;
 
+//assign construction to bodies and find link hubs (ports that accept strong links)
+procedure TSystemInfoForm.ResolveConstructions(orgcl: TList);
+var i,i2: Integer;
+    b,pb: TSystemBody;
+    surfFirstSeq,orbFirstSeq: string;
+    cd: TConstructionDepot;
+    ct: TConstructionType;
+    s: string;
+    remcl: TList;
+begin
+  if FCurrentSystem.Bodies.Count = 0 then Exit;
+
+  remcl := TList.Create;
+  remcl.Assign(orgcl);
+
+  for i := 0 to remcl.Count - 1 do
+    TConstructionDepot(remcl[i]).LinkHub := False;
+
+  for i := 0 to FCurrentSystem.Bodies.Count - 1 do
+  begin
+    b := TSystemBody(FCurrentSystem.Bodies.Objects[i]);
+    if b.Constructions = nil then
+      b.Constructions := TList.Create
+    else
+      b.Constructions.Clear;
+    b.SurfLinkHub := nil;
+    b.OrbLinkHub := nil;
+  end;
+
+  for i := 0 to FCurrentSystem.Bodies.Count - 1 do
+  begin
+    b := TSystemBody(FCurrentSystem.Bodies.Objects[i]);
+    pb := nil; //add constructions to main body c.list as well if rings present
+    if b.IsRing then pb := b.ParentBody;
+    for i2 := remcl.Count - 1 downto 0 do
+      if TConstructionDepot(remcl[i2]).Body = b.BodyName then
+      begin
+        b.Constructions.Add(remcl[i2]);
+        if pb <> nil then pb.Constructions.Add(remcl[i2]);
+        remcl.Delete(i2);
+      end;
+  end;
+
+  //orphans go to main star
+  for i := 0 to remcl.Count - 1 do
+    TSystemBody(FCurrentSystem.Bodies.Objects[0]).Constructions.Add(remcl[i]);
+
+
+  for i := 0 to FCurrentSystem.Bodies.Count - 1 do
+  begin
+    b := TSystemBody(FCurrentSystem.Bodies.Objects[i]);
+    if b.IsRing then continue;
+
+    surfFirstSeq := ''; //build sequence tag
+    orbFirstSeq := '';
+
+    //find body surface and orbital hub for links
+    for i2 := 0 to b.Constructions.Count - 1 do
+    begin
+      cd := TConstructionDepot(b.Constructions[i2]);
+      ct := cd.GetConstrType;
+      if ct <> nil then
+      begin
+        if ct.IsPort then
+        begin
+          s := IntToStr(9 - StrToIntDef(ct.Tier,0)); //higher tier ports go first
+          s := s + IntToStr(cd.BuildOrder).PadLeft(6,'0'); //earlier builds go first
+          s := s + cd.FirstUpdate;
+          if ct.Location = 'Orbital' then
+            if (orbFirstSeq = '') or (s < orbFirstSeq) then
+            begin
+              orbFirstSeq := s;
+              b.OrbLinkHub := cd;
+            end;
+
+          if ct.Location = 'Surface' then
+            if (surfFirstSeq = '') or (s < surfFirstSeq) then
+            begin
+              surfFirstSeq := s;
+              b.SurfLinkHub := cd;
+            end;
+        end;
+
+      end;
+    end;
+    if b.OrbLinkHub <> nil then b.OrbLinkHub.LinkHub := True;
+    if b.SurfLinkHub <> nil then b.SurfLinkHub.LinkHub := True;
+  end;
+  remcl.Free;
+end;
+
+
+procedure TSystemInfoForm.GetSystemLinks(cl: TList; var weakLinks: array of TEconomyArray;
+  var totWeakLinks: TEconomyArray);
+var i,idx: Integer;
+    cd: TConstructionDepot;
+    ct: TConstructionType;
+    s: string;
+    ei: TEconomy;
+    wLink: TEconomyArray;
+begin
+  for i := 0 to cl.Count - 1 do
+  begin
+    cd := TConstructionDepot(cl[i]);
+    //ports that accept links (link hubs) do not generate weak links
+    //ports that are only linking to other ports work like facilities
+    if cd.LinkHub then continue;
+    ct := cd.GetConstrType;
+    if ct <> nil then
+    begin
+      idx := 0;
+      if not cd.Finished then idx := 1;
+      if cd.Planned then idx := 2;
+      wLink := DataSrc.EconomySets.GetWeakLinkEconomies(cd);
+      AddEconomies(weakLinks[idx],wLink);
+      AddEconomies(totWeakLinks,wLink);
+    end;
+  end;
+end;
+
+procedure TSystemInfoForm.ResolveBodyLinks(b: TSystemBody; var surfLinks,orbLinks,bwLinks: TEconomyArray);
+var i: Integer;
+    cd: TConstructionDepot;
+    ct: TConstructionType;
+    s: string;
+    ei: TEconomy;
+    cLink,wLink: TEconomyArray;
+begin
+  //linkTotal collects all settlement/hub/plan.outpost links,
+  //these apply to both surface and orbital port
+  ClearEconomies(surfLinks);
+  ClearEconomies(orbLinks);
+  ClearEconomies(bwLinks);
+
+  //sum up body weak links
+  for i := 0 to b.Constructions.Count - 1 do
+  begin
+    cd := TConstructionDepot(b.Constructions[i]);
+    if cd.LinkHub then continue;
+    ct := cd.GetConstrType;
+    if ct <> nil then
+      AddEconomies(bwLinks,DataSrc.EconomySets.GetWeakLinkEconomies(cd));
+  end;
+
+  //find strong links for surface and orbital link hub
+  for i := 0 to b.Constructions.Count - 1 do
+    if b.Constructions[i] <> b.OrbLinkHub then
+    begin
+      cd := TConstructionDepot(b.Constructions[i]);
+      ct := cd.GetConstrType;
+      if ct <> nil then
+      begin
+        cLink := DataSrc.EconomySets.GetLinkEconomies(cd,b);
+
+        for ei := Low(TEconomy) to High(TEconomy) do
+        begin
+          orbLinks[ei] := orbLinks[ei] + cLink[ei];
+
+          if b.Constructions[i] <> b.SurfLinkHub then
+            //this is tricky, orbital installations influence surface port
+            //only if there is no orbital port
+            if not ct.IsOrbital or (b.OrbLinkHub = nil) then
+              surfLinks[ei] := surfLinks[ei] + cLink[ei];
+        end;
+      end;
+    end;
+
+end;
+
 procedure TSystemInfoForm.UpdateView;
 var  i,i2,idx,cp2idx,cp3idx,curCol: Integer;
-     s: string;
+     s,s2: string;
      item: TListItem;
      sl,t23sl: TStringList;
-     ml: TList;
+     cl,bcl,gcl: TList;
      b: TSystemBody;
      bm: TBaseMarket;
+     cd,cd2: TConstructionDepot;
      m: TMarket;
      ct: TConstructionType;
-     listUnassigned: Boolean;
      t2penalty,t3penalty: Integer;
      colMaxLen: array [0..100] of Integer;
      colMaxTxt: array [0..100] of string;
+     filters: Boolean;
+     fs: string;
 
      seclev: array [0..2] of Integer;
      devlev: array [0..2] of Integer;
@@ -730,6 +1199,16 @@ var  i,i2,idx,cp2idx,cp3idx,curCol: Integer;
      cp2: array [0..2] of Integer;
      cp3: array [0..2] of Integer;
      techBonus: Integer;
+     weakLinks: array [0..3] of TEconomyArray;
+     totWeakLinks: TEconomyArray;
+     orbSlotsTaken: array [0..2] of Integer;
+     surfSlotsTaken: array [0..2] of Integer;
+     orbFree,surfFree: Integer;
+     surfLinkHub,orbLinkHub: TConstructionDepot;
+     cEconomies,orbLinks,surfLinks,wLinks,bwLinks: TEconomyArray;
+     curEco,calcEco: string;
+     ei: TEconomy;
+     eb: TSystemBody;
 
   procedure addCaption(s: string);
   var ln: Integer;
@@ -770,7 +1249,83 @@ var  i,i2,idx,cp2idx,cp3idx,curCol: Integer;
      end;
      lab.Caption := s;
    end;
+
+   procedure dispLinks(ei: TEconomy);
+   var lab: TLabel;
+       s: string;
+       i: Integer;
+       wl: array [0..2] of Extended;
+       etyp: string;
+   begin
+     etyp := LeftStr(cEconomyNames[ei],4);
+     lab := TLabel(FindComponent(etyp + 'LinksLabel1'));
+     if lab = nil then Exit;
+     if lab.Tag = 0 then lab.Tag := lab.Color;
+     lab.Color := lab.Tag;
+     lab.Font.Color := clBlack;
+//     if wl[0] = 0 then
+//       lab.Color := lab.Color + $202020;
+     for i := 0 to 2 do
+       wl[i] := weakLinks[i][ei];
+     if wl[0]+wl[1]+wl[2] = 0 then
+     begin
+       lab.Color := clGray;
+       lab.Font.Color := clSilver;
+     end;
+     if wl[0] = 0 then
+       s := '--'
+     else
+       s := FloatToStrF(wl[0],ffFixed,7,2,JSONFrmt);
+
+     if (wl[1] <> 0) or (wl[2] <> 0) then
+     begin
+       if wl[0]+wl[1] = 0 then
+         s := s + ' (--'
+       else
+         s := s + ' (' + FloatToStrF(wl[0]+wl[1],ffFixed,7,2,JSONFrmt);
+       if wl[2] <> 0 then
+         s := s + '/' + FloatToStrF(wl[0]+wl[1]+wl[2],ffFixed,7,2,JSONFrmt);
+       s := s + ')';
+     end;
+     lab.Caption := etyp + ': ' + s;
+   end;
+
+  function CheckFilter: Boolean;
+  var i: Integer;
+  begin
+    Result := True;
+    if not FiltersCheck.Checked then Exit;
+
+    if not BodiesCheck.Checked then
+      if TObject(item.Data) is TSystemBody then Result := False;
+    if not StationsCheck.Checked then
+      if TObject(item.Data) is TBaseMarket then Result := False;
+    if Result then
+      if TObject(item.Data) is TConstructionDepot then
+      with TConstructionDepot(item.Data) do
+      begin
+        if Finished and not FinishedCheck.Checked then Result := False;
+        if InProgress and not InProgressCheck.Checked then Result := False;
+        if Planned and not PlannedCheck.Checked then Result := False;
+      end;
+
+    if Result and (fs <> '') then
+    begin
+      Result := False;
+      if Pos(fs,LowerCase(item.Caption)) > 0 then
+        Result := true
+      else
+        for i := 0 to item.SubItems.Count - 1 do
+          if Pos(fs,LowerCase(item.SubItems[i])) > 0 then
+          begin
+            Result := true;
+            break;
+          end;
+    end;
+  end;
+
 begin
+  if FHoldUpdate then Exit;
   if FCurrentSystem = nil then Exit;
   SaveSelection;
 
@@ -780,8 +1335,18 @@ begin
     colMaxTxt[i] := ListView.Columns[i].Caption;
   end;
 
+  fs := LowerCase(FilterEdit.Text);
+  filters := FiltersCheck.Checked;
+
   ListView.Items.BeginUpdate;
   try
+
+    cl := TList.Create; //system constructions
+    sl := TStringList.Create; //orphan market ids
+    bcl := TList.Create; //body constructions
+    gcl := TList.Create; //body group constructions (body + rings, for links resolution)
+    t23sl := TStringList.Create; //list of t2/t3 stations sorted by finish date/build order
+
     ListView.Items.Clear;
 
     SystemNameLabel.Caption := FCurrentSystem.StarSystem;
@@ -805,6 +1370,15 @@ begin
           PrimaryLabel.Caption := '(T2/T3 primary)';
       end;
     end;
+    PrimaryLabel.Hint := 'T2/T3 Port Order:' + Chr(13);
+
+    for i := 0 to 2 do
+    begin
+      ClearEconomies(weakLinks[i]);
+      orbSlotsTaken[i] := 0;
+      surfSlotsTaken[i] := 0;
+    end;
+    ClearEconomies(totWeakLinks);
 
     for i := 0 to 2 do
     begin
@@ -816,72 +1390,77 @@ begin
     end;
     techBonus := 35;
 
-    PrimaryLabel.Hint := 'T2/T3 Port Order:' + Chr(13);
-
-    ml := TList.Create;
-    sl := TStringList.Create; //orphan market ids
-    t23sl := TStringList.Create; //list of t2/t3 stations sorted by finish date
+    //get all system constructions
     for i := 0 to DataSrc.Constructions.Count - 1 do
       with TConstructionDepot(DataSrc.Constructions.Objects[i]) do
         if StarSystem = FCurrentSystem.StarSystem then
           if not Simulated and (StationType <> 'FleetCarrier') then
           begin
-            ct := GetConstrType;
-            if ct <> nil then
-            begin
-              idx := 0;
-              if not Finished then idx := 1;
-              if Planned then idx := 2;
-              seclev[idx] := seclev[idx] + ct.SecLev;
-              devlev[idx] := devlev[idx] + ct.DevLev;
-              techlev[idx] := techlev[idx] + ct.TechLev;
-              wealthlev[idx] := wealthlev[idx] + ct.WealthLev;
-              livlev[idx] := livlev[idx] + ct.StdLivLev;
-
-
-              //primary port has no CP cost
-              if MarketId = FCurrentSystem.PrimaryPortId then
-              begin
-                if ct.CP2 > 0 then cp2[idx] := cp2[idx] + ct.CP2;
-                if ct.CP3 > 0 then cp3[idx] := cp3[idx] + ct.CP3;
-              end
-              else
-              begin
-                cp2idx := idx;
-                cp3idx := idx;
-               //started constructions already use up CPs
-                if idx = 1 then
-                begin
-                  if ct.CP2 < 0 then cp2idx := 0;
-                  if ct.CP3 < 0 then cp3idx := 0;
-                end;
-                cp2[cp2idx] := cp2[cp2idx] + ct.CP2;
-                cp3[cp3idx] := cp3[cp3idx] + ct.CP3;
-              end;
-
-              if ct.Tier >= '2' then
-                if (ct.Category = 'Starport') or (ct.Category = 'Planetary Port') then
-                begin
-                  techlev[idx] := techlev[idx] + techBonus;
-                  techBonus := 0;
-
-                  if MarketId <> FCurrentSystem.PrimaryPortId then
-                  begin
-                    s := 'B';
-                    if Status = '' then s := 'A'; //built before Updated 2 come first?
-                    if not Finished then s := 'Y';
-                    if Planned then s := 'Z';
-                    s := s + FirstUpdate;
-                    t23sl.AddObject(s,DataSrc.Constructions.Objects[i]);
-                  end
-                  else
-                    PrimaryLabel.Hint := PrimaryLabel.Hint + StationName + ' (primary)' + Chr(13);
-                end;
-            end;
-
-            ml.Add(DataSrc.Constructions.Objects[i]);
+            cl.Add(DataSrc.Constructions.Objects[i]);
             if LinkedMarketId <> '' then sl.Add(LinkedMarketId);
           end;
+
+    for i := 0 to cl.Count - 1 do
+      with TConstructionDepot(cl[i]) do
+      begin
+        ct := GetConstrType;
+        if ct <> nil then
+        begin
+          idx := 0;
+          if not Finished then idx := 1;
+          if Planned then idx := 2;
+          seclev[idx] := seclev[idx] + ct.SecLev;
+          devlev[idx] := devlev[idx] + ct.DevLev;
+          techlev[idx] := techlev[idx] + ct.TechLev;
+          wealthlev[idx] := wealthlev[idx] + ct.WealthLev;
+          livlev[idx] := livlev[idx] + ct.StdLivLev;
+
+          if ct.IsOrbital then
+            orbSlotsTaken[idx] := orbSlotsTaken[idx] + 1
+          else
+            surfSlotsTaken[idx] := surfSlotsTaken[idx] + 1;
+
+          //primary port has no CP cost
+          if MarketId = FCurrentSystem.PrimaryPortId then
+          begin
+            if ct.CP2 > 0 then cp2[idx] := cp2[idx] + ct.CP2;
+            if ct.CP3 > 0 then cp3[idx] := cp3[idx] + ct.CP3;
+          end
+          else
+          begin
+            cp2idx := idx;
+            cp3idx := idx;
+           //started constructions already use up CPs
+            if idx = 1 then
+            begin
+              if ct.CP2 < 0 then cp2idx := 0;
+              if ct.CP3 < 0 then cp3idx := 0;
+            end;
+            cp2[cp2idx] := cp2[cp2idx] + ct.CP2;
+            cp3[cp3idx] := cp3[cp3idx] + ct.CP3;
+          end;
+
+          if ct.Tier >= '2' then
+            if (ct.Category = 'Starport') or (ct.Category = 'Planetary Port') then
+            begin
+              techlev[idx] := techlev[idx] + techBonus;
+              techBonus := 0;
+
+              if MarketId <> FCurrentSystem.PrimaryPortId then
+              begin
+                s := 'B';
+                if Status = '' then s := 'A'; //built before Updated 2 come first?
+                if not Finished then s := 'Y';
+                if Planned then s := 'Z';
+                s := s + IntToStr(BuildOrder).PadLeft(6,'0');
+                s := s + FirstUpdate;
+                t23sl.AddObject(s,DataSrc.Constructions.Objects[i]);
+              end
+              else
+                PrimaryLabel.Hint := PrimaryLabel.Hint + StationName + ' (primary)' + Chr(13);
+            end;
+        end;
+     end;
 
     t23sl.Sort;
     for i := 1 to t23sl.Count do
@@ -900,7 +1479,9 @@ begin
           if ct.Tier = '3' then
             cp3[idx] := cp3[idx] + t3penalty;
         end;
-        PrimaryLabel.Hint := PrimaryLabel.Hint + StationName + ' T' + ct.Tier + Chr(13);
+        s := StationName;
+        if s = '' then s := ct.StationType;
+        PrimaryLabel.Hint := PrimaryLabel.Hint + s + ' T' + ct.Tier + Chr(13);
       end;
     end;
 
@@ -913,12 +1494,36 @@ begin
     dispStat(cp2,CP2Label);
     dispStat(cp3,CP3Label);
 
+
+    ResolveConstructions(cl);
+    GetSystemLinks(cl,weakLinks,totWeakLinks);
+
+    for ei := Low(ei) to ecoTour do
+      dispLinks(ei);
+
+    SlotsLabel.Caption := 'Slots •⚪-- 🏭--';
+    if FCurrentSystem.OrbitalSlots + FCurrentSystem.SurfaceSlots > 0 then
+    begin
+      orbFree := FCurrentSystem.OrbitalSlots;
+      surfFree := FCurrentSystem.SurfaceSlots;
+      for i := 0 to 2 do
+      begin
+        orbFree := orbFree - orbSlotsTaken[i];
+        surfFree := surfFree - surfSlotsTaken[i];
+      end;
+      SlotsLabel.Caption := 'Slots •⚪' + orbFree.ToString +  ' 🏭' + surfFree.ToString;
+      SlotsLabel.Font.Color := clSilver;
+      if (orbFree < 0) or (surfFree < 0) then
+        SlotsLabel.Font.Color := clYellow;
+    end;
+
+    if FCurrentSystem.Bodies.Count > 0 then
     for i := 0 to DataSrc.RecentMarkets.Count - 1 do
       with TBaseMarket(DataSrc.RecentMarkets.Objects[i]) do
         if StarSystem = FCurrentSystem.StarSystem then
           if StationType <> 'FleetCarrier' then
             if sl.IndexOf(MarketId) = -1 then
-              ml.Add(DataSrc.RecentMarkets.Objects[i]);
+              TSystemBody(FCurrentSystem.Bodies.Objects[0]).Constructions.Add(DataSrc.RecentMarkets.Objects[i]);
 
 
     try
@@ -928,12 +1533,17 @@ begin
         for i := 0 to FCurrentSystem.Bodies.Count - 1 do
         begin
           b := TSystemBody(FCurrentSystem.Bodies.Objects[i]);
+
           item := ListView.Items.Add;
           addCaption(b.BodyName);
           addSubItem(b.BodyType);
           item.Data := b;
           s := '';
           s := s + b.ReserveLevel;
+          addSubItem(s);
+          s := '';
+          if FShowEconomies then
+            s := b.Economies_nice;
           addSubItem(s);
           addSubItem(IfThen(b.Landable,'Yes',''));
           addSubItem(b.Atmosphere);
@@ -947,76 +1557,162 @@ begin
           addSubItem(b.Volcanism);
           addSubItem(FloatToStrF(b.SurfaceGravity,ffFixed,7,2));
           addSubItem(IfThen(b.TidalLock,'Yes',''));
+          addSubItem(IfThen(b.Terraformable,'Yes',''));
           addSubItem(FloatToStrF(b.OrbitalInclination,ffFixed,7,1));
           addSubItem(FloatToStrF(b.RotationPeriod,ffFixed,7,1));
           addSubItem(FloatToStrF(b.OrbitalPeriod,ffFixed,7,1));
           addSubItem(FloatToStrF(b.SemiMajorAxis,ffFixed,12,1));
 
+          if not CheckFilter then item.Delete;
 
-          listUnassigned := (i = FCurrentSystem.Bodies.Count - 1);
-          for i2 := ml.Count - 1 downto 0  do
+         //if b is a ring, the link resolution is not reset after parent's iteration
+          //and thus carries over from parent body
+          if FShowEconomies then
+            if not b.IsRing then
+              if b.Constructions.Count > 0  then
+                ResolveBodyLinks(b,surfLinks,orbLinks,bwLinks);
+
+          for i2 := 0 to b.Constructions.Count - 1 do
           begin
-            bm := TBaseMarket(ml[i2]);
-            if (bm.Body = b.BodyName) or listUnassigned then
+            bm := TBaseMarket(b.Constructions[i2]);
+
+            //skip bodies from rings (not main star)
+            if (bm.Body <> b.BodyName) and (i <> 0) then continue;
+
+            ct := DataSrc.ConstructionTypes.TypeById[bm.ConstructionType];
+            item := ListView.Items.Add;
+            item.Data := bm;
+            if FiltersCheck.Checked then
+              addCaption('  ' + b.BodyName)
+            else
+              addCaption('');
+            //orphans attached to main star
+            if (bm.Body <> b.BodyName) and (i = 0) then item.Caption := '?';
+            m := nil;
+            if bm is TMarket then m := TMarket(bm);
+            if bm is TConstructionDepot then
             begin
-              ct := DataSrc.ConstructionTypes.TypeById[bm.ConstructionType];
-              item := ListView.Items.Add;
-              item.Data := bm;
-              addCaption('');        //🚩🚧🏭◌◍⚪⚫⧂ ⨀ ⦵⦿
-              if bm.Body <> b.BodyName then item.Caption := '?';
-              m := nil;
-              if bm is TMarket then m := TMarket(bm);
-              if bm is TConstructionDepot then
+              cd := TConstructionDepot(bm);
+              s := '  ';
+              //s := s + IfThen((ct <> nil) and (ct.Location = 'Orbital'),'⚪• ','🏭 ');
+              //s := s + IfThen(TConstructionDepot(bm).Finished,'','🚧');
+              s := s + IfThen(cd.Planned,'✏',
+                       IfThen(cd.Finished,'🚩','🚧'));
+              if bm.LinkedMarketId <> '' then
               begin
-                s := '  ';     //✈🚀🚢⛯⧂ ⚪•🌐🏙🌆🌇💰📋📝✍⛰✏⚒   ⌂🏠🏭  🏗 ⚐ ⚑  ⛿⛺
-                //s := s + IfThen((ct <> nil) and (ct.Location = 'Orbital'),'⚪• ','🏭 ');
-                //s := s + IfThen(TConstructionDepot(bm).Finished,'','🚧');
-                s := s + IfThen(TConstructionDepot(bm).Planned,'✏',
-                         IfThen(TConstructionDepot(bm).Finished,'🚩','🚧'));
-                if bm.LinkedMarketId <> '' then
+                m := DataSrc.MarketFromID(bm.LinkedMarketId);
+                if m <> nil then
                 begin
-                  m := DataSrc.MarketFromID(bm.LinkedMarketId);
-                  if m <> nil then
-                  begin
-                    s := s + '🛒 ' + m.StationName;
-                    //ml.Remove(m);
-                  end;
-                end
-                else
-                  s := s + ' ' + bm.StationName;
-                addSubItem(s);
+                  s := s + '🛒 ';
+                  if bm.NameModified then
+                    s := s + bm.StationName
+                  else
+                    s := s + m.StationName;
+                  //cl.Remove(m);
+                end;
               end
               else
-              begin
-                addSubItem('  🛒 '+ bm.StationName);
-              end;
-              s := '';
-              if ct <> nil then
-               s := ct.StationType_full;
-               if s = '' then
-                s := DataSrc.MarketComments.Values[bm.MarketId];
+                s := s + ' ' + bm.StationName;
               addSubItem(s);
-              addSubItem('');
-              s := '';
-              if m <> nil then s := m.Economies;
-              addSubItem(s);
-              addSubItem('');
-              s := '';
-              if m <> nil then s := m.Faction_short;
-              addSubItem(s);
-              s := '';
-              if m <> nil then
-              begin
-                if Pos('shipyard',m.Services) > 0  then s := s + '🚀SY ';
-                if Pos('outfitting',m.Services) > 0  then s := s + '⚒OF ';
-                if Pos('exploration',m.Services) > 0  then s := s + '🌐UC ';
-              end;
-              addSubItem(s);
+            end
+            else
+            begin
+              addSubItem('  🛒 '+ bm.StationName);
+            end;
+            s := '';
+            if ct <> nil then
+             s := ct.StationType_full;
+             if s = '' then
+              s := DataSrc.MarketComments.Values[bm.MarketId];
+            addSubItem(s);
 
-              ml.Delete(i2);
+            curEco := '';
+            calcEco := '';
+            if m <> nil then curEco := m.Economies;
+
+            s := curEco;
+            if FShowEconomies then
+            if (bm is TConstructionDepot) and (ct <> nil) then
+            begin
+              cEconomies := DataSrc.EconomySets.GetStationEconomies(cd,b);
+              if ct.Economy = 'Colony' then
+                AddEconomies(cEconomies,b.Economies);
+
+//              if ct.IsPort then
+              if cd.LinkHub then
+              begin
+                eb := b;
+                if b.IsRing then eb := b.ParentBody;
+                if eb <> nil then
+                begin
+                  if bm = eb.SurfLinkHub then
+                    AddEconomies(cEconomies,surfLinks);
+                  if bm = eb.OrbLinkHub then
+                  begin
+                    AddEconomies(cEconomies,orbLinks);
+
+                    // currently only surface-to-orbit uplink has been tested by myself
+                    // not sure if same layer up-links even work... very unlikely
+                    if eb.SurfLinkHub <> nil then
+                      AddEconomies(cEconomies,DataSrc.EconomySets.GetUpLinkEconomies(eb.SurfLinkHub,eb));
+                  end;
+                end;
+                AddEconomies(cEconomies,totWeakLinks);
+                SubEconomies(cEconomies,bwLinks);
+              end;
+              calcEco := FormatEconomies(cEconomies);
+
+              if curEco = '' then
+              begin
+                s := calcEco;
+                calcEco := '';
+              end;
+
+              if bm <> orbLinkHub then //no string links/uplinks from orbital link hub port
+              begin
+                s2 := DataSrc.EconomySets.GetLinkEconomies_nice(cd,b);
+                if s2 <> '' then s := s + '(🔗' + s2 + ') ';
+
+                if ShowUpLinksCheck.Checked and not bm.IsOrbital then
+                begin
+                  s2 := FormatEconomies(DataSrc.EconomySets.GetUpLinkEconomies(cd,b));
+                  if s2 <> '' then s := s + '( ⬆ ' + s2 + ') ';
+                end;
+              end;
+            end;
+            addSubItem('  ' + s);
+            s := '';
+            if bm.BuildOrder <> 0 then
+              s := '#' + bm.BuildOrder.ToString;
+            addSubItem(s);
+            addSubItem('');
+            addSubItem('');
+            s := '';
+            if m <> nil then s := m.Faction_short;
+            addSubItem(s);
+            s := '';
+            if m <> nil then
+            begin
+              if Pos('shipyard',m.Services) > 0  then s := s + '🚀SY ';
+              if Pos('outfitting',m.Services) > 0  then s := s + '⚒OF ';
+              if Pos('exploration',m.Services) > 0  then s := s + '🌐UC ';
+            end;
+            addSubItem(s);
+
+            if not CheckFilter then
+              item.Delete
+            else
+            if (calcEco <> '') and not EconomiesMatch(calcEco,curEco) then
+            begin
+              item := ListView.Items.Add;
+              item.Data := bm;
+              addCaption('');
+              addSubItem('');
+              addSubItem('    --- calculated / planned economy:');
+              addSubItem('  ' + calcEco);
+              calcEco := '';
             end;
           end;
-
 
         end;
       finally
@@ -1030,12 +1726,35 @@ begin
 
   finally
     ListView.Items.EndUpdate;
-    ml.Free;
+    cl.Free;
     sl.Free;
     t23sl.Free;
-   end;
+  end;
 
   RestoreSelection;
+end;
+
+procedure TSystemInfoForm.AddBioSignalsMenuItemClick(Sender: TObject);
+begin
+  if ListView.Selected = nil then Exit;
+  if TObject(ListView.Selected.Data) is TSystemBody then
+    with TSystemBody(ListView.Selected.Data) do
+    begin
+      FeaturesModified := True;
+      case TMenuItem(Sender).Tag of
+        0: BiologicalSignals := BiologicalSignals + 1;
+        1: GeologicalSignals := GeologicalSignals + 1;
+        -1:
+          begin
+            BiologicalSignals := 0;
+            GeologicalSignals := 0;
+//            SignalsModified := False;
+          end;
+      end;
+      FCurrentSystem.ResetEconomies;
+      FCurrentSystem.Save;
+    end;
+  UpdateView;
 end;
 
 procedure TSystemInfoForm.AddConstructionMenuItemClick(Sender: TObject);
@@ -1061,7 +1780,7 @@ var i,fs: Integer;
     fn: string;
     clr: TColor;
 begin
-  if not Opts.Flags['MarketsDarkMode'] then
+  if not Opts.Flags['DarkMode'] then
   begin
     Color := clSilver;
     Font.Color := clBlack;
@@ -1075,7 +1794,7 @@ begin
   Font.Name := Opts['FontName2'];
 
 
-  if not Opts.Flags['MarketsDarkMode'] then
+  if not Opts.Flags['DarkMode'] then
   begin
     with ListView do
     begin
@@ -1117,6 +1836,19 @@ begin
   if ListView.Selected <> nil then
   begin
     FSelectedObj := TObject(ListView.Selected.Data);
+  end;
+end;
+
+procedure TSystemInfoForm.ReloadPictureMenuItemClick(Sender: TObject);
+var png: TPngImage;
+begin
+  if SysImage.Picture.Width = 0 then Exit;
+  png := TPngImage.Create;
+  try
+    png.LoadFromFile(FCurrentSystem.ImagePath);
+    SysImage.Picture.Assign(png);
+    FImageChanged := False;
+  except
   end;
 end;
 

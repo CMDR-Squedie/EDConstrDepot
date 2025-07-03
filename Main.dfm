@@ -315,6 +315,11 @@ object EDCDForm: TEDCDForm
       Caption = 'Settings'
       OnClick = SettingsMenuItemClick
     end
+    object Wiki1: TMenuItem
+      Caption = 'Wiki'
+      Visible = False
+      OnClick = Wiki1Click
+    end
     object N1: TMenuItem
       Caption = '-'
     end

@@ -19,7 +19,15 @@ uses
 
 {$R *.res}
 
-const gNiceVersion: string = 'Release 24, build 8';
+const gNiceVersion: string = 'Release 25, build 0';
+
+{
+  next builds todo:
+  - tentative construction
+  - 'empty slot' construction type
+  - planned construction filter in Markets window
+  - SystemInfo sort by build order
+}
 
 begin
   Application.Initialize;

@@ -5,7 +5,8 @@ interface
 
 uses Winapi.Windows, Winapi.Messages, Winapi.PsAPI, System.Classes, System.SysUtils,
   System.JSON, System.IOUtils, System.IniFiles, System.DateUtils, System.StrUtils,
-  System.Types, Settings, Vcl.ExtCtrls,Vcl.Dialogs, System.Net.HttpClient, System.Net.HttpClientComponent;
+  System.Types, Settings, Vcl.ExtCtrls,Vcl.Dialogs, System.Net.HttpClient,
+  System.Net.HttpClientComponent,  System.Generics.Collections;
 
 type IEDDataListener = interface
   ['{C506D770-04B5-408D-99A0-261AC008D422}']
@@ -43,6 +44,48 @@ type TDockToDockTimes = class
   function GetAvg: Extended;
 end;
 
+type TEconomy = (
+//do not change order!
+  ecoAgri,
+  ecoExtr,
+  ecoHigh,
+  ecoIndu,
+  ecoMili,
+  ecoRefi,
+  ecoTour,
+  ecoTerr,
+  ecoColo,
+  ecoInhe );
+
+type TEconomyArray = array [Low(TEconomy)..High(TEconomy)] of Extended;
+
+procedure ClearEconomies(var a: TEconomyArray);
+procedure AddEconomies(var a: TEconomyArray; b: TEconomyArray);
+procedure SubEconomies(var a: TEconomyArray; b: TEconomyArray);
+function FormatEconomies(Economies: TEconomyArray): string;
+function EconomiesMatch(e1,e2: string): Boolean;
+
+const cEconomyNames: array [Low(TEconomy)..High(TEconomy)] of string = (
+  'Agricultural',
+  'Extraction',
+  'Hightech',
+  'Industrial',
+  'Military',
+  'Refinery',
+  'Tourism',
+  'Terraforming',
+  'Colony',
+  'Inherent');
+
+
+
+type TEconomySet = class
+  SetType: string;
+  Condition: string;
+  Exclude: string;
+  Economies: TEconomyArray;
+end;
+
 type TConstructionType = class
   Id: string;
   Tier: string;
@@ -68,6 +111,7 @@ type TConstructionType = class
   EstCargo: Integer;
   function StationType_full: string;
   function IsOrbital: Boolean;
+  function IsPort: Boolean; //a 'port' in economy meaning, ie. accepts weak links and uplinks
 end;
 
 type TConstructionTypes = class (THashedStringList)
@@ -80,13 +124,27 @@ public
   procedure Load;
 end;
 
-type TSystemBody = class
+type
+TStarSystem = class;
+TConstructionDepot = class;
+
+TSystemBody = class
+private
+  FBaseEconomies: TEconomyArray;
+  FEconomyBonuses: TEconomyArray;
+  FEconomiesUpdated: Boolean;
+  FParentBody: TSystemBody;
+public
+  SysData: TStarSystem;
   BodyName: string;
   BodyID: string;
   BodyType: string; //StarType or PlanetClass
   DistanceFromArrivalLS: Extended;
   TidalLock: Boolean;
+  Terraformable: Boolean;
   Landable: Boolean;
+  IsRing: Boolean;
+  HasRings: Boolean;
   Atmosphere: string;
   AtmosphereType: string;
   Volcanism: string;
@@ -103,15 +161,29 @@ type TSystemBody = class
   OtherSignals: Integer;
   ReserveLevel: string;
   Scan: string;
+  FeaturesModified: Boolean;
+  Parent: string;
+  Rings: TList;
+  Constructions: TList; //this is only populated in System View;
+  SurfLinkHub: TConstructionDepot;
+  OrbLinkHub: TConstructionDepot;
+  procedure UpdateEconomies;
+  function Economies: TEconomyArray;
+  function BaseEconomies: TEconomyArray;
+  function EconomyBonuses: TEconomyArray;
+  function Economies_nice: string;
+  function ParentBody: TSystemBody;
+  constructor Create;
 end;
 
-type TStarSystem = class
+TStarSystem = class
 private
   FFactions: string;
   FArchitect: string;
   FAlterName: string;
   FSystemScan_EDSM: string;
   FBodies: TStringList;
+  FResourceReserve: string;
   function GetFactions(abbrevf: Boolean): string;
   function GetFactions_short: string;
   function GetFactions_full: string;
@@ -139,6 +211,9 @@ public
   Objectives: string;
   Ignored: Boolean;
   NavBeaconScan: Boolean;
+  OrbitalSlots: Integer;
+  SurfaceSlots: Integer;
+  function ResourceReserve: string;
   function DistanceTo(s: TStarSystem): Double;
   function PopForTimeStamp(tms: string): Int64;
   procedure AddPopToHistory(tms: string; pop: Int64);
@@ -146,8 +221,10 @@ public
   procedure AddScan(js: string; j: TJSONObject);
   procedure AddSignals(js: string; j: TJSONObject);
   function BodyByName(name: string): TSystemBody;
+  function BodyById(id: string): TSystemBody;
   procedure UpdateBodies_EDSM;
   procedure UpdateFromScan_EDSM;
+  procedure ResetEconomies;
   function ImagePath: string;
   procedure Save;
   constructor Create;
@@ -161,8 +238,7 @@ published
   property AlterName: string read FAlterName write SetAlterName;
 end;
 
-
-type TBaseMarket = class
+TBaseMarket = class
 private
   FSysData: TStarSystem;
   FConstrType: TConstructionType;
@@ -189,6 +265,9 @@ public
   ConstructionType: string;
   Modified: Boolean;
   LinkedMarketId: string;
+  BuildOrder: Integer;
+  Layout: string;
+  NameModified: Boolean;
   function GetSys: TStarSystem;
   function Faction_short: string;
   function FullName: string;
@@ -205,20 +284,40 @@ public
   destructor Destroy;
 end;
 
-type TMarket = class (TBaseMarket)
+TMarket = class (TBaseMarket)
   Economies: string; //this changes on dock
   MarketEconomies: string; //this changes on market visit
   HoldSnapshots: Boolean;
   Snapshot: Boolean;
 end;
 
-type TConstructionDepot = class (TBaseMarket)
+TConstructionDepot = class (TBaseMarket)
   Finished: Boolean;
   DepotComplete: Boolean; //player actually docked and finished the construction?
   Planned: Boolean;
   Simulated: Boolean;
   ActualHaul: Integer;
+  LinkHub: Boolean; //true if a port is collecting links; irrelevant for facilities
   procedure UpdateHaul;
+  function InProgress: Boolean;
+end;
+
+type TEconomySets = class
+  Bodies: TStringList;
+  Stations: TStringList;
+  Bonuses: TStringList;
+  Links: TStringList;
+  WeakLinks: TStringList;
+  UpLinks: TStringList;
+//  function GetEcoSet(sl: TStringList; idx: Integer): TEconomySet;
+  function GetStationEconomies(cd: TConstructionDepot; b: TSystemBody): TEconomyArray;
+  function GetStationEconomies_nice(cd: TConstructionDepot; b: TSystemBody): string;
+  function GetLinkEconomies(cd: TConstructionDepot; b: TSystemBody): TEconomyArray;
+  function GetWeakLinkEconomies(cd: TConstructionDepot): TEconomyArray;
+  function GetUpLinkEconomies(cd: TConstructionDepot; b: TSystemBody): TEconomyArray;
+  function GetLinkEconomies_nice(cd: TConstructionDepot; b: TSystemBody): string;
+  procedure Load;
+  constructor Create;
 end;
 
 type TSystemList = class (THashedStringList)
@@ -304,6 +403,8 @@ type TEDDataSource = class (TDataModule)
     FBackupFile: string;
     FLastConstructionDone: string;
     FConstructionTypes: TConstructionTypes;
+    FEconomySets: TEconomySets;
+    FEconomyList: THashedStringList;
     FPreventNotify: Boolean;
     procedure SetDataChanged;
     function CheckLoadFromFile(var sl: TStringList; fn: string): Boolean;
@@ -351,6 +452,7 @@ type TEDDataSource = class (TDataModule)
     property LastConstructionDone: string read FLastConstructionDone;
     property WorkingDir: string read FWorkingDir;
     property ConstructionTypes: TConstructionTypes read FConstructionTypes;
+    property EconomySets: TEconomySets read FEconomySets;
     procedure MarketToSimDepot(mID: string);
     procedure MarketToCargoExt(mID: string);
     procedure CreateMarketSnapshot(mID: string);
@@ -370,6 +472,7 @@ type TEDDataSource = class (TDataModule)
     procedure RemoveListener(Sender: IEDDataListener);
     procedure GetUniqueGroups(sl: TStringList);
     procedure ResetDockTimes;
+    function EcoFromName(s: string): TEconomy;
 //    property DataChanged: Boolean read FDataChanged;
     procedure Load;
     procedure BeginUpdate;
@@ -384,14 +487,13 @@ const cMinDockToDockTime: Integer = 3; //minutes
       cMaxDockToDockTime: Integer = 60;
 
 var DataSrc: TEDDataSource;
+    JSONFrmt: TFormatSettings;
 
 implementation
 
 {$R *.dfm}
 
 uses Main;
-
-var JSONFormatSettings: TFormatSettings;
 
 
 procedure __log_except(fname: string;info: string);
@@ -418,6 +520,30 @@ begin
   Result := Result + Copy(sarr[High(sarr)],1,3);
 end;
 
+procedure ClearEconomies(var a: TEconomyArray);
+var ei: TEconomy;
+begin
+  for ei := Low(TEconomy) to High(TEconomy) do
+    a[ei] := 0;
+end;
+
+procedure AddEconomies(var a: TEconomyArray; b: TEconomyArray);
+var ei: TEconomy;
+begin
+  for ei := Low(TEconomy) to High(TEconomy) do
+    a[ei] := a[ei] + b[ei];
+end;
+
+procedure SubEconomies(var a: TEconomyArray; b: TEconomyArray);
+var ei: TEconomy;
+begin
+  for ei := Low(TEconomy) to High(TEconomy) do
+  begin
+    a[ei] := a[ei] - b[ei];
+    if a[ei] < 0 then a[ei] := 0;
+  end;
+end;
+
 function TConstructionType.StationType_full: string;
 var s: string;
 begin
@@ -430,6 +556,14 @@ function TConstructionType.IsOrbital: Boolean;
 begin
   Result := Location = 'Orbital';
 end;
+
+function TConstructionType.IsPort: Boolean;
+begin
+  Result := (Category = 'Planetary Port') or
+           (Category = 'Outpost') or
+           (Category = 'Starport');
+end;
+
 
 function TConstructionTypes.GetTypeById(const Id: string): TConstructionType;
 var idx: Integer;
@@ -514,6 +648,413 @@ begin
   end;
 end;
 
+constructor TSystemBody.Create;
+begin
+  Rings := TList.Create;
+end;
+
+function TSystemBody.ParentBody: TSystemBody;
+begin
+  Result := FParentBody;
+  if Result <> nil then Exit;
+  if Parent = '' then Exit;
+  if SysData = nil then Exit;
+  FParentBody := SysData.BodyById(Parent);
+  Result := FParentBody;
+end;
+
+procedure TSystemBody.UpdateEconomies;
+var features: TStringList;
+    ei: TEconomy;
+    i,j,idx: Integer;
+    es: TEconomySet;
+    s,s2: string;
+    foundf,tlockf: Boolean;
+    parentBody,b: TSystemBody;
+begin
+  parentBody := self.ParentBody;
+
+  if self.IsRing and (parentBody <> nil) then
+  begin
+    FBaseEconomies := parentBody.BaseEconomies;
+    FEconomyBonuses := parentBody.EconomyBonuses;
+    Exit;
+  end;
+
+  for ei := Low(TEconomy) to High(TEconomy) do
+  begin
+    FBaseEconomies[ei] := 0;
+    FEconomyBonuses[ei] := 0;
+  end;
+
+  features := TStringList.Create;
+
+  s := LowerCase(BodyType);
+  if Pos('star',s) > 0 then
+  begin
+    if LeftStr(s,1) = 'D' then s := s + 'white dwarf';
+    if BodyType = 'T Star' then s := s + 'brown dwarf';
+    if BodyType = 'Y Star' then s := s + 'brown dwarf';
+    if BodyType = 'L Star' then s := s + 'brown dwarf';
+
+    for i := 0 to DataSrc.FEconomySets.Bodies.Count - 1 do
+    begin
+      foundf := false;
+      es := TEconomySet(DataSrc.FEconomySets.Bodies.Objects[i]);
+      if es.SetType = 'Star' then
+        if Pos(es.Condition,s) > 0 then
+        begin
+          foundf := true;
+          break;
+        end;
+      if not foundf then s := 'other star';
+    end;
+  end;
+  features.Add(s);
+
+  if TidalLock then
+  begin
+    tlockf := true;
+    if parentBody <> nil then
+      if (parentBody.Parent <> '') and not parentBody.TidalLock then
+        tlockf := false;
+    if tlockf then
+      features.Add('tidally locked');
+  end;
+  if Terraformable then features.Add('terraformable');
+  if GeologicalSignals > 0  then features.Add('geologicals');
+  if BiologicalSignals > 0  then features.Add('biologicals');
+  if HasRings  then features.Add('rings');
+  if Volcanism <> ''  then features.Add('volcanism');
+  s := self.SysData.ResourceReserve;
+  if ReserveLevel <> ''  then
+    s := ReserveLevel
+  else
+  begin
+    b := parentBody;
+    while b <> nil do
+    begin
+      if b.ReserveLevel <> '' then
+      begin
+        s := b.ReserveLevel;
+        break;
+      end
+      else
+        b := b.ParentBody;
+    end;
+  end;
+  if s <> '' then
+    features.Add(LowerCase(s) + ' resource');
+
+  for i := 0 to DataSrc.FEconomySets.Bodies.Count - 1 do
+  begin
+    es := TEconomySet(DataSrc.FEconomySets.Bodies.Objects[i]);
+    for j := 0 to features.Count - 1 do
+      if Pos(es.Condition,features[j]) > 0 then
+        for ei := Low(TEconomy) to High(TEconomy) do
+          //if FBaseEconomies[ei] = 0 then
+            FBaseEconomies[ei] := FBaseEconomies[ei] +  es.Economies[ei];
+  end;
+
+  for i := 0 to DataSrc.FEconomySets.Bonuses.Count - 1 do
+  begin
+    es := TEconomySet(DataSrc.FEconomySets.Bonuses.Objects[i]);
+    for j := 0 to features.Count - 1 do
+      if Pos(es.Condition,features[j]) > 0 then
+      begin
+        for ei := Low(ei) to High(ei) do
+          FEconomyBonuses[ei] := FEconomyBonuses[ei] + es.Economies[ei];
+        if es.Exclude <> '' then
+        begin
+          idx := features.IndexOf(es.Exclude);
+          if idx <> -1 then
+             features[idx] := '$excluded';
+        end;
+      end;
+  end;
+  features.Free;
+  FEconomiesUpdated := True;
+end;
+
+function TSystemBody.BaseEconomies: TEconomyArray;
+begin
+  if not FEconomiesUpdated then UpdateEconomies;
+  Result := FBaseEconomies;
+end;
+
+function TSystemBody.EconomyBonuses: TEconomyArray;
+begin
+  if not FEconomiesUpdated then UpdateEconomies;
+  Result := FEconomyBonuses;
+end;
+
+function TSystemBody.Economies: TEconomyArray;
+var ei: TEconomy;
+begin
+  if not FEconomiesUpdated then UpdateEconomies;
+  Result := FBaseEconomies;
+  for ei := Low(TEconomy) to High(TEconomy) do
+    if Result[ei] <> 0 then
+      Result[ei] := Result[ei] + FEconomyBonuses[ei];
+end;
+
+function FormatEconomies(Economies: TEconomyArray): string;
+var ei: TEconomy;
+    maxv: Extended;
+    s: string;
+    l: TList<Integer>;
+    i: Integer;
+begin
+  Result := '';
+  l := TList<Integer>.Create;
+  for ei := Low(TEconomy) to High(TEconomy) do
+    if Economies[ei] <> 0 then
+      l.Add(1000*Trunc(100*Economies[ei]) + Integer(ei)); //
+  l.Sort;
+  for i := 0 to l.Count - 1 do
+  begin
+    ei := TEconomy(l[i] mod 100);
+    s := Copy(cEconomyNames[ei],1,4) + ' ' + FloatToStrF(Economies[ei],ffFixed,7,2,JSONFrmt) + '; ';
+    Result := s + Result;
+  end;
+  l.Free;
+end;
+
+
+function EconomiesMatch(e1,e2: string): Boolean;
+var sl: TStringList;
+    i: Integer;
+    e1s,e2s: string;
+begin
+  Result := (e1 = e2);
+  if not Result then
+  begin
+    sl := TStringList.Create;
+    sl.Text := e1.Replace('; ',Chr(13));
+    sl.Sort;
+    e1s := sl.Text;
+    sl.Text := e2.Replace('; ',Chr(13));
+    sl.Sort;
+    e2s := sl.Text;
+    Result := (e1s = e2s);
+    sl.Free;
+  end;
+end;
+
+function TSystemBody.Economies_nice: string;
+begin
+  Result := FormatEconomies(Economies);
+end;
+
+
+constructor TEconomySets.Create;
+begin
+  Bodies := TStringList.Create;
+  Stations := TStringList.Create;
+  Bonuses := TStringList.Create;
+  Links := TStringList.Create;
+  WeakLinks := TStringList.Create;
+  UpLinks := TStringList.Create;
+end;
+
+function TEconomySets.GetStationEconomies(cd: TConstructionDepot; b: TSystemBody): TEconomyArray;
+var ei: TEconomy;
+    ct: TConstructionType;
+    ecos: string;
+    es: TEconomySet;
+    ts: string;
+    i: Integer;
+begin
+  for ei := Low(TEconomy) to High(TEconomy) do Result[ei] := 0;
+  ct := cd.GetConstrType;
+  if ct = nil then Exit;
+  ecos := ct.Economy;
+  if ecos = '' then Exit;
+  if ecos = 'Colony' then Exit;
+  ei := DataSrc.EcoFromName(ecos);
+
+  ts := LowerCase('T' + ct.Tier + ' ' + ct.Category);
+  for i := 0 to DataSrc.FEconomySets.Stations.Count - 1 do
+  begin
+    es := TEconomySet(DataSrc.FEconomySets.Stations.Objects[i]);
+    if Pos(es.Condition,ts) > 0 then
+      Result[ei] := Result[ei] + es.Economies[ecoInhe];
+  end;
+  if b <> nil then
+  for ei := Low(TEconomy) to High(TEconomy) do
+    if Result[ei] <> 0 then
+      Result[ei] := Result[ei] + b.EconomyBonuses[ei];
+end;
+
+function TEconomySets.GetLinkEconomies(cd: TConstructionDepot; b: TSystemBody): TEconomyArray;
+var ei: TEconomy;
+    ct: TConstructionType;
+    ecos: string;
+    es: TEconomySet;
+    ts: string;
+    i: Integer;
+begin
+  for ei := Low(TEconomy) to High(TEconomy) do Result[ei] := 0;
+  ct := cd.GetConstrType;
+  if ct = nil then Exit;
+  ecos := ct.Influence;
+  if ecos = '' then ecos := ct.Economy;
+  if ecos = '' then Exit;
+  if ecos = 'Colony' then Exit;
+  ei := DataSrc.EcoFromName(ecos);
+
+  ts := LowerCase('T' + ct.Tier + ' ' + ct.Category);
+  for i := 0 to DataSrc.FEconomySets.Links.Count - 1 do
+  begin
+    es := TEconomySet(DataSrc.FEconomySets.Links.Objects[i]);
+    if Pos(es.Condition,ts) > 0 then
+      Result[ei] := Result[ei] + es.Economies[ecoInhe];
+  end;
+  if b <> nil then
+  for ei := Low(TEconomy) to High(TEconomy) do
+    if Result[ei] <> 0 then
+      Result[ei] := Result[ei] + b.EconomyBonuses[ei];
+end;
+
+function TEconomySets.GetUpLinkEconomies(cd: TConstructionDepot; b: TSystemBody): TEconomyArray;
+var ei: TEconomy;
+    ct: TConstructionType;
+    ecos: string;
+    es: TEconomySet;
+    ts: string;
+    i: Integer;
+begin
+  ClearEconomies(Result);
+  ct := cd.GetConstrType;
+  if ct = nil then Exit;
+  if ct.Economy <> 'Colony' then Exit;
+  ts := LowerCase('T' + ct.Tier + ' ' + ct.Category);
+  for i := 0 to DataSrc.FEconomySets.UpLinks.Count - 1 do
+  begin
+    es := TEconomySet(DataSrc.FEconomySets.UpLinks.Objects[i]);
+    if Pos(es.Condition,ts) > 0 then
+      for ei := Low(TEconomy) to High(TEconomy) do
+        if b.BaseEconomies[ei] > 0 then
+          Result[ei] := Result[ei] + es.Economies[ecoInhe];
+  end;
+  if b <> nil then
+  for ei := Low(TEconomy) to High(TEconomy) do
+    if Result[ei] <> 0 then
+      Result[ei] := Result[ei] + b.EconomyBonuses[ei];
+end;
+
+function TEconomySets.GetWeakLinkEconomies(cd: TConstructionDepot): TEconomyArray;
+var ei: TEconomy;
+    ct: TConstructionType;
+    ecos: string;
+    es: TEconomySet;
+    ts: string;
+    i: Integer;
+begin
+  for ei := Low(TEconomy) to High(TEconomy) do Result[ei] := 0;
+  ct := cd.GetConstrType;
+  if ct = nil then Exit;
+  ecos := ct.Influence;
+  if ecos = '' then
+    if ct.IsPort then
+      if not cd.LinkHub then
+         ecos := ct.Economy; //ports that are up-linking to other ports work like facilities
+  if ecos = '' then Exit;
+  if ecos = 'Colony' then Exit;
+  ei := DataSrc.EcoFromName(ecos);
+
+  ts := LowerCase('T' + ct.Tier + ' ' + ct.Category);
+  for i := 0 to DataSrc.FEconomySets.WeakLinks.Count - 1 do
+  begin
+    es := TEconomySet(DataSrc.FEconomySets.WeakLinks.Objects[i]);
+    if (es.Condition = '') or (Pos(es.Condition,ts) > 0) then
+      Result[ei] := Result[ei] + es.Economies[ecoInhe];
+  end;
+end;
+
+function TEconomySets.GetStationEconomies_nice(cd: TConstructionDepot; b: TSystemBody): string;
+var earr: TEconomyArray;
+begin
+  earr := GetStationEconomies(cd,b);
+  Result := FormatEconomies(earr);
+end;
+
+function TEconomySets.GetLinkEconomies_nice(cd: TConstructionDepot; b: TSystemBody): string;
+var earr: TEconomyArray;
+begin
+  earr := GetLinkEconomies(cd,b);
+  Result := FormatEconomies(earr);
+end;
+
+{
+function TEconomySets.GetEcoSet(sl: TStringList;idx: Integer): TEconomySet;
+begin
+  Result := TEconomySet(sl.Objects[idx]);
+end;
+}
+
+procedure TEconomySets.Load;
+var bs,bs2: TEconomySet;
+    jarr: TJSONArray;
+    i,i2: Integer;
+    sl: TStringList;
+    sarr: TStringDynArray;
+    ei: TEconomy;
+    dlist: TStringList;
+begin
+  sl := TStringList.Create;
+  try
+    try
+      sl.LoadFromFile(DataSrc.FWorkingDir + 'economy_sets.json');
+    except
+      ShowMessage('Unable to load: economy_sets.json');
+      Exit;
+    end;
+    jarr := TJSONObject.ParseJSONValue(sl.Text) as TJSONArray;
+    if jarr = nil then
+    begin
+      ShowMessage('Error in file: economy_sets.json');
+      Exit;
+    end;
+    try
+      for i := 0 to jarr.Count - 1 do
+      begin
+        bs := TEconomySet.Create;
+        jarr[i].TryGetValue<string>('Type',bs.SetType);
+        jarr[i].TryGetValue<string>('Condition',bs.Condition);
+        jarr[i].TryGetValue<string>('Exclude',bs.Exclude);
+        bs.Condition := LowerCase(bs.Condition);
+        bs.Exclude := LowerCase(bs.Exclude);
+        for ei := Low(TEconomy) to High(TEconomy) do
+          jarr[i].TryGetValue<Extended>(cEconomyNames[ei],bs.Economies[ei]);
+        dlist := nil;
+        if (bs.SetType = 'Star') or (bs.SetType = 'Body') then dlist := Bodies;
+        if bs.SetType = 'Station' then dlist := Stations;
+        if bs.SetType = 'Bonus' then dlist := Bonuses;
+        if bs.SetType = 'Link' then dlist := Links;
+        if bs.SetType = 'WeakLink' then dlist := WeakLinks;
+        if bs.SetType = 'BodyUpLink' then dlist := UpLinks;
+        if dlist = nil then continue;
+
+        sarr := SplitString(bs.Condition,'/');
+        if bs.Condition <> '' then bs.Condition := sarr[0];
+        dlist.AddObject(bs.SetType + bs.Condition,bs);
+        for i2 := 1 to High(sarr) do
+        begin
+          bs2 := TEconomySet.Create;
+          bs2.SetType := bs.SetType;
+          bs2.Economies := bs.Economies;
+          bs2.Condition := sarr[i2];
+          dlist.AddObject(bs2.SetType + sarr[i2],bs2);
+        end;
+      end;
+    finally
+      jarr.Free;
+    end;
+  finally
+    sl.Free;
+  end;
+end;
 
 procedure TDockToDockTimes.Clear;
 var i: Integer;
@@ -676,7 +1217,7 @@ var p: Integer;
 begin
   Result := StarSystem;
 //looks nice... but not just yet
-//  p := Pos('Col 285 Sector ',Result); //custom list here
+//  p := Pos('Col 285 Sector ',Result); //custom list here?
 //  if p > 0 then Result := Copy(Result,p+15,200);
 end;
 
@@ -749,6 +1290,21 @@ begin
   end;
 end;
 
+function TConstructionDepot.InProgress: Boolean;
+begin
+  Result := not Planned and not Finished;
+end;
+
+function TStarSystem.ResourceReserve: string;
+var i: Integer;
+begin
+  Result := FResourceReserve;
+  if Result <> '' then Exit;
+  if FBodies.Count > 0 then
+    with TSystemBody(FBodies.Objects[0]) do
+      Result := ReserveLevel;
+end;
+
 function TStarSystem.DistanceTo(s: TStarSystem): Double;
 begin
   Result := Sqrt(Sqr(StarPosX-s.StarPosX) + Sqr(StarPosY-s.StarPosY) + Sqr(StarPosZ-s.StarPosZ));
@@ -757,6 +1313,13 @@ end;
 function TStarSystem.ImagePath: string;
 begin
   Result := DataSrc.FWorkingDir + 'colonies\' + StarSystem + '.png';
+end;
+
+procedure TStarSystem.ResetEconomies;
+var i: Integer;
+begin
+  for i := 0 to FBodies.Count - 1 do
+    TSystemBody(FBodies.Objects[i]).FEconomiesUpdated := False;
 end;
 
 function TStarSystem.PopForTimeStamp(tms: string): Int64;
@@ -856,6 +1419,7 @@ begin
   if idx = -1 then
   begin
     b := TSystemBody.Create;
+    b.SysData := self;
     b.BodyID := bodyId;
     FBodies.AddObject(bodyId,b);
   end
@@ -876,27 +1440,37 @@ begin
     end;
 end;
 
+function TStarSystem.BodyById(id: string): TSystemBody;
+var idx: Integer;
+begin
+  Result := nil;
+  idx := FBodies.IndexOf(id);
+  if idx > -1 then
+    Result := TSystemBody(FBodies.Objects[idx]);
+end;
+
+
 procedure TStarSystem.AddScan(js: string; j: TJSONObject);
-var bodyId,bodyNm,s: string;
-    b: TSystemBody;
+var curId,curNm,s: string;
+    b,b2: TSystemBody;
     i,idx: Integer;
     jarr: TJSONArray;
 begin
-  bodyId := '';
-  j.TryGetValue<string>('BodyID',bodyId);
-  bodyNm := '';
-  j.TryGetValue<string>('BodyName',bodyNm);
-  if Pos('Belt Cluster',bodyNm) > 0 then Exit;
+  curId := '';
+  j.TryGetValue<string>('BodyID',curId);
+  curNm := '';
+  j.TryGetValue<string>('BodyName',curNm);
+  if Pos('Belt Cluster',curNm) > 0 then Exit;
 
   j.TryGetValue<string>('ScanType',s);
   if s = 'NavBeaconDetail' then NavBeaconScan := True;
 
-  b := TryAddBodyFromId(bodyId);
+  b := TryAddBodyFromId(curId);
   if b = nil then Exit;
   with b do
   begin
     Scan := js;
-    BodyName := bodyNm;
+    BodyName := curNm;
     if LeftStr(BodyName,Length(StarSystem)) = StarSystem then
       BodyName := Copy(BodyName,Length(StarSystem) + 2,255);
     BodyType := '';
@@ -907,6 +1481,9 @@ begin
       BodyType := BodyType + ' Star';
     j.TryGetValue<Extended>('DistanceFromArrivalLS',DistanceFromArrivalLS);
     j.TryGetValue<Boolean>('TidalLock',TidalLock);
+    j.TryGetValue<string>('TerraformState',s);
+    Terraformable := (s = 'Terraformable');
+
     j.TryGetValue<Boolean>('Landable',Landable);
     j.TryGetValue<string>('AtmosphereType',AtmosphereType);
     j.TryGetValue<string>('Atmosphere',Atmosphere);
@@ -930,16 +1507,42 @@ begin
     RotationPeriod := RotationPeriod / (60*60*24);
     j.TryGetValue<Extended>('AxialTilt',AxialTilt);
 
-    j.TryGetValue<string>('ReserveLevel',ReserveLevel);
+    if ReserveLevel = '' then
+    begin
+      j.TryGetValue<string>('ReserveLevel',ReserveLevel);
+      if ReserveLevel.EndsWith('Resources') then
+        ReserveLevel := Copy(ReserveLevel,1,Length(ReserveLevel) - 9);
+    end;
+
+    try
+      jarr := nil;
+      j.TryGetValue<TJSONArray>('Parents',jarr);
+      if jarr <> nil then
+      begin
+        for i := 0 to jarr.Count - 1 do
+        begin
+          jarr[i].TryGetValue<string>('Planet',Parent);
+          if Parent = '' then
+            jarr[i].TryGetValue<string>('Star',Parent);
+          if Parent <> '' then
+          begin
+            Parent := Parent.PadLeft(6,'0');
+            break;
+          end;
+        end;
+      end;
+    except
+    end;
 
     try
       jarr := j.GetValue<TJSONArray>('Rings');
       for i := 0 to jarr.Count - 1 do
       begin
-        b := TryAddBodyFromId(bodyId + '.' + IntToStr(i));
-        if b = nil then Exit;
-        with b do
+        b2 := TryAddBodyFromId(b.BodyID + '.' + IntToStr(i));
+        if b2 = nil then Exit;
+        with b2 do
         begin
+          Parent := b.BodyID;
           jarr[i].TryGetValue<string>('Name',BodyName);
           if LeftStr(BodyName,Length(StarSystem)) = StarSystem then
             BodyName := Copy(BodyName,Length(StarSystem) + 2,255);
@@ -947,6 +1550,10 @@ begin
           idx := Pos('_',s);
           s := Copy(s,idx+1,255);
           BodyType := 'Ring - ' + s;
+          IsRing := True;
+          b.HasRings := True;
+          b.Rings.Add(b2);
+          b2.FParentBody := b;
           jarr[i].TryGetValue<Extended>('OuterRad',SemiMajorAxis);
           SemiMajorAxis := SemiMajorAxis / 1000000;
         end;
@@ -978,9 +1585,9 @@ end;
 procedure TStarSystem.UpdateFromScan_EDSM;
 var jdata: TJSONObject;
     jarr,jrings: TJSONArray;
-    b: TSystemBody;
+    b,b2: TSystemBody;
     i,i2,idx: Integer;
-    s,bodyId,bodyNm: string;
+    s,curId,curNm: string;
 begin
 
   try
@@ -989,20 +1596,23 @@ begin
       jarr := jdata.GetValue<TJSONArray>('bodies');
       for i := 0 to jarr.Count - 1 do
       begin
-        jarr[i].TryGetValue<string>('bodyId',bodyId);
-        jarr[i].TryGetValue<string>('name',bodyNm);
-        if Pos('Belt Cluster',bodyNm) > 0 then continue;
-        b := TryAddBodyFromId(bodyId);
+        jarr[i].TryGetValue<string>('bodyId',curId);
+        curId := curId.PadLeft(6,'0');
+        jarr[i].TryGetValue<string>('name',curNm);
+        if Pos('Belt Cluster',curNm) > 0 then continue;
+        b := TryAddBodyFromId(curId);
         if b = nil then continue;
         with b do
         begin
-          BodyName := bodyNm;
+          BodyName := curNm;
           if LeftStr(BodyName,Length(StarSystem)) = StarSystem then
             BodyName := Copy(BodyName,Length(StarSystem) + 2,255);
           BodyType := '';
           jarr[i].TryGetValue<string>('subType',BodyType);
           jarr[i].TryGetValue<Extended>('distanceToArrival',DistanceFromArrivalLS);
           jarr[i].TryGetValue<Boolean>('rotationalPeriodTidallyLocked',TidalLock);
+          jarr[i].TryGetValue<string>('terraformingState',s);
+          if s.StartsWith('Candidate') then Terraformable := True;
           jarr[i].TryGetValue<Boolean>('isLandable',Landable);
     //      j.TryGetValue<string>('AtmosphereType',AtmosphereType);
           jarr[i].TryGetValue<string>('atmosphereType',Atmosphere);
@@ -1027,7 +1637,8 @@ begin
           jarr[i].TryGetValue<Extended>('rotationalPeriod',RotationPeriod);
           //RotationPeriod := RotationPeriod / (60*60*24);
           jarr[i].TryGetValue<Extended>('axialTilt',AxialTilt);
-          jarr[i].TryGetValue<string>('reserveLevel',ReserveLevel);
+          if ReserveLevel = '' then
+            jarr[i].TryGetValue<string>('reserveLevel',ReserveLevel);
 
           try
             try
@@ -1037,15 +1648,20 @@ begin
             end;
             for i2 := 0 to jrings.Count - 1 do
             begin
-              b := TryAddBodyFromId(bodyId + '.' + IntToStr(i2));
-              if b = nil then Exit;
-              with b do
+              b2 := TryAddBodyFromId(b.BodyId + '.' + IntToStr(i2));
+              if b2 = nil then Exit;
+              with b2 do
               begin
+                Parent := b.BodyID;
                 jrings[i2].TryGetValue<string>('name',BodyName);
                 if LeftStr(BodyName,Length(StarSystem)) = StarSystem then
                   BodyName := Copy(BodyName,Length(StarSystem) + 2,255);
                 jrings[i2].TryGetValue<string>('type',s);
                 BodyType := 'Ring - ' + s;
+                IsRing := true;
+                b.HasRings := True;
+                b.Rings.Add(b2);
+                b2.FParentBody := b;
                 jrings[i2].TryGetValue<Extended>('outerRadius',SemiMajorAxis);
                 SemiMajorAxis := SemiMajorAxis / 1000000;
               end;
@@ -1091,6 +1707,7 @@ begin
       b.HumanSignals := cnt
     else
       b.OtherSignals := cnt;
+    b.FEconomiesUpdated := False;
   end;
 end;
 
@@ -1113,6 +1730,8 @@ begin
   j.AddPair(TJSONPair.Create('Ignored', Ignored));
   j.AddPair(TJSONPair.Create('FSystemScan_EDSM', FSystemScan_EDSM));
   j.AddPair(TJSONPair.Create('PrimaryPortId', PrimaryPortId));
+  j.AddPair(TJSONPair.Create('OrbitalSlots', OrbitalSlots));
+  j.AddPair(TJSONPair.Create('SurfaceSlots', SurfaceSlots));
 
   sarr := TJSONArray.Create;
   j.AddPair(TJSONPair.Create('Stations', sarr));
@@ -1133,6 +1752,24 @@ begin
         st.AddPair(TJSONPair.Create('Comment', Comment));
         st.AddPair(TJSONPair.Create('MarketLevel', Integer(MarketLevel)));
         st.AddPair(TJSONPair.Create('LinkedMarketId', LinkedMarketId));
+        st.AddPair(TJSONPair.Create('BuildOrder', BuildOrder));
+        st.AddPair(TJSONPair.Create('Layout', Layout));
+        st.AddPair(TJSONPair.Create('NameModified', NameModified));
+        sarr.Add(st);
+      end;
+
+  sarr := TJSONArray.Create;
+  j.AddPair(TJSONPair.Create('Bodies', sarr));
+  for i := 0 to FBodies.Count - 1 do
+    with TSystemBody(FBodies.Objects[i]) do
+      if FeaturesModified then
+      begin
+        st := TJSONObject.Create;
+        st.AddPair(TJSONPair.Create('BodyID', BodyID));
+        st.AddPair(TJSONPair.Create('BodyName', BodyName));
+        st.AddPair(TJSONPair.Create('BiologicalSignals', BiologicalSignals));
+        st.AddPair(TJSONPair.Create('GeologicalSignals', GeologicalSignals));
+        st.AddPair(TJSONPair.Create('ReserveLevel', ReserveLevel));
         sarr.Add(st);
       end;
 {
@@ -1274,9 +1911,9 @@ var jarr: TJSONArray;
 begin
   try
     jarr := j.GetValue<TJSONArray>('StarPos');
-    px := StrToFloat(jarr[0].Value,JSONFormatSettings);
-    py := StrToFloat(jarr[1].Value,JSONFormatSettings);
-    pz := StrToFloat(jarr[2].Value,JSONFormatSettings);
+    px := StrToFloat(jarr[0].Value,JSONFrmt);
+    py := StrToFloat(jarr[1].Value,JSONFrmt);
+    pz := StrToFloat(jarr[2].Value,JSONFrmt);
     if Abs(px) > Opts.MaxColonyDist then Exit;
     if Abs(py) > Opts.MaxColonyDist then Exit;
     if Abs(pz) > Opts.MaxColonyDist then Exit;
@@ -1324,7 +1961,7 @@ end;
 procedure TSystemList.AddFromJSON(js: string);
 var j: TJSONObject;
     jarr: TJSONArray;
-    s, tms, mtyp: string;
+    s, tms, mtyp, bodyId: string;
     sys: TStarSystem;
     pop: Int64;
     i,mlev: Integer;
@@ -1332,6 +1969,7 @@ var j: TJSONObject;
 //    m: TMarket;
     bm: TBaseMarket;
     ct: TConstructionType;
+    b: TSystemBody;
 begin
   try
     j := TJSONObject.ParseJSONValue(js) as TJSONObject;
@@ -1350,6 +1988,8 @@ begin
         j.TryGetValue<Boolean>('Ignored',Ignored);
         j.TryGetValue<string>('FSystemScan_EDSM',FSystemScan_EDSM);
         j.TryGetValue<string>('PrimaryPortId',PrimaryPortId);
+        j.TryGetValue<Integer>('OrbitalSlots',OrbitalSlots);
+        j.TryGetValue<Integer>('SurfaceSlots',SurfaceSlots);
 
         if FSystemScan_EDSM <> '' then
           UpdateFromScan_EDSM;
@@ -1373,6 +2013,8 @@ begin
             bm.Body := Trim(bm.Body);
             jarr[i].TryGetValue<string>('Comment',bm.Comment);
             jarr[i].TryGetValue<Integer>('MarketLevel',mlev);
+            jarr[i].TryGetValue<string>('Layout',bm.Layout);
+            jarr[i].TryGetValue<Boolean>('NameModified',bm.NameModified);
             bm.StarSystem := StarSystem;
             bm.FSysData := sys;
 
@@ -1381,6 +2023,7 @@ begin
             begin
               jarr[i].TryGetValue<string>('ConstructionType',bm.ConstructionType);
               jarr[i].TryGetValue<string>('LinkedMarketId',bm.LinkedMarketId);
+              jarr[i].TryGetValue<Integer>('BuildOrder',bm.BuildOrder);
               jarr[i].TryGetValue<Boolean>('Finished',TConstructionDepot(bm).Finished);
               jarr[i].TryGetValue<Boolean>('Planned',TConstructionDepot(bm).Planned);
               DataSrc.FConstructions.AddObject(bm.MarketId,bm);
@@ -1388,6 +2031,27 @@ begin
             if mtyp = 'market' then
             begin
               DataSrc.FRecentMarkets.AddObject(bm.MarketId,bm);
+            end;
+          end;
+        end;
+
+        jarr := nil;
+        j.TryGetValue<TJSONArray>('Bodies',jarr);
+        if jarr <> nil then
+        begin
+          for i := 0 to jarr.Count - 1 do
+          begin
+            bodyId := '';
+            jarr[i].TryGetValue<string>('BodyID',bodyId);
+            b := TryAddBodyFromId(bodyId);
+            if b = nil then continue;
+            with b do
+            begin
+              jarr[i].TryGetValue<string>('BodyName',b.BodyName);
+              jarr[i].TryGetValue<Integer>('BiologicalSignals',b.BiologicalSignals);
+              jarr[i].TryGetValue<Integer>('GeologicalSignals',b.GeologicalSignals);
+              jarr[i].TryGetValue<string>('ReserveLevel',b.ReserveLevel);
+              FeaturesModified := True;
             end;
           end;
         end;
@@ -1895,7 +2559,7 @@ end;
 procedure TEDDataSource.UpdateFromJournal(fn: string; jrnl: TStringList);
 var j: TJSONObject;
     jarr: TJSONArray;
-    js,s,s2,tms,event,mID,entryId: string;
+    js,s,s2,tms,event,orgevent,mID,entryId: string;
     i,i2,cpos,q: Integer;
     cd,cd2: TConstructionDepot;
     m: TMarket;
@@ -2002,6 +2666,7 @@ begin
 
             then continue;
         event := s;
+        orgevent := event;
 
         if FDoingBackup then
         begin
@@ -2199,7 +2864,8 @@ begin
               if cd.GetSys <> nil then
                 cd.GetSys.PrimaryPortId := mID;
             end;
-            cd.StationName := s;
+            if not cd.NameModified then
+              cd.StationName := s;
             try
               cd.DistFromStar := Trunc(j.GetValue<single>('DistFromStarLS'));
             except end;
@@ -2209,6 +2875,7 @@ begin
             cd.LastUpdate := tms;
 
             //if not FInitialLoad then
+            if orgevent <> 'Location' then
               UpdateDockTime(tms,cd);
           end
           else
@@ -2227,7 +2894,8 @@ begin
                   s := '';
                   try s := j.GetValue<string>('StationName_Localised'); except end;
                   if s = '' then s := j.GetValue<string>('StationName');
-                  m.StationName := s;
+                  if not m.NameModified then
+                    m.StationName := s;
                 end;
 
                 //this one is very tricky, let's see how it works...
@@ -2945,7 +3613,16 @@ begin
   NotifyListeners;
 end;
 
+function TEDDataSource.EcoFromName(s: string): TEconomy;
+var idx: Integer;
+begin
+  Result := ecoInhe;
+  idx := FEconomyList.IndexOf(s);
+  if idx > -1 then Result := TEconomy(idx);
+end;
+
 constructor TEDDataSource.Create(Owner: TComponent);
+var ei: TEconomy;
 begin
   inherited Create(Owner);
 
@@ -2953,9 +3630,9 @@ begin
 
   FWorkingDir := GetCurrentDir + '\';
 
-  FillChar(JSONFormatSettings, SizeOf(JSONFormatSettings), 0);
-//  JSONFormatSettings.ThousandSeparator := '';
-  JSONFormatSettings.DecimalSeparator := '.';
+  FillChar(JSONFrmt, SizeOf(JSONFrmt), 0);
+//  JSONFrmt.ThousandSeparator := '';
+  JSONFrmt.DecimalSeparator := '.';
 
   try CreateDir(FWorkingDir + 'markets'); except end;
   try CreateDir(FWorkingDir + 'colonies'); except end;
@@ -2979,12 +3656,17 @@ begin
   FItemNames := THashedStringList.Create;
   FLastJrnlTimeStamps := THashedStringList.Create;
   FConstructionTypes := TConstructionTypes.Create;
+  FEconomySets := TEconomySets.Create;
   FDataChanged := false;
 
   FInitialLoad := true;
 
 
   FConstructionTypes.Load;
+  FEconomyList := THashedStringList.Create;
+  for ei := Low(TEconomy) to High(TEconomy) do
+    FEconomyList.Add(cEconomyNames[ei]);
+  FEconomySets.Load;
 
   LoadAllColonies;
   LoadAllMarkets;

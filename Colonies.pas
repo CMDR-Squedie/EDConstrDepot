@@ -373,7 +373,7 @@ var i,fs: Integer;
     fn: string;
     clr: TColor;
 begin
-  if not Opts.Flags['MarketsDarkMode'] then
+  if not Opts.Flags['DarkMode'] then
   begin
     with ListView do
     begin
@@ -398,9 +398,14 @@ begin
   begin
     Font.Name := Opts['FontName2'];
     Font.Size := Opts.Int['FontSize2'];
+    try
+      Canvas.Font.Name := Opts['FontName2'];
+      Canvas.Font.Size := Opts.Int['FontSize2'];
+    except
+    end;
   end;
 
-  if Visible then UpdateItems;
+  if Visible then UpdateItems(true);
 end;
 
 procedure TColoniesForm.FormClose(Sender: TObject; var Action: TCloseAction);
@@ -736,7 +741,7 @@ begin
     begin
       if MarketsForm.Visible then MarketsForm.SetColony(sid);
       SystemInfoForm.SetSystem(sys);
-      SystemInfoForm.Show;
+      SystemInfoForm.RestoreAndShow;
     end;
   2:
     begin

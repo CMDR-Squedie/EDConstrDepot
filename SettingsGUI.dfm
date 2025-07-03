@@ -11,6 +11,7 @@ object SettingsForm: TSettingsForm
   Font.Name = 'Bahnschrift SemiCondensed'
   Font.Style = []
   Position = poScreenCenter
+  OnClose = FormClose
   OnCreate = FormCreate
   OnShow = FormShow
   TextHeight = 16

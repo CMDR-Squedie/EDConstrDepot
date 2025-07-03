@@ -63,13 +63,11 @@ object MarketsForm: TMarketsForm
       item
         Alignment = taCenter
         Caption = 'Ign.'
-        MaxWidth = 50
         Tag = 4
       end
       item
         Alignment = taCenter
         Caption = 'Fav.'
-        MaxWidth = 50
         Tag = 5
       end
       item

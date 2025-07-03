@@ -409,7 +409,7 @@ var i,fs: Integer;
     fn: string;
     clr: TColor;
 begin
-  if not Opts.Flags['MarketsDarkMode'] then
+  if not Opts.Flags['DarkMode'] then
   begin
     with ListView do
     begin
@@ -433,9 +433,14 @@ begin
   begin
     Font.Name := Opts['FontName2'];
     Font.Size := Opts.Int['FontSize2'];
+    try
+      Canvas.Font.Name := Opts['FontName2'];
+      Canvas.Font.Size := Opts.Int['FontSize2'];
+    except
+    end;
   end;
 
-  if Visible then UpdateItems;
+  if Visible then UpdateItems(true);
 end;
 
 procedure TMarketsForm.FormClose(Sender: TObject; var Action: TCloseAction);
@@ -677,7 +682,11 @@ begin
       addSubItem('');
       addSubItem(cMarketIgnoreInd[DataSrc.GetMarketLevel(cd.MarketId)]);
       addSubItem('');
-      addSubItem(DataSrc.MarketComments.Values[cd.MarketID]);
+      s := DataSrc.MarketComments.Values[cd.MarketID];
+      if s = '' then
+        if (cd.ConstructionType <> '') and (cd.GetConstrType <> nil) then
+          s := '(' + cd.GetConstrType.StationType + ')';
+      addSubItem(s);
       addSubItem('');
       addSubItem(DataSrc.MarketGroups.Values[cd.MarketID]);
 
@@ -978,7 +987,7 @@ begin
       if sys <> nil then
       begin
         SystemInfoForm.SetSystem(sys);
-        SystemInfoForm.Show;
+        SystemInfoForm.RestoreAndShow;
       end;
     end;
   21:
@@ -986,7 +995,7 @@ begin
       if bm is TConstructionDepot then
       begin
         StationInfoForm.SetStation(bm);
-        StationInfoForm.Show;
+        StationInfoForm.RestoreAndShow;
       end;
     end;
   else

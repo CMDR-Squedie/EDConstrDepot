@@ -405,7 +405,7 @@ var i,fs: Integer;
     fn: string;
     clr: TColor;
 begin
-  if not Opts.Flags['MarketsDarkMode'] then
+  if not Opts.Flags['DarkMode'] then
   begin
     with ListView do
     begin

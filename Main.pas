@@ -4,7 +4,7 @@
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, Winapi.PsAPI, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Winapi.Windows, Winapi.Messages, Winapi.PsAPI, Winapi.ShellAPI, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, System.JSON, System.IOUtils, System.Math, System.StrUtils,
   Vcl.ExtCtrls, Vcl.Menus, Vcl.ComCtrls, Settings, DataSource;
 
@@ -57,6 +57,7 @@ type
     N6: TMenuItem;
     SystemInfoMenuItem: TMenuItem;
     SystemInfoCurrentMenuItem: TMenuItem;
+    Wiki1: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure UpdTimerTimer(Sender: TObject);
     procedure TextColLabelMouseMove(Sender: TObject; Shift: TShiftState; X,
@@ -104,6 +105,7 @@ type
     procedure ManageColoniesMenuItemClick(Sender: TObject);
     procedure SystemInfoMenuItemClick(Sender: TObject);
     procedure SystemInfoCurrentMenuItemClick(Sender: TObject);
+    procedure Wiki1Click(Sender: TObject);
 private
     { Private declarations }
     FSelectedConstructions: TStringList;
@@ -253,7 +255,7 @@ begin
   if FCurrentDepot = nil then Exit;
 
   StationInfoForm.SetStation(FCurrentDepot);
-  StationInfoForm.Show;
+  StationInfoForm.RestoreAndShow;
   {
   orgs := DataSrc.MarketComments.Values[FCurrentDepot.MarketID];
   s := Vcl.Dialogs.InputBox(FCurrentDepot.StationName_full, 'Info', orgs);
@@ -302,6 +304,11 @@ begin
   MarketAsExtCargoDlg(DataSrc.CargoExt,1);
 end;
 
+
+procedure TEDCDForm.Wiki1Click(Sender: TObject);
+begin
+  ShellExecute(0, 'open', 'https://github.com/CMDR-Squedie/EDConstrDepot/wiki', nil, nil, SW_SHOWNORMAL);
+end;
 
 function TEDCDForm.FindBestMarket(reqList: TStringList; prevMarket: TMarket): TMarket;
 var i,mi,score,maxscore,reqQty,shipQty,stock,totAvail,lowCnt,uniqueCnt,bonus,extraJumps: Integer;
@@ -1826,7 +1833,7 @@ begin
   if DataSrc.CurrentSystem <> nil then
   begin
     SystemInfoForm.SetSystem(DataSrc.CurrentSystem);
-    SystemInfoForm.Show;
+    SystemInfoForm.RestoreAndShow;
   end;
 end;
 
@@ -1835,7 +1842,7 @@ begin
   if FCurrentDepot <> nil then
   begin
     SystemInfoForm.SetSystem(FCurrentDepot.GetSys);
-    SystemInfoForm.Show;
+    SystemInfoForm.RestoreAndShow;
   end;
 end;
 

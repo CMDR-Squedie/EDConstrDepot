@@ -29,6 +29,7 @@ type
       LinkType: TSysLinkType);
     procedure BackupJournalLinkLinkClick(Sender: TObject; const Link: string;
       LinkType: TSysLinkType);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
   private
     { Private declarations }
     FUserOpts: TList;
@@ -51,7 +52,7 @@ procedure TSettingsForm.BackupJournalLinkLinkClick(Sender: TObject;
   const Link: string; LinkType: TSysLinkType);
 begin
   if Vcl.Dialogs.MessageDlg('Are you sure you want create a journal backup?' + Chr(13) +
-    '(This file can be moved to a new machine and put in E:D Saved Games folder.)' ,
+    '(These files can be moved to a new machine and put in E:D Saved Games folder.)' ,
     mtConfirmation, [mbYes, mbNo], 0, mbNo) = mrNo then Exit;
 
   SplashForm.ShowInfo('Backing up journal...',0);
@@ -60,6 +61,11 @@ begin
   finally
     SplashForm.Hide;
   end;
+end;
+
+procedure TSettingsForm.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  Opts.Save;
 end;
 
 procedure TSettingsForm.FormCreate(Sender: TObject);
@@ -90,7 +96,8 @@ begin
 
   DefineOpt('FontName','',0,0,'font');
   DefineOpt('FontSize','',1,255,'');
-  DefineOpt('Color','hex color code',0,0,'hex');
+  DefineOpt('Color','hex color code for font color',0,0,'hex');
+  DefineFlag('DarkMode','changes color scheme to dark');
   DefineOpt('FontGlow','0-255 transition between font color and background',0,255,'');
   DefineOpt('Backdrop','0-transparent; 1-opaque; 2-shadowed',0,2,'');
   DefineOpt('AlphaBlend','0-255 shadow intensity (if Backdrop=2)',0,255,'');
@@ -101,7 +108,7 @@ begin
   DefineOpt('AutoSort','0-alphabetical; 1-by market availability; 2-by category and availability',0,2,'');
   DefineFlag('TrackMarkets','automatically track visited markets');
   DefineFlag('AutoSnapshots','auto-create market history on economy change');
-//  DefineFlag('IncludeFinished','* allow finished constructions for selection');
+  DefineFlag('IncludeFinished','allow finished constructions for menu selection');
   DefineFlag('ShowUnderCapacity','');
   DefineOpt('ShowProgress','0-no info; 1-beneath the list; 2-in the title bar',0,2,'');
   DefineOpt('ShowFlightsLeft','0-no info; 1-beneath the list; 2-in the title bar',0,2,'');
@@ -114,7 +121,6 @@ begin
   DefineOpt('IncludeSupply','0-no supply hint; 1-full capacity supply; 2-full request supply',0,2,'');
   DefineFlag('ShowCloseBox','');
   DefineFlag('TransparentTitle','');
-  DefineFlag('MarketsDarkMode','changes market and colony list background to dark');
   DefineOpt('FontName2','font name for secondary windows (markets, colonies etc.)',0,0,'font');
   DefineOpt('FontSize2','font size for secondary windows',1,255,'');
 

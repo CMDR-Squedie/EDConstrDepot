@@ -3,7 +3,7 @@ object SystemInfoForm: TSystemInfoForm
   Top = 0
   Caption = 'System Info'
   ClientHeight = 861
-  ClientWidth = 1184
+  ClientWidth = 1384
   Color = clBlack
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -11,7 +11,7 @@ object SystemInfoForm: TSystemInfoForm
   Font.Name = 'Bahnschrift SemiCondensed'
   Font.Style = []
   PopupMenu = PopupMenu
-  Position = poScreenCenter
+  Position = poDesigned
   OnClose = FormClose
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
@@ -19,18 +19,19 @@ object SystemInfoForm: TSystemInfoForm
   object Splitter1: TSplitter
     Left = 0
     Top = 473
-    Width = 1184
+    Width = 1384
     Height = 5
     Cursor = crVSplit
     Align = alTop
     ExplicitLeft = 8
     ExplicitTop = 468
+    ExplicitWidth = 1184
   end
   object ListView: TListView
     Left = 0
-    Top = 511
-    Width = 1184
-    Height = 350
+    Top = 570
+    Width = 1384
+    Height = 291
     Align = alClient
     BevelInner = bvNone
     BevelOuter = bvNone
@@ -39,13 +40,15 @@ object SystemInfoForm: TSystemInfoForm
     Columns = <
       item
         Caption = 'Body'
-        MinWidth = 150
       end
       item
         Caption = 'Type'
       end
       item
         Caption = 'Comment'
+      end
+      item
+        Caption = 'Economy'
       end
       item
         Alignment = taCenter
@@ -67,11 +70,14 @@ object SystemInfoForm: TSystemInfoForm
       item
         Alignment = taRightJustify
         Caption = 'Grav.'
-        MinWidth = 100
       end
       item
-        Alignment = taRightJustify
+        Alignment = taCenter
         Caption = 'T.Lock'
+      end
+      item
+        Alignment = taCenter
+        Caption = 'Terr.'
       end
       item
         Alignment = taRightJustify
@@ -103,7 +109,7 @@ object SystemInfoForm: TSystemInfoForm
   object Panel1: TPanel
     Left = 0
     Top = 0
-    Width = 1184
+    Width = 1384
     Height = 73
     Align = alTop
     BevelOuter = bvNone
@@ -237,7 +243,7 @@ object SystemInfoForm: TSystemInfoForm
   object ScrollBox: TScrollBox
     Left = 0
     Top = 73
-    Width = 1184
+    Width = 1384
     Height = 400
     HorzScrollBar.Smooth = True
     HorzScrollBar.Tracking = True
@@ -284,11 +290,11 @@ object SystemInfoForm: TSystemInfoForm
       OnMouseUp = SysImageMouseUp
     end
   end
-  object Panel2: TPanel
+  object InfoPanel2: TPanel
     Left = 0
     Top = 478
-    Width = 1184
-    Height = 33
+    Width = 1384
+    Height = 59
     Align = alTop
     BevelOuter = bvNone
     Color = clBlack
@@ -296,7 +302,7 @@ object SystemInfoForm: TSystemInfoForm
     TabOrder = 3
     object Label1: TLabel
       Left = 6
-      Top = 6
+      Top = 3
       Width = 38
       Height = 19
       Caption = 'Secur.'
@@ -309,7 +315,7 @@ object SystemInfoForm: TSystemInfoForm
     end
     object SecLabel: TLabel
       Left = 50
-      Top = 6
+      Top = 3
       Width = 68
       Height = 19
       Hint = 'Current / incl. In Progress / incl. Planned'
@@ -325,7 +331,7 @@ object SystemInfoForm: TSystemInfoForm
     end
     object Label2: TLabel
       Left = 132
-      Top = 6
+      Top = 3
       Width = 37
       Height = 19
       Caption = 'Devel.'
@@ -338,7 +344,7 @@ object SystemInfoForm: TSystemInfoForm
     end
     object DevLabel: TLabel
       Left = 175
-      Top = 6
+      Top = 3
       Width = 68
       Height = 19
       Hint = 'Current / incl. In Progress / incl. Planned'
@@ -354,7 +360,7 @@ object SystemInfoForm: TSystemInfoForm
     end
     object Label4: TLabel
       Left = 257
-      Top = 6
+      Top = 3
       Width = 31
       Height = 19
       Caption = 'Tech.'
@@ -367,7 +373,7 @@ object SystemInfoForm: TSystemInfoForm
     end
     object TechLabel: TLabel
       Left = 294
-      Top = 6
+      Top = 3
       Width = 68
       Height = 19
       Hint = 'Current / incl. In Progress / incl. Planned'
@@ -383,7 +389,7 @@ object SystemInfoForm: TSystemInfoForm
     end
     object Label6: TLabel
       Left = 376
-      Top = 6
+      Top = 3
       Width = 42
       Height = 19
       Caption = 'Wealth'
@@ -396,7 +402,7 @@ object SystemInfoForm: TSystemInfoForm
     end
     object WealthLabel: TLabel
       Left = 424
-      Top = 6
+      Top = 3
       Width = 68
       Height = 19
       Hint = 'Current / incl. In Progress / incl. Planned'
@@ -412,7 +418,7 @@ object SystemInfoForm: TSystemInfoForm
     end
     object Label8: TLabel
       Left = 506
-      Top = 6
+      Top = 3
       Width = 42
       Height = 19
       Caption = 'StdLiv.'
@@ -425,7 +431,7 @@ object SystemInfoForm: TSystemInfoForm
     end
     object LivLabel: TLabel
       Left = 554
-      Top = 6
+      Top = 3
       Width = 68
       Height = 19
       Hint = 'Current / incl. In Progress / incl. Planned'
@@ -442,8 +448,8 @@ object SystemInfoForm: TSystemInfoForm
       ShowHint = True
     end
     object PrimaryLabel: TLabel
-      Left = 1020
-      Top = 9
+      Left = 1056
+      Top = 6
       Width = 66
       Height = 14
       Caption = 'T2/T3 Primary'
@@ -457,11 +463,12 @@ object SystemInfoForm: TSystemInfoForm
       ShowHint = True
     end
     object Label11: TLabel
-      Left = 742
-      Top = 6
-      Width = 79
+      Left = 802
+      Top = 3
+      Width = 56
       Height = 19
-      Caption = 'Avail. CP:  T2'
+      Alignment = taRightJustify
+      Caption = ' CP:     T2'
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clSilver
       Font.Height = -16
@@ -470,8 +477,8 @@ object SystemInfoForm: TSystemInfoForm
       ParentFont = False
     end
     object CP2Label: TLabel
-      Left = 831
-      Top = 6
+      Left = 867
+      Top = 3
       Width = 68
       Height = 19
       Hint = 'Current / incl. In Progress / incl. Planned'
@@ -488,8 +495,8 @@ object SystemInfoForm: TSystemInfoForm
       ShowHint = True
     end
     object T2Label: TLabel
-      Left = 917
-      Top = 6
+      Left = 955
+      Top = 3
       Width = 14
       Height = 19
       Caption = 'T3'
@@ -501,8 +508,8 @@ object SystemInfoForm: TSystemInfoForm
       ParentFont = False
     end
     object CP3Label: TLabel
-      Left = 942
-      Top = 6
+      Left = 978
+      Top = 3
       Width = 68
       Height = 19
       Hint = 'Current / incl. In Progress / incl. Planned'
@@ -517,6 +524,375 @@ object SystemInfoForm: TSystemInfoForm
       ParentFont = False
       ParentShowHint = False
       ShowHint = True
+    end
+    object Label10: TLabel
+      Left = 6
+      Top = 32
+      Width = 120
+      Height = 19
+      Caption = 'System weak links:'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clSilver
+      Font.Height = -16
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentFont = False
+    end
+    object InduLinksLabel1: TLabel
+      Left = 272
+      Top = 33
+      Width = 140
+      Height = 19
+      Hint = 'Current / incl. In Progress / incl. Planned'
+      Alignment = taCenter
+      AutoSize = False
+      Caption = 'Indu: 0 (0/0)'
+      Color = clBlueviolet
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clBlack
+      Font.Height = -16
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentColor = False
+      ParentFont = False
+      ParentShowHint = False
+      ShowHint = True
+      Transparent = False
+    end
+    object HighLinksLabel1: TLabel
+      Left = 412
+      Top = 33
+      Width = 140
+      Height = 19
+      Hint = 'Current / incl. In Progress / incl. Planned'
+      Alignment = taCenter
+      AutoSize = False
+      Caption = 'High: 0 (0/0)'
+      Color = clRoyalblue
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clBlack
+      Font.Height = -16
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentColor = False
+      ParentFont = False
+      ParentShowHint = False
+      ShowHint = True
+      Transparent = False
+    end
+    object RefiLinksLabel1: TLabel
+      Left = 548
+      Top = 33
+      Width = 140
+      Height = 19
+      Hint = 'Current / incl. In Progress / incl. Planned'
+      Alignment = taCenter
+      AutoSize = False
+      Caption = 'Refi: 0 (0/0)'
+      Color = clDarkorange
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clBlack
+      Font.Height = -16
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentColor = False
+      ParentFont = False
+      ParentShowHint = False
+      ShowHint = True
+      Transparent = False
+    end
+    object AgriLinksLabel1: TLabel
+      Left = 825
+      Top = 33
+      Width = 140
+      Height = 19
+      Hint = 'Current / incl. In Progress / incl. Planned'
+      Alignment = taCenter
+      AutoSize = False
+      Caption = 'Agri: 0 (0/0)'
+      Color = clYellowgreen
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clBlack
+      Font.Height = -16
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentColor = False
+      ParentFont = False
+      ParentShowHint = False
+      ShowHint = True
+      Transparent = False
+    end
+    object ExtrLinksLabel1: TLabel
+      Left = 685
+      Top = 33
+      Width = 140
+      Height = 19
+      Hint = 'Current / incl. In Progress / incl. Planned'
+      Alignment = taCenter
+      AutoSize = False
+      Caption = 'Extr: 0 (0/0)'
+      Color = clSaddlebrown
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clBlack
+      Font.Height = -16
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentColor = False
+      ParentFont = False
+      ParentShowHint = False
+      ShowHint = True
+      Transparent = False
+    end
+    object TourLinksLabel1: TLabel
+      Left = 965
+      Top = 33
+      Width = 140
+      Height = 19
+      Hint = 'Current / incl. In Progress / incl. Planned'
+      Alignment = taCenter
+      AutoSize = False
+      Caption = 'Tour: 0 (0/0)'
+      Color = clGold
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clBlack
+      Font.Height = -16
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentColor = False
+      ParentFont = False
+      ParentShowHint = False
+      ShowHint = True
+      Transparent = False
+    end
+    object MiliLinksLabel1: TLabel
+      Left = 132
+      Top = 33
+      Width = 140
+      Height = 19
+      Hint = 'Current / incl. In Progress / incl. Planned'
+      Alignment = taCenter
+      AutoSize = False
+      Caption = 'Mili: 0 (0/0)'
+      Color = clFirebrick
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clBlack
+      Font.Height = -16
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentColor = False
+      ParentFont = False
+      ParentShowHint = False
+      ShowHint = True
+      Transparent = False
+    end
+    object SlotsLabel: TLabel
+      Left = 634
+      Top = 3
+      Width = 109
+      Height = 19
+      Hint = 'Free construction slots, click to change'
+      Caption = 'Slots '#8226#9898'-- '#55356#57325'--'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clSilver
+      Font.Height = -16
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentFont = False
+      ParentShowHint = False
+      ShowHint = True
+      OnClick = SlotsLabelClick
+    end
+    object Label12: TLabel
+      Left = 1161
+      Top = 6
+      Width = 55
+      Height = 16
+      Caption = 'Economies'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clSilver
+      Font.Height = -13
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentFont = False
+      OnClick = Label12Click
+    end
+    object Label13: TLabel
+      Left = 1250
+      Top = 6
+      Width = 33
+      Height = 16
+      Caption = 'Filters'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clSilver
+      Font.Height = -13
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentFont = False
+      OnClick = Label13Click
+    end
+    object Label14: TLabel
+      Left = 1162
+      Top = 34
+      Width = 43
+      Height = 16
+      Caption = 'Up Links'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clSilver
+      Font.Height = -13
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentFont = False
+      OnClick = Label14Click
+    end
+    object EconomiesCheck: TCheckBox
+      Left = 1141
+      Top = 6
+      Width = 19
+      Height = 17
+      TabOrder = 0
+      OnClick = EconomiesCheckClick
+    end
+    object FiltersCheck: TCheckBox
+      Left = 1230
+      Top = 6
+      Width = 19
+      Height = 17
+      TabOrder = 1
+      OnClick = FiltersCheckClick
+    end
+    object ShowUpLinksCheck: TCheckBox
+      Left = 1141
+      Top = 34
+      Width = 19
+      Height = 17
+      Checked = True
+      State = cbChecked
+      TabOrder = 2
+      OnClick = ShowUpLinksCheckClick
+    end
+  end
+  object FiltersPanel: TPanel
+    Left = 0
+    Top = 537
+    Width = 1384
+    Height = 33
+    Align = alTop
+    BevelEdges = []
+    BevelOuter = bvNone
+    Color = clSilver
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -13
+    Font.Name = 'Bahnschrift SemiCondensed'
+    Font.Style = []
+    ParentBackground = False
+    ParentFont = False
+    TabOrder = 4
+    Visible = False
+    object Label9: TLabel
+      Left = 8
+      Top = 8
+      Width = 27
+      Height = 16
+      Caption = 'Filter'
+    end
+    object PlannedCheck: TCheckBox
+      Left = 634
+      Top = 8
+      Width = 72
+      Height = 17
+      Caption = 'planned'
+      Checked = True
+      State = cbChecked
+      TabOrder = 0
+      OnClick = BodiesCheckClick
+    end
+    object FilterEdit: TComboBox
+      Left = 40
+      Top = 5
+      Width = 194
+      Height = 24
+      DropDownCount = 20
+      Sorted = True
+      TabOrder = 1
+      OnChange = FilterEditChange
+    end
+    object ClearFilterButton: TButton
+      Left = 235
+      Top = 5
+      Width = 20
+      Height = 24
+      Caption = 'X'
+      TabOrder = 2
+      OnClick = ClearFilterButtonClick
+    end
+    object BodiesCheck: TCheckBox
+      Left = 272
+      Top = 8
+      Width = 81
+      Height = 17
+      Caption = 'Bodies'
+      Checked = True
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -13
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentFont = False
+      State = cbChecked
+      TabOrder = 3
+      OnClick = BodiesCheckClick
+    end
+    object StationsCheck: TCheckBox
+      Left = 359
+      Top = 8
+      Width = 90
+      Height = 17
+      Caption = 'Stations:'
+      Checked = True
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -13
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentFont = False
+      State = cbChecked
+      TabOrder = 4
+      OnClick = BodiesCheckClick
+    end
+    object InProgressCheck: TCheckBox
+      Left = 532
+      Top = 8
+      Width = 89
+      Height = 17
+      Caption = '- in progress'
+      Checked = True
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -13
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentFont = False
+      State = cbChecked
+      TabOrder = 5
+      OnClick = BodiesCheckClick
+    end
+    object FinishedCheck: TCheckBox
+      Left = 449
+      Top = 8
+      Width = 75
+      Height = 17
+      Caption = '- finished'
+      Checked = True
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -13
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentFont = False
+      State = cbChecked
+      TabOrder = 6
+      OnClick = BodiesCheckClick
     end
   end
   object PopupMenu: TPopupMenu
@@ -544,6 +920,10 @@ object SystemInfoForm: TSystemInfoForm
       Caption = 'Edit Picture'
       OnClick = EditPictureMenuItemClick
     end
+    object ReloadPictureMenuItem: TMenuItem
+      Caption = 'Refresh'
+      OnClick = ReloadPictureMenuItemClick
+    end
     object N1: TMenuItem
       Caption = '-'
     end
@@ -554,8 +934,8 @@ object SystemInfoForm: TSystemInfoForm
   end
   object PopupMenu2: TPopupMenu
     OnPopup = PopupMenu2Popup
-    Left = 816
-    Top = 504
+    Left = 1000
+    Top = 560
     object AddConstructionMenuItem: TMenuItem
       Caption = 'Add Construction'
       OnClick = AddConstructionMenuItemClick
@@ -592,8 +972,65 @@ object SystemInfoForm: TSystemInfoForm
       Caption = 'Delete Construction'
       OnClick = DeleteConstructionMenuItemClick
     end
+    object N4: TMenuItem
+      Caption = '-'
+    end
+    object AddSignalsSubMenu: TMenuItem
+      Caption = 'Signals'
+      object AddBioSignalsMenuItem: TMenuItem
+        Caption = 'Add Biological'
+        OnClick = AddBioSignalsMenuItemClick
+      end
+      object AddGeoSignalsMenuItem: TMenuItem
+        Tag = 1
+        Caption = 'Add Geological'
+        OnClick = AddBioSignalsMenuItemClick
+      end
+      object N5: TMenuItem
+        Caption = '-'
+      end
+      object Reset1: TMenuItem
+        Tag = -1
+        Caption = 'Clear'
+        OnClick = AddBioSignalsMenuItemClick
+      end
+    end
+    object ResourceReserveSubMenu: TMenuItem
+      Caption = 'Resource Reserve'
+      object PristineReserveMenuItem: TMenuItem
+        Caption = 'Pristine'
+        OnClick = PristineReserveMenuItemClick
+      end
+      object Major1: TMenuItem
+        Tag = 1
+        Caption = 'Major'
+        OnClick = PristineReserveMenuItemClick
+      end
+      object Low1: TMenuItem
+        Tag = 2
+        Caption = 'Low'
+        OnClick = PristineReserveMenuItemClick
+      end
+      object Depleted1: TMenuItem
+        Tag = 3
+        Caption = 'Depleted'
+        OnClick = PristineReserveMenuItemClick
+      end
+      object N6: TMenuItem
+        Caption = '-'
+      end
+      object Reset2: TMenuItem
+        Tag = -1
+        Caption = 'Clear'
+        OnClick = PristineReserveMenuItemClick
+      end
+    end
     object N3: TMenuItem
       Caption = '-'
+    end
+    object SetAsActiveMenuItem: TMenuItem
+      Caption = 'Set As Active'
+      OnClick = SetAsActiveMenuItemClick
     end
     object MarketInfoMenuItem: TMenuItem
       Caption = 'Market Info'
