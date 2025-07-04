@@ -120,6 +120,7 @@ begin
   FDefaults.Values['SelectedMarket'] := 'auto';
   FDefaults.Values['ShowDividers'] := '1';
   FDefaults.Values['ShowIndicators'] := '2';
+  FDefaults.Values['ShowStarSystem'] := '0';
   FDefaults.Values['IndicatorsPadding'] := '1';
   FDefaults.Values['IncludeSupply'] := '1';
   FDefaults.Values['ShowCloseBox'] := '0';
@@ -138,7 +139,7 @@ begin
   FDefaults.Values['TrackMarkets'] := '1';
   FDefaults.Values['AutoSnapshots'] := '0';
   FDefaults.Values['AllowMoreWindows'] := '0';
-  FDefaults.Values['DarkMode'] := '0';
+  FDefaults.Values['DarkMode'] := '1';
   FDefaults.Values['AnyMarketAsDepot'] := '0'; //this enables using any market type as FC
   FDefaults.Values['BaseWidthText'] := '00000';
   FDefaults.Values['FontGlow'] := '48';

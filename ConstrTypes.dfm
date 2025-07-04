@@ -165,22 +165,19 @@ object ConstrTypesForm: TConstrTypesForm
       TabOrder = 1
       OnClick = ClearFilterButtonClick
     end
-    object ConstrTypesCheck: TCheckBox
-      Left = 272
+    object AddToSystemCheck: TCheckBox
+      Left = 360
       Top = 8
-      Width = 81
+      Width = 217
       Height = 17
-      Caption = 'ConstrTypes'
-      Checked = True
+      Caption = 'Add To Current System on Dbl.Click'
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clWindowText
       Font.Height = -13
       Font.Name = 'Bahnschrift SemiCondensed'
       Font.Style = []
       ParentFont = False
-      State = cbChecked
       TabOrder = 2
-      Visible = False
     end
   end
 end

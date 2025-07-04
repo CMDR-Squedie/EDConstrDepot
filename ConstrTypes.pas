@@ -14,7 +14,7 @@ type
     Label1: TLabel;
     FilterEdit: TComboBox;
     ClearFilterButton: TButton;
-    ConstrTypesCheck: TCheckBox;
+    AddToSystemCheck: TCheckBox;
     procedure ListViewColumnClick(Sender: TObject; Column: TListColumn);
     procedure ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
@@ -130,7 +130,7 @@ procedure TConstrTypesForm.FormCreate(Sender: TObject);
 var i: Integer;
 begin
   SortColumn := 0;
-  SortAscending := False;
+  SortAscending := True;
   self.Width := Min(self.Width,Screen.Width);
   ApplySettings;
 end;
@@ -151,7 +151,8 @@ var
   items: THashedStringList;
   colMaxLen: array [0..100] of Integer;
   colMaxTxt: array [0..100] of string;
-  autoSizeCol: Boolean;
+  autoSizeCol,addingStats: Boolean;
+  stats: string;
 
   procedure addCaption(s: string);
   var ln: Integer;
@@ -177,6 +178,9 @@ var
       colMaxLen[curCol] := ln;
       colMaxTxt[curCol] := s;
     end;
+    if addingStats then
+      if StrToIntDef(s,0) > 0 then
+        stats := stats + ListView.Columns[curCol].Caption + ',';
   end;
 
   function CheckFilter: Boolean;
@@ -199,16 +203,19 @@ var
     end;
   end;
 
-  function tostr(i: Integer): string;
+  function tostr(i: Integer; const addsignf: Boolean = False): string;
   begin
     Result := '';
     if i <> 0 then Result := i.ToString;
+    if addsignf then
+      if i > 0  then
+        Result := '+' + Result;
   end;
 
 begin
   autoSizeCol := _autoSizeCol;
   if ListView.Items.Count = 0 then autoSizeCol := True;
-  autoSizeCol := autoSizeCol and Opts.Flags['AutoSizeColumns'];
+//  autoSizeCol := autoSizeCol and Opts.Flags['AutoSizeColumns'];
 
   items := THashedStringList.Create;
   items.Sorted := True;
@@ -236,7 +243,11 @@ begin
 
       item := ListView.Items.Add;
       item.Data := ct;
+
+      stats := '';
+
       addCaption('T' + ct.Tier);
+      addingStats := False;
       addSubItem(ct.Location);
       addSubItem(ct.Category);
       addSubItem(ct.StationType);
@@ -245,14 +256,20 @@ begin
       addSubItem(ct.Economy);
       addSubItem(ct.Influence);
       addSubItem(ct.Requirements);
-      addSubItem(tostr(ct.CP2));
-      addSubItem(tostr(ct.CP3));
+
+      addingStats := True;
+      addSubItem(tostr(ct.CP2,true));
+      addSubItem(tostr(ct.CP3,true));
       addSubItem(tostr(ct.SecLev));
       addSubItem(tostr(ct.TechLev));
       addSubItem(tostr(ct.DevLev));
       addSubItem(tostr(ct.WealthLev));
       addSubItem(tostr(ct.StdLivLev));
+      addingStats := False;
       addSubItem(tostr(ct.EstCargo));
+
+      //this is hidden, actually equivalent to sorting but nice anyways
+      item.SubItems.Add(stats);
 
       if not CheckFilter then item.Delete;
     end;
@@ -297,8 +314,8 @@ begin
         StrToIntDef(Item2.SubItems[SortColumn-1],0))
     else
       Compare := CompareText(
-        Item1.SubItems[SortColumn-1] + '    ' + Item1.Caption,
-        Item2.SubItems[SortColumn-1] + '    ' + Item2.Caption);
+        Item1.SubItems[SortColumn-1] + '    ' + Item1.SubItems[6],
+        Item2.SubItems[SortColumn-1] + '    ' + Item2.SubItems[6]);
   end;
 
   if not SortAscending then Compare := -Compare;
@@ -325,6 +342,8 @@ var sid: string;
     s,orgs: string;
     action: Integer;
     ct: TConstructionType;
+    cd: TConstructionDepot;
+    UUID: TGUID;
 begin
   if ListView.Selected = nil then Exit;
   action := -1;
@@ -336,6 +355,28 @@ begin
   ClickedColumn := -1;
   if Sender is TMenuItem then action := TMenuItem(Sender).Tag;
   if action = -1 then Exit;
+  ct := TConstructionType(ListView.Selected.Data);
+
+  if AddToSystemCheck.Checked then
+  if SystemInfoForm.Visible then
+  if SystemInfoForm.CurrentSystem.Bodies.Count > 0 then
+  begin
+    cd := TConstructionDepot.Create;
+    cd.StarSystem := SystemInfoForm.CurrentSystem.StarSystem;
+    cd.Body := TSystemBody(SystemInfoForm.CurrentSystem.Bodies.Objects[0]).BodyName;
+    cd.ConstructionType := ct.Id;
+    cd.Planned := True;
+    cd.Modified := True;
+
+    CreateGUID(UUID);
+    cd.MarketId := GUIDToString(UUID);
+    DataSrc.Constructions.AddObject(cd.MarketID,cd);
+    SystemInfoForm.CurrentSystem.Save;
+    SystemInfoForm.UpdateView;
+    SystemInfoForm.BringToFront;
+    self.BringToFront;
+  end;
+
 end;
 
 procedure TConstrTypesForm.ListViewMouseDown(Sender: TObject; Button: TMouseButton;

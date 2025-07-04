@@ -675,10 +675,19 @@ begin
       s := cd.StationName_full;
       s2 := DataSrc.MarketComments.Values[cd.MarketID];
       if s2 = '' then
+      begin
         if cd.ConstructionType <> '' then
-          try s2 := cd.GetConstrType.StationType except end;
-      if s2 <> '' then
+          try
+            s2 := cd.GetConstrType.StationType;
+            if (s2 <> '') and (cd.StationName <> '') then
+              s := s + ' (' + GetStationTypeAbbrev(s2) + ')';
+          except
+          end;
+      end
+      else
         s := s + ' (' + s2 + ')';
+      if Opts.Flags['ShowStarSystem'] then
+        s := s + ' ✧' + GetStarSystemAbbrev(cd.StarSystem);
       if FSelectedConstructions.Count > 1 then
         s := Copy(s,1,30 div FSelectedConstructions.Count) + '…';
       cnames := cnames + s;
@@ -1915,6 +1924,7 @@ var
   i,j,idx: Integer;
   mitem: TMenuItem;
   cd: TConstructionDepot;
+  ct: TConstructionType;
   m: TMarket;
   selectedf,activef: Boolean;
   s: string;
@@ -1942,11 +1952,14 @@ begin
   for i := 0 to DataSrc.Constructions.Count - 1 do
   begin
     cd := TConstructionDepot(DataSrc.Constructions.Objects[i]);
-    if cd.Status = '' then continue; //docked but no depot info?
+    //if cd.Status = '' then continue; //docked but no depot info?
+    if cd.Planned then continue; //docked but no depot info?
     if cd.Finished and not Opts.Flags['IncludeFinished'] then
       if FSelectedConstructions.IndexOf(cd.MarketID) = -1 then continue;
     if DataSrc.GetMarketLevel(cd.MarketID) = miIgnore then continue;
-    sl.AddObject(cd.LastUpdate,cd);
+    s := IntToStr(2*Ord(not cd.Finished));
+    if cd.Simulated then s := '1';
+    sl.AddObject(s + cd.LastUpdate,cd);
   end;
   sl.Sort;
   for i := sl.Count - 1 downto sl.Count - 20 do
@@ -1957,7 +1970,15 @@ begin
     mitem.Caption := cd.FullName;
     s := DataSrc.MarketComments.Values[cd.MarketID];
     if s <> '' then
-      mitem.Caption := mitem.Caption + ' (' + Copy(s,1,20) + ')';
+      mitem.Caption := mitem.Caption + ' (' + Copy(s,1,20) + ')'
+    else
+      if cd.ConstructionType <> '' then
+        try
+          s := cd.GetConstrType.StationType;
+          if (s <> '') and (cd.StationName <> '') then
+            mitem.Caption := mitem.Caption + ' (' + GetStationTypeAbbrev(s) + ')';
+        except
+        end;
     mitem.Tag := DataSrc.Constructions.IndexOfObject(cd);
     mitem.OnClick := SwitchDepotMenuItemClick;
     mitem.AutoCheck := true;

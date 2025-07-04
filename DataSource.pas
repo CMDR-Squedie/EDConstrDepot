@@ -65,6 +65,9 @@ procedure AddEconomies(var a: TEconomyArray; b: TEconomyArray);
 procedure SubEconomies(var a: TEconomyArray; b: TEconomyArray);
 function FormatEconomies(Economies: TEconomyArray): string;
 function EconomiesMatch(e1,e2: string): Boolean;
+function GetStationTypeAbbrev(name: string): string;
+function GetFactionAbbrev(name: string): string;
+function GetStarSystemAbbrev(name: string): string;
 
 const cEconomyNames: array [Low(TEconomy)..High(TEconomy)] of string = (
   'Agricultural',
@@ -516,10 +519,39 @@ var i: Integer;
     sarr: TStringDynArray;
 begin
   Result := '';
+  if name = '' then Exit;
   sarr := SplitString(name,' ');
   for i := 0 to High(sarr) - 1 do
     Result := Result + Copy(sarr[i],1,1);
   Result := Result + Copy(sarr[High(sarr)],1,3);
+end;
+
+function GetStationTypeAbbrev(name: string): string;
+var i: Integer;
+    sarr: TStringDynArray;
+begin
+  Result := '';
+  if name = '' then Exit;
+  sarr := SplitString(name,' ');
+  for i := 0 to High(sarr) do
+    Result := Result + Copy(sarr[i],1,3);
+end;
+
+function GetStarSystemAbbrev(name: string): string;
+var i: Integer;
+    sarr: TStringDynArray;
+begin
+  Result := name;
+  if Length(Result) <= 10 then Exit;
+  Result := '';
+  if Pos('-',name) > 0 then
+    Result := '…' + Trim(RightStr(name,10))
+  else
+  begin
+    sarr := SplitString(name,' ');
+    for i := 0 to High(sarr) do
+      Result := Result + Copy(sarr[i],1,3);
+  end;
 end;
 
 procedure ClearEconomies(var a: TEconomyArray);
