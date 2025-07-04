@@ -101,6 +101,7 @@ type
     procedure ReqQtyColLabelDblClick(Sender: TObject);
     procedure CopyReqQtyMenuItemClick(Sender: TObject);
     procedure ActiveConstrMenuItemClick(Sender: TObject);
+    procedure ConstructionTypesMenuItemClick(Sender: TObject);
     procedure ManageMarketsMenuItemClick(Sender: TObject);
     procedure ManageColoniesMenuItemClick(Sender: TObject);
     procedure SystemInfoMenuItemClick(Sender: TObject);
@@ -162,7 +163,7 @@ implementation
 {$R *.dfm}
 
 uses Splash, Markets, SettingsGUI, MarketInfo, Clipbrd, Colonies, StationInfo,
-  SystemInfo;
+  SystemInfo, ConstrTypes;
 
 const cDefaultCapacity: Integer = 784;
 
@@ -1892,7 +1893,10 @@ begin
     MarketsForm.MarketsCheck.Checked := False;
     MarketsForm.ConstrCheck.Checked := True;
     if TMenuItem(Sender).Tag = 1 then
+    begin
+      MarketsForm.InclPlannedCheck.Checked := True;
       MarketsForm.FilterEdit.Text := 'PlannedConstruction'
+    end
     else
       MarketsForm.FilterEdit.Text := 'ConstructionDepot';
   finally
@@ -1901,6 +1905,10 @@ begin
   end;
 end;
 
+procedure TEDCDForm.ConstructionTypesMenuItemClick(Sender: TObject);
+begin
+  ConstrTypesForm.Show;
+end;
 
 procedure TEDCDForm.PopupMenuPopup(Sender: TObject);
 var
@@ -1984,7 +1992,7 @@ begin
   mitem.Enabled := False;
   SelectDepotSubMenu.Add(mitem);
 
-  mitem := TMenuItem.Create(SelectMarketSubMenu);
+  mitem := TMenuItem.Create(SelectDepotSubMenu);
   mitem.Caption := '-';
   SelectDepotSubMenu.Add(mitem);
 
@@ -2001,6 +2009,16 @@ begin
   mitem := TMenuItem.Create(SelectDepotSubMenu);
   mitem.Caption := 'Planned Constructions';
   mitem.OnClick := ActiveConstrMenuItemClick;
+  mitem.Tag := 1;
+  SelectDepotSubMenu.Add(mitem);
+
+  mitem := TMenuItem.Create(SelectDepotSubMenu);
+  mitem.Caption := '-';
+  SelectDepotSubMenu.Add(mitem);
+
+  mitem := TMenuItem.Create(SelectDepotSubMenu);
+  mitem.Caption := 'Construction Types';
+  mitem.OnClick := ConstructionTypesMenuItemClick;
   mitem.Tag := 1;
   SelectDepotSubMenu.Add(mitem);
 

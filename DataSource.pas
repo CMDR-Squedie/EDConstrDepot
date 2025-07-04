@@ -52,6 +52,7 @@ type TEconomy = (
   ecoIndu,
   ecoMili,
   ecoRefi,
+  ecoServ,
   ecoTour,
   ecoTerr,
   ecoColo,
@@ -72,6 +73,7 @@ const cEconomyNames: array [Low(TEconomy)..High(TEconomy)] of string = (
   'Industrial',
   'Military',
   'Refinery',
+  'Service',
   'Tourism',
   'Terraforming',
   'Colony',
@@ -181,7 +183,6 @@ private
   FFactions: string;
   FArchitect: string;
   FAlterName: string;
-  FSystemScan_EDSM: string;
   FBodies: TStringList;
   FResourceReserve: string;
   function GetFactions(abbrevf: Boolean): string;
@@ -203,6 +204,7 @@ public
   PopHistory: TStringList;
   LastUpdate: string;
   Status: string;
+  FSystemScan_EDSM: string;
   PrimaryDone: Boolean;
   PrimaryPortId: string;
   LastCmdr: string;
@@ -693,9 +695,6 @@ begin
   if Pos('star',s) > 0 then
   begin
     if LeftStr(s,1) = 'D' then s := s + 'white dwarf';
-    if BodyType = 'T Star' then s := s + 'brown dwarf';
-    if BodyType = 'Y Star' then s := s + 'brown dwarf';
-    if BodyType = 'L Star' then s := s + 'brown dwarf';
 
     for i := 0 to DataSrc.FEconomySets.Bodies.Count - 1 do
     begin
@@ -3459,7 +3458,10 @@ var idx: Integer;
 begin
   idx := FConstructions.IndexOf(cd.MarketID);
   if idx > -1 then
+  begin
     FConstructions.Delete(idx);
+    //FMarketLevels.Values[cd.MarketID] := '';
+  end;
   NotifyListeners;
 //  cd.Free;
 end;

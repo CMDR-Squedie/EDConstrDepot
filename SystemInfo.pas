@@ -859,7 +859,12 @@ end;
 
 procedure TSystemInfoForm.OnEDDataUpdate;
 begin
-  if Visible then UpdateView;
+  if Visible then
+  begin
+    SaveSelection;
+    UpdateView;
+    RestoreSelection;
+  end;
 end;
 
 procedure TSystemInfoForm.SetSystem(s: TStarSystem);
@@ -1133,8 +1138,6 @@ var i: Integer;
     ei: TEconomy;
     cLink,wLink: TEconomyArray;
 begin
-  //linkTotal collects all settlement/hub/plan.outpost links,
-  //these apply to both surface and orbital port
   ClearEconomies(surfLinks);
   ClearEconomies(orbLinks);
   ClearEconomies(bwLinks);
@@ -1179,7 +1182,7 @@ var  i,i2,idx,cp2idx,cp3idx,curCol: Integer;
      s,s2: string;
      item: TListItem;
      sl,t23sl: TStringList;
-     cl,bcl,gcl: TList;
+     cl: TList;
      b: TSystemBody;
      bm: TBaseMarket;
      cd,cd2: TConstructionDepot;
@@ -1242,7 +1245,7 @@ var  i,i2,idx,cp2idx,cp3idx,curCol: Integer;
      s := IntToStr(lev[0]);
      if (lev[1] <> 0) or (lev[2] <> 0) then
      begin
-       s := s + ' (' + IntToStr(lev[0]+lev[1]);
+       s := s + '  (' + IntToStr(lev[0]+lev[1]);
        if lev[2] <> 0 then
          s := s + '/' + IntToStr(lev[0]+lev[1]+lev[2]);
        s := s + ')';
@@ -1327,7 +1330,6 @@ var  i,i2,idx,cp2idx,cp3idx,curCol: Integer;
 begin
   if FHoldUpdate then Exit;
   if FCurrentSystem = nil then Exit;
-  SaveSelection;
 
   for i := 0 to ListView.Columns.Count - 1 do
   begin
@@ -1343,8 +1345,6 @@ begin
 
     cl := TList.Create; //system constructions
     sl := TStringList.Create; //orphan market ids
-    bcl := TList.Create; //body constructions
-    gcl := TList.Create; //body group constructions (body + rings, for links resolution)
     t23sl := TStringList.Create; //list of t2/t3 stations sorted by finish date/build order
 
     ListView.Items.Clear;
@@ -1449,12 +1449,12 @@ begin
               if MarketId <> FCurrentSystem.PrimaryPortId then
               begin
                 s := 'B';
-                if Status = '' then s := 'A'; //built before Updated 2 come first?
+                if Status = '' then s := 'A'; //builds before Updated 2 come first?
                 if not Finished then s := 'Y';
                 if Planned then s := 'Z';
                 s := s + IntToStr(BuildOrder).PadLeft(6,'0');
                 s := s + FirstUpdate;
-                t23sl.AddObject(s,DataSrc.Constructions.Objects[i]);
+                t23sl.AddObject(s,cl[i]);
               end
               else
                 PrimaryLabel.Hint := PrimaryLabel.Hint + StationName + ' (primary)' + Chr(13);
@@ -1730,8 +1730,6 @@ begin
     sl.Free;
     t23sl.Free;
   end;
-
-  RestoreSelection;
 end;
 
 procedure TSystemInfoForm.AddBioSignalsMenuItemClick(Sender: TObject);

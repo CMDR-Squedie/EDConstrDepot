@@ -42,7 +42,6 @@ type
     InclSnapshotsCheck: TCheckBox;
     RemoveSnapshotMenuItem: TMenuItem;
     CompareCheck: TCheckBox;
-    Button1: TButton;
     GroupDepotGroupMenuItem: TMenuItem;
     N5: TMenuItem;
     ConstructionsSubMenu: TMenuItem;
@@ -52,6 +51,7 @@ type
     SystemInfoMenuItem: TMenuItem;
     N4: TMenuItem;
     ConstructionInfoMenuItem: TMenuItem;
+    InclPlannedCheck: TCheckBox;
     procedure ListViewColumnClick(Sender: TObject; Column: TListColumn);
     procedure ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
@@ -116,7 +116,12 @@ const cMarketFavInd: array [miNormal..miLast] of string = ('','','','●','●�
 
 procedure TMarketsForm.OnEDDataUpdate;
 begin
-  if Visible then UpdateItems;
+  if Visible then
+  begin
+    SaveSelection;
+    UpdateItems;
+    RestoreSelection;
+  end;
 end;
 
 procedure TMarketsForm.SetColony(sid: string);
@@ -125,6 +130,7 @@ begin
   try
     MarketsCheck.Checked := True;
     ConstrCheck.Checked := True;
+//    InclPlannedCheck.Checked := True;
     FilterEdit.Text := sid;
     SortColumn := 6;
     SortAscending := True;
@@ -538,7 +544,7 @@ var
   fs,orgfs,cs,sups: string;
   items: THashedStringList;
   lev: TMarketLevel;
-  ignoredf,partialf,findcmdtyf: Boolean;
+  ignoredf,partialf,plannedf,findcmdtyf: Boolean;
   d: Extended;
   colSz: array [0..100] of Integer;
   colMaxLen: array [0..100] of Integer;
@@ -610,9 +616,7 @@ begin
 
   autoSizeCol := _autoSizeCol;
   if ListView.Items.Count = 0 then autoSizeCol := True;
-  autoSizeCol := autoSizeCol and Opts.Flags['AutoSizeColumns'];
-
-  SaveSelection;
+  //autoSizeCol := autoSizeCol and Opts.Flags['AutoSizeColumns'];
 
   items := THashedStringList.Create;
   items.Sorted := True;
@@ -621,6 +625,7 @@ begin
   try
     ignoredf := InclIgnoredCheck.Checked;
     partialf := InclPartialCheck.Checked;
+    plannedf := InclPlannedCheck.Checked;
 
     ListView.Items.BeginUpdate;
 
@@ -648,6 +653,8 @@ begin
       lev := DataSrc.GetMarketLevel(cd.MarketId);
       if not ignoredf then
         if lev = miIgnore then continue;
+      if not plannedf then
+        if cd.Planned then continue; //docked but no market info
 
       item := ListView.Items.Add;
       item.Data := cd;
@@ -812,7 +819,6 @@ begin
     ListView.SortType := stText;
     ListView.Items.EndUpdate;
 
-    RestoreSelection;
   finally
     items.Free;
   end;

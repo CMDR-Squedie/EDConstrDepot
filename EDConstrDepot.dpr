@@ -15,19 +15,12 @@ uses
   SystemPict in 'SystemPict.pas' {SystemPictForm},
   SystemInfo in 'SystemInfo.pas' {SystemInfoForm},
   StationInfo in 'StationInfo.pas' {StationInfoForm},
-  MarketInfo in 'MarketInfo.pas' {MarketInfoForm};
+  MarketInfo in 'MarketInfo.pas' {MarketInfoForm},
+  ConstrTypes in 'ConstrTypes.pas' {ConstrTypesForm};
 
 {$R *.res}
 
-const gNiceVersion: string = 'Release 25, build 0';
-
-{
-  next builds todo:
-  - tentative construction
-  - 'empty slot' construction type
-  - planned construction filter in Markets window
-  - SystemInfo sort by build order
-}
+const gNiceVersion: string = 'Release 25, build 1';
 
 begin
   Application.Initialize;
@@ -48,6 +41,7 @@ begin
   Application.CreateForm(TSystemPictForm, SystemPictForm);
   Application.CreateForm(TSystemInfoForm, SystemInfoForm);
   Application.CreateForm(TStationInfoForm, StationInfoForm);
+  Application.CreateForm(TConstrTypesForm, ConstrTypesForm);
   SettingsForm.VersionLabel.Caption := gNiceVersion;
 
   Application.OnActivate :=  EDCDForm.AppActivate;

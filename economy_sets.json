@@ -1,6 +1,5 @@
 [
 { "Type":"Star","Condition":"Black Hole/Neutron/White Dwarf","Hightech":1, "Tourism":1 } ,
-{ "Type":"Star","Condition":"Brown Dwarf","Military":1 } ,
 { "Type":"Star","Condition":"Other Star","Military":1 } ,
 { "Type":"Body","Condition":"Earthlike","Hightech":1, "Agricultural":1, "Tourism":1, "Military":1 } ,
 { "Type":"Body","Condition":"Ammonia world","Hightech":1, "Tourism":1 } ,

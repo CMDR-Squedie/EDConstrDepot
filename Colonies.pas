@@ -108,7 +108,12 @@ uses Main,Clipbrd,Settings,Splash, Markets, SystemPict, SystemInfo;
 
 procedure TColoniesForm.OnEDDataUpdate;
 begin
-  if Visible then UpdateItems;
+  if Visible then
+  begin
+    SaveSelection;
+    UpdateItems;
+    RestoreSelection;
+  end;
 end;
 
 
@@ -551,9 +556,7 @@ var
 begin
   autoSizeCol := _autoSizeCol;
   if ListView.Items.Count = 0 then autoSizeCol := True;
-  autoSizeCol := autoSizeCol and Opts.Flags['AutoSizeColumns'];
-
-  SaveSelection;
+  //autoSizeCol := autoSizeCol and Opts.Flags['AutoSizeColumns'];
 
   items := THashedStringList.Create;
   items.Sorted := True;
@@ -655,9 +658,6 @@ begin
 //      ListView.Column[3].Width := 0;
 
     ListView.SortType := stText;
-
-
-    RestoreSelection;
   finally
     ListView.Items.EndUpdate;
     items.Free;

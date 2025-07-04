@@ -150,7 +150,7 @@ object MarketsForm: TMarketsForm
     object ConstrCheck: TCheckBox
       Left = 367
       Top = 8
-      Width = 115
+      Width = 98
       Height = 17
       Caption = 'Constructions'
       Checked = True
@@ -159,11 +159,11 @@ object MarketsForm: TMarketsForm
       OnClick = MarketsCheckClick
     end
     object InclIgnoredCheck: TCheckBox
-      Left = 488
+      Left = 655
       Top = 8
-      Width = 114
+      Width = 75
       Height = 17
-      Caption = 'Include Ignored'
+      Caption = 'Ignored'
       Checked = True
       State = cbChecked
       TabOrder = 2
@@ -180,11 +180,11 @@ object MarketsForm: TMarketsForm
       OnChange = FilterEditChange
     end
     object InclPartialCheck: TCheckBox
-      Left = 608
+      Left = 736
       Top = 8
       Width = 129
       Height = 17
-      Caption = 'Include Partial Info'
+      Caption = 'Incl. Partial Info'
       TabOrder = 4
       OnClick = MarketsCheckClick
     end
@@ -198,11 +198,11 @@ object MarketsForm: TMarketsForm
       OnClick = ClearFilterButtonClick
     end
     object InclSnapshotsCheck: TCheckBox
-      Left = 743
+      Left = 471
       Top = 8
-      Width = 129
+      Width = 82
       Height = 17
-      Caption = 'Include Snapshots'
+      Caption = 'Snapshots'
       TabOrder = 6
       OnClick = MarketsCheckClick
     end
@@ -215,15 +215,14 @@ object MarketsForm: TMarketsForm
       TabOrder = 7
       OnClick = CompareCheckClick
     end
-    object Button1: TButton
-      Left = 961
-      Top = 4
-      Width = 20
-      Height = 24
-      Caption = 'OK'
+    object InclPlannedCheck: TCheckBox
+      Left = 567
+      Top = 8
+      Width = 82
+      Height = 17
+      Caption = 'Planned'
       TabOrder = 8
-      Visible = False
-      OnClick = CompareMarketsMenuItemClick
+      OnClick = MarketsCheckClick
     end
   end
   object PopupMenu: TPopupMenu
