@@ -5,6 +5,7 @@ Lastest version to download: https://github.com/CMDR-Squedie/EDConstrDepot/relea
 A minimalistic transparent overlay tool to track construction depots in Elite Dangerous colonies.
 The overlay feature only works in **Borderless/Windowed** mode in Elite.
 You need to dock to construction depot to start tracking (sorry, this is how player journals work), so consider hauling Steel or other popular bulk quantity commodity already on your first visit.
+_(You can copy materials list from System view list - eg. with Win + Shift + T tool as a table - and paste the initial request with Constructions - Paste Request command. This command can be used multiple times if needed)_
 
 To change font, transparency levels, click-through features, hide info you don't need or change other visuals, use the **Settings** command.
 
