@@ -1,12 +1,11 @@
 ﻿unit DataSource;
 
-
 interface
 
 uses Winapi.Windows, Winapi.Messages, Winapi.PsAPI, System.Classes, System.SysUtils,
   System.JSON, System.IOUtils, System.IniFiles, System.DateUtils, System.StrUtils,
   System.Types, Settings, Vcl.ExtCtrls,Vcl.Dialogs, System.Net.HttpClient,
-  System.Net.HttpClientComponent,  System.Generics.Collections;
+  System.Net.HttpClientComponent,  System.Generics.Collections, System.Math;
 
 type IEDDataListener = interface
   ['{C506D770-04B5-408D-99A0-261AC008D422}']
@@ -67,7 +66,7 @@ function FormatEconomies(Economies: TEconomyArray): string;
 function EconomiesMatch(e1,e2: string): Boolean;
 function GetStationTypeAbbrev(name: string): string;
 function GetFactionAbbrev(name: string): string;
-function GetStarSystemAbbrev(name: string): string;
+function GetStarSystemAbbrev(name: string; const addEllipsis: Boolean = true): string;
 
 const cEconomyNames: array [Low(TEconomy)..High(TEconomy)] of string = (
   'Agricultural',
@@ -115,6 +114,7 @@ type TConstructionType = class
   InitPopInc: Integer;
   EstCargo: Integer;
   function StationType_full: string;
+  function StationType_abbrev: string;
   function IsOrbital: Boolean;
   function IsPort: Boolean; //a 'port' in economy meaning, ie. accepts weak links and uplinks
 end;
@@ -277,6 +277,7 @@ public
   function Faction_short: string;
   function FullName: string;
   function StationName_full: string;
+  function StationName_abbrev(const addLink: Boolean = false): string;
   function StarSystem_nice: string;
   function DistanceTo(m: TBaseMarket): Extended;
   function DistanceTo_string(m: TBaseMarket): string;
@@ -303,6 +304,8 @@ TConstructionDepot = class (TBaseMarket)
   Simulated: Boolean;
   ActualHaul: Integer;
   LinkHub: Boolean; //true if a port is collecting links; irrelevant for facilities
+  CustomRequest: string;
+  ReplacedWith: string; //session only, when player's construction is replaced with actual one by name
   procedure UpdateHaul;
   function InProgress: Boolean;
 end;
@@ -411,6 +414,9 @@ type TEDDataSource = class (TDataModule)
     FEconomySets: TEconomySets;
     FEconomyList: THashedStringList;
     FPreventNotify: Boolean;
+
+    FProcessedEvents: THashedStringList;
+
     procedure SetDataChanged;
     function CheckLoadFromFile(var sl: TStringList; fn: string): Boolean;
     procedure MarketFromJSON(m: TMarket; js: string);
@@ -431,6 +437,7 @@ type TEDDataSource = class (TDataModule)
     procedure CalcShipRanges(j: TJSONObject);
   public
     //todo: switch to THashedStringList and TDictionary
+
     property Constructions: TConstructionList read FConstructions;
     property StarSystems: TSystemList read FStarSystems;
     property Commanders: TStringList read FCommanders;
@@ -526,18 +533,31 @@ begin
   Result := Result + Copy(sarr[High(sarr)],1,3);
 end;
 
+function StripTrailVowel(s: string): string;
+begin
+  Result := s;
+  if Result = '' then Exit;
+  if s[Length(s)] in ['a','e','i','o','u','y'] then
+    Result := Copy(s,1,Length(s)-1);
+end;
+
 function GetStationTypeAbbrev(name: string): string;
 var i: Integer;
     sarr: TStringDynArray;
 begin
   Result := '';
   if name = '' then Exit;
-  sarr := SplitString(name,' ');
-  for i := 0 to High(sarr) do
-    Result := Result + Copy(sarr[i],1,3);
+  sarr := SplitString(Trim(name),' ');
+  for i := 0 to Min(High(sarr),1) do
+  begin
+    if Length(sarr[i]) <= 4 then
+      Result := Result + sarr[i]
+    else
+      Result := Result + StripTrailVowel(Copy(sarr[i],1,4-i));
+  end;
 end;
 
-function GetStarSystemAbbrev(name: string): string;
+function GetStarSystemAbbrev(name: string; const addEllipsis: Boolean = true): string;
 var i: Integer;
     sarr: TStringDynArray;
 begin
@@ -545,12 +565,15 @@ begin
   if Length(Result) <= 10 then Exit;
   Result := '';
   if Pos('-',name) > 0 then
-    Result := '…' + Trim(RightStr(name,10))
+    Result := IfThen(addEllipsis,'…','') + Trim(RightStr(name,10))
   else
   begin
     sarr := SplitString(name,' ');
     for i := 0 to High(sarr) do
-      Result := Result + Copy(sarr[i],1,3);
+      if Length(sarr[i]) <= 4 then
+        Result := Result + sarr[i]
+      else
+        Result := Result + Copy(sarr[i],1,3);
   end;
 end;
 
@@ -584,6 +607,11 @@ begin
   s := Size;
   if s <> '' then s := ', ' + s;
   Result := StationType + ' ' + Category + ' (T' + Tier + ' ' + Location + s + ')';
+end;
+
+function TConstructionType.StationType_abbrev: string;
+begin
+  Result := GetStationTypeAbbrev(StationType + ' ' + Category);
 end;
 
 function TConstructionType.IsOrbital: Boolean;
@@ -1261,6 +1289,24 @@ begin
       try Result := '(' + self.GetConstrType.StationType + ')'; except end;
 end;
 
+function TBaseMarket.StationName_abbrev(const addLink: Boolean = false): string;
+var link: string;
+    maxlen: Integer;
+begin
+  Result := StationName;
+  if StationName2 <> '' then Result := StationName2;
+  link := Result + '/' + StarSystem;
+
+  maxlen := Length(Opts['BaseWidthText']) * 3;
+  if Length(Result) > maxlen then
+    Result := Trim(Copy(Result,1,maxlen-2)) + '…';
+
+  Result := Result + '/' + GetStarSystemAbbrev(StarSystem,false);
+  if addLink then
+    Result := Result + link.PadLeft(100);
+
+end;
+
 function TBaseMarket.GetSys: TStarSystem;
 begin
   if (FSysData = nil) {or (FSysData.StarSystem <> self.StarSystem)} then
@@ -1786,6 +1832,7 @@ begin
         st.AddPair(TJSONPair.Create('BuildOrder', BuildOrder));
         st.AddPair(TJSONPair.Create('Layout', Layout));
         st.AddPair(TJSONPair.Create('NameModified', NameModified));
+        st.AddPair(TJSONPair.Create('CustomRequest', CustomRequest));
         sarr.Add(st);
       end;
 
@@ -2057,6 +2104,7 @@ begin
               jarr[i].TryGetValue<Integer>('BuildOrder',bm.BuildOrder);
               jarr[i].TryGetValue<Boolean>('Finished',TConstructionDepot(bm).Finished);
               jarr[i].TryGetValue<Boolean>('Planned',TConstructionDepot(bm).Planned);
+              jarr[i].TryGetValue<string>('CustomRequest',TConstructionDepot(bm).CustomRequest);
               DataSrc.FConstructions.AddObject(bm.MarketId,bm);
             end;
             if mtyp = 'market' then
@@ -2133,7 +2181,7 @@ begin
         jarr[i].TryGetValue<double>('coords.z',sys.StarPosZ);
         bcnt := 0;
         jarr[i].TryGetValue<Integer>('bodyCount',bcnt);
-        sys.Comment := 'unvisited, bodies: ' + IntToStr(bcnt);
+        sys.Comment := 'unvisited, bodies: ' + IntToStr(bcnt) + '; col. from ' + origin;
         sys.Save;
         AddObject(sys.StarSystem,sys);
         Result := Result + 1;
@@ -2663,6 +2711,8 @@ begin
             if GetEvent(jrnl[i+1]) = 'ColonisationConstructionDepot' then
               continue;
 
+//        if FProcessedEvents.IndexOf(s) < 0  then continue; //no significant speed improvement...
+
         if (s<>'Commander') and
 
 //core events
@@ -2690,12 +2740,15 @@ begin
            (s<>'ColonisationSystemClaim') and
            (s<>'ColonisationSystemClaimRelease') and
            (s<>'Scan') and
+
            (s<>'FSSBodySignals')
-           //Location ???
+
 
 //ModuleStore/ModuleRetrieve - to supplement Loadout event?
 
             then continue;
+
+
         event := s;
         orgevent := event;
 
@@ -3029,6 +3082,7 @@ begin
                 cd.ConstructionType := cd2.ConstructionType;
                 cd.Comment := cd2.Comment;
                 cd.Modified := True;
+                cd2.ReplacedWith := cd.MarketID;
                 RemoveConstruction(cd2);
                 cd.GetSys.Save;
               end;
@@ -3670,6 +3724,34 @@ begin
 
   try CreateDir(FWorkingDir + 'markets'); except end;
   try CreateDir(FWorkingDir + 'colonies'); except end;
+
+  {
+  FProcessedEvents := THashedStringList.Create;
+   FProcessedEvents.Add('Commander');
+//core events
+   FProcessedEvents.Add('Loadout');
+   FProcessedEvents.Add('Docked');
+   FProcessedEvents.Add('ColonisationConstructionDepot');
+//delivery time only
+   FProcessedEvents.Add('Undocked');
+//fleet carrier names, body names
+  FProcessedEvents.Add('SupercruiseDestinationDrop');
+  FProcessedEvents.Add('SupercruiseExit');
+  FProcessedEvents.Add('ApproachSettlement');
+//updates to all markets
+   FProcessedEvents.Add('MarketBuy');
+//updates to fleet carriers only
+   FProcessedEvents.Add('MarketSell');
+   FProcessedEvents.Add('CarrierTradeOrder');
+   FProcessedEvents.Add('CargoTransfer');
+//star system info
+   FProcessedEvents.Add('FSDJump');
+   FProcessedEvents.Add('Location');
+   FProcessedEvents.Add('ColonisationSystemClaim');
+   FProcessedEvents.Add('ColonisationSystemClaimRelease');
+   FProcessedEvents.Add('Scan');
+   FProcessedEvents.Add('FSSBodySignals');
+}
 
   FCommanders := TStringList.Create;
 

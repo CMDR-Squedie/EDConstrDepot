@@ -1032,9 +1032,20 @@ object SystemInfoForm: TSystemInfoForm
       Caption = 'Set As Active'
       OnClick = SetAsActiveMenuItemClick
     end
+    object GroupAddRemoveMenuItem: TMenuItem
+      Caption = 'Group Add/Remove'
+      OnClick = GroupAddRemoveMenuItemClick
+    end
     object MarketInfoMenuItem: TMenuItem
       Caption = 'Market Info'
       OnClick = MarketInfoMenuItemClick
+    end
+    object MarketHistoryMenuItem: TMenuItem
+      Caption = 'Market History'
+      OnClick = MarketHistoryMenuItemClick
+    end
+    object N7: TMenuItem
+      Caption = '-'
     end
     object CopyAllMenuItem: TMenuItem
       Caption = 'Copy All'

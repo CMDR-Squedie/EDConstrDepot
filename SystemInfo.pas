@@ -107,6 +107,9 @@ type
     Label13: TLabel;
     ShowUpLinksCheck: TCheckBox;
     Label14: TLabel;
+    N7: TMenuItem;
+    MarketHistoryMenuItem: TMenuItem;
+    GroupAddRemoveMenuItem: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure EDSMScanButtonClick(Sender: TObject);
@@ -154,6 +157,8 @@ type
     procedure Label13Click(Sender: TObject);
     procedure ShowUpLinksCheckClick(Sender: TObject);
     procedure Label14Click(Sender: TObject);
+    procedure MarketHistoryMenuItemClick(Sender: TObject);
+    procedure GroupAddRemoveMenuItemClick(Sender: TObject);
   private
     { Private declarations }
     FCurrentSystem: TStarSystem;
@@ -179,12 +184,13 @@ type
     procedure ResetFilters;
     procedure BeginFilterChange;
     procedure EndFilterChange;
+    function SelectedMarket: TMarket;
   public
     { Public declarations }
     procedure SetSystem(s: TStarSystem);
     procedure ApplySettings;
     procedure OnEDDataUpdate;
-    procedure UpdateView;
+    procedure UpdateView(const keepSel: Boolean = true);
     procedure RestoreAndShow;
     property CurrentSystem: TStarSystem read FCurrentSystem;
     function GetNextConstruction(bm: TBaseMarket): TBaseMarket;
@@ -263,7 +269,7 @@ end;
 procedure TSystemInfoForm.ClearFilterButtonClick(Sender: TObject);
 begin
   FilterEdit.Text := '';
-  UpdateView;
+  UpdateView(false);
 end;
 
 procedure TSystemInfoForm.ClearPictureMenuItemClick(Sender: TObject);
@@ -283,7 +289,7 @@ end;
 
 procedure TSystemInfoForm.BodiesCheckClick(Sender: TObject);
 begin
-  UpdateView;
+  UpdateView(false);
 end;
 
 procedure TSystemInfoForm.CommentEditChange(Sender: TObject);
@@ -449,7 +455,7 @@ begin
 end;
 
 procedure TSystemInfoForm.PopupMenu2Popup(Sender: TObject);
-var mf,cdf,bf: Boolean;
+var mf,cdf,bf,orphanf: Boolean;
     sl: TStringList;
     i,d,matchHaul: Integer;
     mitem: TMenuItem;
@@ -496,20 +502,22 @@ begin
   bf := False;
   if ListView.Selected <> nil then
   begin
-    mf := TObject(ListView.Selected.Data) is TMarket;
+    orphanf := TObject(ListView.Selected.Data) is TMarket;
+    mf := SelectedMarket <> nil;
     cdf := TObject(ListView.Selected.Data) is TConstructionDepot;
     bf := TObject(ListView.Selected.Data) is TSystemBody;
   end;
-  AddConstructionMenuItem.Enabled := bf or mf;
+  AddConstructionMenuItem.Enabled := bf or orphanf;
   AddSignalsSubMenu.Enabled := bf;
   ResourceReserveSubMenu.Enabled := bf;
   QuickAddOrbitalSubMenu.Enabled := bf;
   QuickAddSurfaceSubMenu.Enabled := bf;
   SetTypeSubMenu.Enabled := cdf;
   DeleteConstructionMenuItem.Enabled := cdf;
-  MarketInfoMenuItem.Enabled := mf or
-    (cdf and (TConstructionDepot(ListView.Selected.Data).LinkedMarketId <> ''));
   SetAsActiveMenuItem.Enabled := mf or cdf;
+  GroupAddRemoveMenuItem.Enabled := cdf;
+  MarketInfoMenuItem.Enabled := mf;
+  MarketHistoryMenuItem.Enabled := mf;
 
   sl := TStringList.Create;
   DataSrc.ConstructionTypes.PopulateList(sl);
@@ -664,7 +672,7 @@ end;
 
 procedure TSystemInfoForm.FilterEditChange(Sender: TObject);
 begin
-  UpdateView;
+  UpdateView(false);
 end;
 
 procedure TSystemInfoForm.FiltersCheckClick(Sender: TObject);
@@ -835,20 +843,39 @@ function TSystemInfoForm.TryOpenMarket: Boolean;
 var m: TMarket;
 begin
   Result := False;
-  if ListView.Selected = nil then Exit;
-  m := nil;
-  if TObject(ListView.Selected.Data) is TMarket then
-    m := TMarket(ListView.Selected.Data);
-  if TObject(ListView.Selected.Data) is TConstructionDepot then
-  begin
-    m := DataSrc.MarketFromID(TConstructionDepot(ListView.Selected.Data).LinkedMarketID);
-  end;
+  m := SelectedMarket;
   if m <> nil then
   begin
     MarketInfoForm.SetMarket(m,false);
     MarketInfoForm.Show;
     Result := True;
   end;
+end;
+
+function TSystemInfoForm.SelectedMarket: TMarket;
+begin
+  Result := nil;
+  if ListView.Selected = nil then Exit;
+  if TObject(ListView.Selected.Data) is TMarket then
+    Result := TMarket(ListView.Selected.Data);
+  if TObject(ListView.Selected.Data) is TConstructionDepot then
+  if TConstructionDepot(ListView.Selected.Data).LinkedMarketID <> '' then
+    Result := DataSrc.MarketFromID(TConstructionDepot(ListView.Selected.Data).LinkedMarketID);
+end;
+
+procedure TSystemInfoForm.GroupAddRemoveMenuItemClick(Sender: TObject);
+begin
+  if ListView.Selected = nil then Exit;
+  if TObject(ListView.Selected.Data) is TConstructionDepot then
+    EDCDForm.SetDepot(TConstructionDepot(ListView.Selected.Data).MarketID,true);
+end;
+
+procedure TSystemInfoForm.MarketHistoryMenuItemClick(Sender: TObject);
+var m: TMarket;
+begin
+  m := SelectedMarket;
+  if m <> nil then
+    MarketsForm.ShowMarketHistory(m);
 end;
 
 procedure TSystemInfoForm.MarketInfoMenuItemClick(Sender: TObject);
@@ -859,12 +886,7 @@ end;
 
 procedure TSystemInfoForm.OnEDDataUpdate;
 begin
-  if Visible then
-  begin
-    SaveSelection;
-    UpdateView;
-    RestoreSelection;
-  end;
+  if Visible then UpdateView;
 end;
 
 procedure TSystemInfoForm.SetSystem(s: TStarSystem);
@@ -1177,11 +1199,11 @@ begin
 
 end;
 
-procedure TSystemInfoForm.UpdateView;
+procedure TSystemInfoForm.UpdateView(const keepSel: Boolean = true);
 var  i,i2,idx,cp2idx,cp3idx,curCol: Integer;
      s,s2: string;
      item: TListItem;
-     sl,t23sl: TStringList;
+     sl,t23sl,row: TStringList;
      cl: TList;
      b: TSystemBody;
      bm: TBaseMarket;
@@ -1213,30 +1235,35 @@ var  i,i2,idx,cp2idx,cp3idx,curCol: Integer;
      ei: TEconomy;
      eb: TSystemBody;
 
-  procedure addCaption(s: string);
-  var ln: Integer;
+  procedure addRow(data: TObject);
+  var i,ln: Integer;
   begin
-    curCol := 0;
-    item.Caption := s;
-    ln := Length(s);
-    if ln > colMaxLen[curCol] then
+    for i := 0 to row.Count - 1 do
     begin
-      colMaxLen[curCol] := ln;
-      colMaxTxt[curCol] := s;
+      ln := Length(row[i]);
+      if ln > colMaxLen[i] then
+      begin
+        colMaxLen[i] := ln;
+        colMaxTxt[i] := row[i];
+      end;
     end;
+
+    item := ListView.Items.Add;
+    item.Data := data;
+    item.Caption := row[0];
+    row.Delete(0);
+    item.SubItems.Assign(row);
+  end;
+
+  procedure addCaption(s: string);
+  begin
+    row.Clear;
+    row.Add(s);
   end;
 
   procedure addSubItem(s: string);
-  var ln: Integer;
   begin
-    curCol := curCol + 1;
-    item.SubItems.Add(s);
-    ln := Length(s);
-    if ln > colMaxLen[curCol] then
-    begin
-      colMaxLen[curCol] := ln;
-      colMaxTxt[curCol] := s;
-    end;
+    row.Add(s);
   end;
 
    procedure dispStat(lev: array of Integer; lab: TLabel);
@@ -1293,19 +1320,19 @@ var  i,i2,idx,cp2idx,cp3idx,curCol: Integer;
      lab.Caption := etyp + ': ' + s;
    end;
 
-  function CheckFilter: Boolean;
+  function CheckFilter(data: TObject): Boolean;
   var i: Integer;
   begin
     Result := True;
     if not FiltersCheck.Checked then Exit;
 
     if not BodiesCheck.Checked then
-      if TObject(item.Data) is TSystemBody then Result := False;
+      if TObject(data) is TSystemBody then Result := False;
     if not StationsCheck.Checked then
-      if TObject(item.Data) is TBaseMarket then Result := False;
+      if TObject(data) is TBaseMarket then Result := False;
     if Result then
-      if TObject(item.Data) is TConstructionDepot then
-      with TConstructionDepot(item.Data) do
+      if TObject(data) is TConstructionDepot then
+      with TConstructionDepot(data) do
       begin
         if Finished and not FinishedCheck.Checked then Result := False;
         if InProgress and not InProgressCheck.Checked then Result := False;
@@ -1315,21 +1342,20 @@ var  i,i2,idx,cp2idx,cp3idx,curCol: Integer;
     if Result and (fs <> '') then
     begin
       Result := False;
-      if Pos(fs,LowerCase(item.Caption)) > 0 then
-        Result := true
-      else
-        for i := 0 to item.SubItems.Count - 1 do
-          if Pos(fs,LowerCase(item.SubItems[i])) > 0 then
-          begin
-            Result := true;
-            break;
-          end;
+      for i := 0 to row.Count - 1 do
+        if Pos(fs,LowerCase(row[i])) > 0 then
+        begin
+          Result := true;
+          break;
+        end;
     end;
   end;
 
 begin
   if FHoldUpdate then Exit;
   if FCurrentSystem = nil then Exit;
+
+  SaveSelection;
 
   for i := 0 to ListView.Columns.Count - 1 do
   begin
@@ -1346,6 +1372,7 @@ begin
     cl := TList.Create; //system constructions
     sl := TStringList.Create; //orphan market ids
     t23sl := TStringList.Create; //list of t2/t3 stations sorted by finish date/build order
+    row := TStringList.Create;
 
     ListView.Items.Clear;
 
@@ -1358,7 +1385,7 @@ begin
     SystemAddrLabel.Caption := '#' + FCurrentSystem.SystemAddress;
     SecurityLabel.Caption := 'Security: ' + FCurrentSystem.SystemSecurity;
 
-    PrimaryLabel.Caption := '(no primary port)';
+    PrimaryLabel.Caption := '(select primary)';
     if FCurrentSystem.PrimaryPortId <> '' then
     begin
       PrimaryLabel.Caption := '(T1 primary)';
@@ -1534,10 +1561,8 @@ begin
         begin
           b := TSystemBody(FCurrentSystem.Bodies.Objects[i]);
 
-          item := ListView.Items.Add;
           addCaption(b.BodyName);
           addSubItem(b.BodyType);
-          item.Data := b;
           s := '';
           s := s + b.ReserveLevel;
           addSubItem(s);
@@ -1563,7 +1588,7 @@ begin
           addSubItem(FloatToStrF(b.OrbitalPeriod,ffFixed,7,1));
           addSubItem(FloatToStrF(b.SemiMajorAxis,ffFixed,12,1));
 
-          if not CheckFilter then item.Delete;
+          if CheckFilter(b) then addRow(b);
 
          //if b is a ring, the link resolution is not reset after parent's iteration
           //and thus carries over from parent body
@@ -1580,8 +1605,6 @@ begin
             if (bm.Body <> b.BodyName) and (i <> 0) then continue;
 
             ct := DataSrc.ConstructionTypes.TypeById[bm.ConstructionType];
-            item := ListView.Items.Add;
-            item.Data := bm;
             if FiltersCheck.Checked then
               addCaption('  ' + b.BodyName)
             else
@@ -1699,18 +1722,18 @@ begin
             end;
             addSubItem(s);
 
-            if not CheckFilter then
-              item.Delete
-            else
-            if (calcEco <> '') and not EconomiesMatch(calcEco,curEco) then
+            if CheckFilter(bm) then
             begin
-              item := ListView.Items.Add;
-              item.Data := bm;
-              addCaption('');
-              addSubItem('');
-              addSubItem('    --- calculated / planned economy:');
-              addSubItem('  ' + calcEco);
-              calcEco := '';
+              addRow(bm);
+              if (calcEco <> '') and not EconomiesMatch(calcEco,curEco) then
+              begin
+                addCaption('');
+                addSubItem('');
+                addSubItem('    --- calculated / planned economy:');
+                addSubItem('  ' + calcEco);
+                addRow(bm);
+                calcEco := '';
+              end;
             end;
           end;
 
@@ -1729,6 +1752,9 @@ begin
     cl.Free;
     sl.Free;
     t23sl.Free;
+    row.Free;
+    if keepSel then
+      RestoreSelection;
   end;
 end;
 

@@ -147,6 +147,7 @@ var
   s: string;
   item: TListItem;
   ct: TConstructionType;
+  row: TStringList;
   fs,orgfs,cs,sups: string;
   items: THashedStringList;
   colMaxLen: array [0..100] of Integer;
@@ -154,30 +155,38 @@ var
   autoSizeCol,addingStats: Boolean;
   stats: string;
 
-  procedure addCaption(s: string);
-  var ln: Integer;
+  procedure addRow(data: TObject);
+  var i,ln: Integer;
   begin
-    curCol := 0;
-    item.Caption := s;
-    ln := Length(s);
-    if ln > colMaxLen[curCol] then
+    for i := 0 to row.Count - 1 do
     begin
-      colMaxLen[curCol] := ln;
-      colMaxTxt[curCol] := s;
+      ln := Length(row[i]);
+      if ln > colMaxLen[i] then
+      begin
+        colMaxLen[i] := ln;
+        colMaxTxt[i] := row[i];
+      end;
     end;
+
+    item := ListView.Items.Add;
+    item.Data := data;
+    item.Caption := row[0];
+    row.Delete(0);
+    item.SubItems.Assign(row);
   end;
 
- procedure addSubItem(s: string);
-  var ln: Integer;
+  procedure addCaption(s: string);
+  begin
+    curCol := 0;
+    row.Clear;
+    row.Add(s);
+  end;
+
+  procedure addSubItem(s: string);
   begin
     curCol := curCol + 1;
-    item.SubItems.Add(s);
-    ln := Length(s);
-    if ln > colMaxLen[curCol] then
-    begin
-      colMaxLen[curCol] := ln;
-      colMaxTxt[curCol] := s;
-    end;
+    row.Add(s);
+
     if addingStats then
       if StrToIntDef(s,0) > 0 then
         stats := stats + ListView.Columns[curCol].Caption + ',';
@@ -191,15 +200,12 @@ var
     if fs <> '' then
     begin
       Result := False;
-      if Pos(fs,LowerCase(item.Caption)) > 0 then
-        Result := true
-      else
-        for i := 0 to item.SubItems.Count - 1 do
-          if Pos(fs,LowerCase(item.SubItems[i])) > 0 then
-          begin
-            Result := true;
-            break;
-          end;
+      for i := 0 to row.Count - 1 do
+        if Pos(fs,LowerCase(row[i])) > 0 then
+        begin
+          Result := true;
+          break;
+        end;
     end;
   end;
 
@@ -217,9 +223,7 @@ begin
   if ListView.Items.Count = 0 then autoSizeCol := True;
 //  autoSizeCol := autoSizeCol and Opts.Flags['AutoSizeColumns'];
 
-  items := THashedStringList.Create;
-  items.Sorted := True;
-  items.Duplicates := dupIgnore;
+  row := TStringList.Create;
 
   for i := 0 to ListView.Columns.Count - 1 do
   begin
@@ -239,10 +243,6 @@ begin
     for i := 0 to DataSrc.ConstructionTypes.Count - 1 do
     begin
       ct := TConstructionType(DataSrc.ConstructionTypes.TypeByIdx[i]);
-
-
-      item := ListView.Items.Add;
-      item.Data := ct;
 
       stats := '';
 
@@ -269,9 +269,9 @@ begin
       addSubItem(tostr(ct.EstCargo));
 
       //this is hidden, actually equivalent to sorting but nice anyways
-      item.SubItems.Add(stats);
+      addSubItem(stats);
 
-      if not CheckFilter then item.Delete;
+      if CheckFilter then addRow(ct);
     end;
 
     if autoSizeCol then
@@ -283,7 +283,7 @@ begin
     ListView.SortType := stText;
   finally
     ListView.Items.EndUpdate;
-    items.Free;
+    row.Free;
   end;
 end;
 

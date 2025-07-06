@@ -227,8 +227,8 @@ object MarketsForm: TMarketsForm
   end
   object PopupMenu: TPopupMenu
     OnPopup = PopupMenuPopup
-    Left = 648
-    Top = 232
+    Left = 576
+    Top = 240
     object SelectCurrentMenuItem: TMenuItem
       Tag = 1
       Caption = 'Set As Active'
@@ -279,6 +279,10 @@ object MarketsForm: TMarketsForm
         Tag = 14
         Caption = 'Market Info'
         OnClick = ListViewAction
+      end
+      object MarketHistoryMenuItem: TMenuItem
+        Caption = 'Market History'
+        OnClick = MarketHistoryMenuItemClick
       end
       object MarketSnapshotMenuItem: TMenuItem
         Caption = 'Create Snapshot'

@@ -52,6 +52,7 @@ type
     N4: TMenuItem;
     ConstructionInfoMenuItem: TMenuItem;
     InclPlannedCheck: TCheckBox;
+    MarketHistoryMenuItem: TMenuItem;
     procedure ListViewColumnClick(Sender: TObject; Column: TListColumn);
     procedure ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
@@ -80,6 +81,7 @@ type
     procedure EditTimerTimer(Sender: TObject);
     procedure ListViewCustomDrawItem(Sender: TCustomListView; Item: TListItem;
       State: TCustomDrawState; var DefaultDraw: Boolean);
+    procedure MarketHistoryMenuItemClick(Sender: TObject);
   private
     { Private declarations }
     FHoldUpdate: Boolean;
@@ -100,6 +102,8 @@ type
     procedure BeginFilterChange;
     procedure EndFilterChange;
     procedure UpdateItems(const _autoSizeCol: Boolean = false);
+    procedure ShowComparison(ml: TStringList);
+    procedure ShowMarketHistory(m: TMarket);
   end;
 
 var
@@ -247,6 +251,7 @@ begin
   AddToDepotGroupMenuItem.Enabled := cdf;
   GroupDepotGroupMenuItem.Enabled := cdf;
   MarketInfoMenuItem.Enabled := mf or snapf;
+  MarketHistoryMenuItem.Enabled := mf;
   MarketSnapshotMenuItem.Enabled := mf;
   RemoveSnapshotMenuItem.Enabled := snapf;
   CompareMarketsMenuItem.Enabled := mf or snapf;
@@ -325,36 +330,73 @@ begin
     Result := item.Selected;
 end;
 
-procedure TMarketsForm.CompareMarketsMenuItemClick(Sender: TObject);
+procedure TMarketsForm.ShowComparison(ml: TStringList);
 var i,cw,x: Integer;
     mi: TMarketInfoForm;
 begin
   MarketInfoForm.CloseComparison;
   x := 0;
   mi := nil;
+  for i := 0 to ml.Count -1 do
+    if TBaseMarket(ml.Objects[i]) is TMarket then
+    begin
+      if mi <> nil then mi.CloseComparisonButton.Visible := False;
+      mi := TMarketInfoForm.Create(Application);
+      mi.SetMarket(TMarket(ml.Objects[i]),true);
+      mi.FormStyle := fsStayOnTop;
+      mi.Position := poDesigned;
+      mi.BorderStyle := bsNone;
+      mi.Left := x;
+      mi.Top := 0;
+      mi.Height := Screen.Height - 40;
+      mi.CloseComparisonButton.Visible := true;
+      mi.VertDivider1.Visible := True;
+      mi.VertDivider2.Visible := True;
+      mi.Show;
+      mi.BringToFront;
+      x := x + mi.Width;
+      if (x + mi.Width) > Screen.Width then Exit;
+    end;
+end;
+
+procedure TMarketsForm.CompareMarketsMenuItemClick(Sender: TObject);
+var i: Integer;
+    ml: TStringList;
+begin
+  ml := TStringList.Create;
   for i := 0 to ListView.Items.Count -1 do
     if IsSelected(ListView.Items[i]) then
       if TBaseMarket(ListView.Items[i].Data) is TMarket then
-      begin
-        if mi <> nil then mi.CloseComparisonButton.Visible := False;
+        ml.AddObject('',ListView.Items[i].Data);
+  ShowComparison(ml);
+  ml.Free;
+end;
 
+procedure TMarketsForm.MarketHistoryMenuItemClick(Sender: TObject);
+begin
+  if ListView.Selected = nil then Exit;
+  if not (TObject(ListView.Selected.Data) is TMarket) then Exit;
+  ShowMarketHistory(TMarket(ListView.Selected.Data));
+end;
 
-        mi := TMarketInfoForm.Create(Application);
-         mi.SetMarket(TMarket(ListView.Items[i].Data),true);
-        mi.FormStyle := fsStayOnTop;
-        mi.Position := poDesigned;
-        mi.BorderStyle := bsNone;
-        mi.Left := x;
-        mi.Top := 0;
-        mi.Height := Screen.Height - 40;
-        mi.CloseComparisonButton.Visible := true;
-        mi.VertDivider1.Visible := True;
-        mi.VertDivider2.Visible := True;
-        mi.Show;
-        mi.BringToFront;
-        x := x + mi.Width;
-        if (x + mi.Width) > Screen.Width then Exit;
-      end;
+procedure TMarketsForm.ShowMarketHistory(m: TMarket);
+var i: Integer;
+    ml: TStringList;
+    mID: string;
+    ms: TMarket;
+begin
+  ml := TStringList.Create;
+  ml.AddObject(m.LastUpdate,m);
+  mID := m.MarketId + '.';
+  for i := 0 to DataSrc.MarketSnapshots.Count - 1 do
+  begin
+    ms := TMarket(DataSrc.MarketSnapshots.Objects[i]);
+    if ms.MarketId.StartsWith(mID) then
+      ml.AddObject(ms.LastUpdate,ms);
+  end;
+  ml.Sort;
+  ShowComparison(ml);
+  ml.Free;
 end;
 
 procedure TMarketsForm.CopyMenuItemClick(Sender: TObject);
@@ -543,6 +585,7 @@ var
   item: TListItem;
   fs,orgfs,cs,sups: string;
   items: THashedStringList;
+  row: TStringList;
   lev: TMarketLevel;
   ignoredf,partialf,plannedf,findcmdtyf: Boolean;
   d: Extended;
@@ -551,33 +594,38 @@ var
   colMaxTxt: array [0..100] of string;
   autoSizeCol: Boolean;
 
+  procedure addRow(data: TObject);
+  var i,ln: Integer;
+  begin
+    for i := 0 to row.Count - 1 do
+    begin
+      ln := Length(row[i]);
+      if ln > colMaxLen[i] then
+      begin
+        colMaxLen[i] := ln;
+        colMaxTxt[i] := row[i];
+      end;
+    end;
+
+    item := ListView.Items.Add;
+    item.Data := data;
+    item.Caption := row[0];
+    row.Delete(0);
+    item.SubItems.Assign(row);
+  end;
+
   procedure addCaption(s: string);
-  var ln: Integer;
   begin
-    curCol := 0;
-    item.Caption := s;
-    ln := Length(s);
-    if ln > colMaxLen[curCol] then
-    begin
-      colMaxLen[curCol] := ln;
-      colMaxTxt[curCol] := s;
-    end;
+    row.Clear;
+    row.Add(s);
   end;
 
- procedure addSubItem(s: string);
-  var ln: Integer;
+  procedure addSubItem(s: string);
   begin
-    curCol := curCol + 1;
-    item.SubItems.Add(s);
-    ln := Length(s);
-    if ln > colMaxLen[curCol] then
-    begin
-      colMaxLen[curCol] := ln;
-      colMaxTxt[curCol] := s;
-    end;
+    row.Add(s);
   end;
 
-  function CheckFilter: Boolean;
+  function CheckFilter(bm: TBaseMarket): Boolean;
   var i: Integer;
   begin
     Result := True;
@@ -585,21 +633,18 @@ var
     if fs <> '' then
     begin
       Result := False;
-      if Pos(fs,LowerCase(item.Caption)) > 0 then
-        Result := true
-      else
-        for i := 0 to item.SubItems.Count - 1 do
-          if Pos(fs,LowerCase(item.SubItems[i])) > 0 then
-          begin
-            Result := true;
-            break;
-          end;
+      for i := 0 to row.Count - 1 do
+        if Pos(fs,LowerCase(row[i])) > 0 then
+        begin
+          Result := true;
+          break;
+        end;
 
       if not Result then
-        if TBaseMarket(item.Data) is TMarket then
+        if bm is TMarket then
         begin
 //          Result := TMarket(item.Data).Stock.IndexOfName(fs) >= 0;
-          sups := TMarket(item.Data).Stock.Values[fs];
+          sups := TMarket(bm).Stock.Values[fs];
           Result := sups > '0';
         end;
     end;
@@ -621,6 +666,7 @@ begin
   items := THashedStringList.Create;
   items.Sorted := True;
   items.Duplicates := dupIgnore;
+  row := TStringList.Create;
 
   try
     ignoredf := InclIgnoredCheck.Checked;
@@ -656,8 +702,6 @@ begin
       if not plannedf then
         if cd.Planned then continue; //docked but no market info
 
-      item := ListView.Items.Add;
-      item.Data := cd;
       s := cd.StationName_full;
       if cd.LinkedMarketId <> '' then
       begin
@@ -697,7 +741,7 @@ begin
       addSubItem('');
       addSubItem(DataSrc.MarketGroups.Values[cd.MarketID]);
 
-      if not CheckFilter then item.Delete;
+      if CheckFilter(cd) then addRow(cd);
     end;
 
     if MarketsCheck.Checked then
@@ -709,8 +753,6 @@ begin
       lev := DataSrc.GetMarketLevel(m.MarketId);
       if not ignoredf then
         if lev = miIgnore then continue;
-      item := ListView.Items.Add;
-      item.Data := m;
       addCaption(m.StationName_full);
       addSubItem(m.StationType);
       addSubItem(m.StarSystem_nice);
@@ -731,6 +773,7 @@ begin
             s := FloatToStrF(d,ffFixed,7,2);
         end
         else
+        if DataSrc.CurrentSystem <> nil then
         begin
           d := m.GetSys.DistanceTo(DataSrc.CurrentSystem);
           if d > 0 then
@@ -763,7 +806,7 @@ begin
             items.Add(s);
       end;
 
-      if not CheckFilter then item.Delete;
+      if CheckFilter(m) then addRow(m);
 
     end;
 
@@ -771,8 +814,6 @@ begin
     for i := 0 to DataSrc.MarketSnapshots.Count - 1 do
     begin
       m := TMarket(DataSrc.MarketSnapshots.Objects[i]);
-      item := ListView.Items.Add;
-      item.Data := m;
       addCaption(m.StationName);
       addSubItem(m.StationType);
       addSubItem(m.StarSystem_nice);
@@ -790,7 +831,7 @@ begin
       addSubItem(DataSrc.MarketComments.Values[m.MarketID]);
       addSubItem(m.Economies);
       addSubItem('');
-      if not CheckFilter then item.Delete;
+      if CheckFilter(m) then addRow(m);
     end;
 
     FilterEdit.Items.AddStrings(items);

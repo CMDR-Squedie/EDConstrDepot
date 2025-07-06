@@ -20,7 +20,7 @@ uses
 
 {$R *.res}
 
-const gNiceVersion: string = 'Release 25, build 2';
+const gNiceVersion: string = 'Release 25, build 3';
 
 begin
   Application.Initialize;

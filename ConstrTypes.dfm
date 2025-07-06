@@ -116,8 +116,6 @@ object ConstrTypesForm: TConstrTypesForm
     OnCustomDrawItem = ListViewCustomDrawItem
     OnDblClick = ListViewAction
     OnMouseDown = ListViewMouseDown
-    ExplicitWidth = 1184
-    ExplicitHeight = 346
   end
   object Panel1: TPanel
     Left = 0
@@ -138,7 +136,6 @@ object ConstrTypesForm: TConstrTypesForm
     TabOrder = 1
     OnMouseDown = Panel1MouseDown
     OnMouseMove = Panel1MouseMove
-    ExplicitWidth = 1184
     object Label1: TLabel
       Left = 8
       Top = 8

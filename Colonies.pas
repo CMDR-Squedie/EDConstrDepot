@@ -494,6 +494,7 @@ var
   sys: TStarSystem;
   s: string;
   item: TListItem;
+  row: TStringList;
   fs,orgfs,cs,sups: string;
   items: THashedStringList;
   coloniesf,targetf,candidf,otherf,okf,ignf: Boolean;
@@ -502,30 +503,35 @@ var
   colMaxTxt: array [0..100] of string;
   autoSizeCol: Boolean;
 
-  procedure addCaption(s: string);
-  var ln: Integer;
+  procedure addRow(data: TObject);
+  var i,ln: Integer;
   begin
-    curCol := 0;
-    item.Caption := s;
-    ln := Length(s);
-    if ln > colMaxLen[curCol] then
+    for i := 0 to row.Count - 1 do
     begin
-      colMaxLen[curCol] := ln;
-      colMaxTxt[curCol] := s;
+      ln := Length(row[i]);
+      if ln > colMaxLen[i] then
+      begin
+        colMaxLen[i] := ln;
+        colMaxTxt[i] := row[i];
+      end;
     end;
+
+    item := ListView.Items.Add;
+    item.Data := data;
+    item.Caption := row[0];
+    row.Delete(0);
+    item.SubItems.Assign(row);
   end;
 
- procedure addSubItem(s: string);
-  var ln: Integer;
+  procedure addCaption(s: string);
   begin
-    curCol := curCol + 1;
-    item.SubItems.Add(s);
-    ln := Length(s);
-    if ln > colMaxLen[curCol] then
-    begin
-      colMaxLen[curCol] := ln;
-      colMaxTxt[curCol] := s;
-    end;
+    row.Clear;
+    row.Add(s);
+  end;
+
+  procedure addSubItem(s: string);
+  begin
+    row.Add(s);
   end;
 
   function CheckFilter: Boolean;
@@ -536,15 +542,12 @@ var
     if fs <> '' then
     begin
       Result := False;
-      if Pos(fs,LowerCase(item.Caption)) > 0 then
-        Result := true
-      else
-        for i := 0 to item.SubItems.Count - 1 do
-          if Pos(fs,LowerCase(item.SubItems[i])) > 0 then
-          begin
-            Result := true;
-            break;
-          end;
+      for i := 0 to row.Count - 1 do
+        if Pos(fs,LowerCase(row[i])) > 0 then
+        begin
+          Result := true;
+          break;
+        end;
     end;
   end;
 
@@ -558,9 +561,7 @@ begin
   if ListView.Items.Count = 0 then autoSizeCol := True;
   //autoSizeCol := autoSizeCol and Opts.Flags['AutoSizeColumns'];
 
-  items := THashedStringList.Create;
-  items.Sorted := True;
-  items.Duplicates := dupIgnore;
+  row := TStringList.Create;
 
   coloniesf := ColoniesCheck.Checked;
   targetf := ColonTargetsCheck.Checked;
@@ -603,10 +604,6 @@ begin
         if (sys.Architect = '') and ((sys.Population > 0) or (sys.Factions <> '')) then okf := True;
       if not okf then continue;
 
-
-
-      item := ListView.Items.Add;
-      item.Data := sys;
       addCaption(sys.StarSystem);
       addSubItem(sys.ArchitectName);
       s := '';
@@ -640,7 +637,7 @@ begin
       addSubItem(s);
 
 
-      if not CheckFilter then item.Delete;
+      if CheckFilter then addRow(sys);
     end;
 
     if autoSizeCol then
@@ -660,7 +657,7 @@ begin
     ListView.SortType := stText;
   finally
     ListView.Items.EndUpdate;
-    items.Free;
+    row.Free;
   end;
 end;
 

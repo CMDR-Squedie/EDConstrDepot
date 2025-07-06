@@ -100,6 +100,8 @@ type
     procedure FlightHistoryMenuItemClick(Sender: TObject);
     procedure ReqQtyColLabelDblClick(Sender: TObject);
     procedure CopyReqQtyMenuItemClick(Sender: TObject);
+    procedure PasteReqQtyMenuItemClick(Sender: TObject);
+    procedure ClearReqQtyMenuItemClick(Sender: TObject);
     procedure ActiveConstrMenuItemClick(Sender: TObject);
     procedure ConstructionTypesMenuItemClick(Sender: TObject);
     procedure ManageMarketsMenuItemClick(Sender: TObject);
@@ -188,6 +190,9 @@ begin
          p := Pos('/',s);
          px := self.Canvas.TextWidth(Copy(s,1,p));
 
+         s := Trim(RightStr(s,100)); //full names hidden in padded string
+         p := Pos('/',s);
+
          if (p > 0) and (pt.X > px) then
          begin
            s := Copy(s,p+1,200);
@@ -197,7 +202,7 @@ begin
          end;
 
          if p > 0 then
-           s := Copy(s,3,p-3)
+           s := Copy(s,1,p-1)
          else
            Exit;
        end;
@@ -538,6 +543,11 @@ begin
     if idx <> -1 then
       FSelectedConstructions.Delete(idx);
   end;
+
+  if FCurrentDepot <> nil then
+    if FCurrentDepot.ReplacedWith <> '' then
+     FSelectedConstructions.Text := FCurrentDepot.ReplacedWith;
+
   UpdateConstrDepot;
 
   //main overlay update is priority, so immediately process all repaints and resizing
@@ -673,16 +683,14 @@ begin
       FCurrentDepot := cd;
 //      if cnames <> '' then cnames := cnames + ', ';
       s := cd.StationName_full;
+      if Opts.Flags['ShowStarSystem'] then
+        if Length(s) > 13 then
+          s := Copy(s,1,12) + '…';
       s2 := DataSrc.MarketComments.Values[cd.MarketID];
-      if s2 = '' then
+      if (s2 = '') and (cd.StationName <> '') then
       begin
         if cd.ConstructionType <> '' then
-          try
-            s2 := cd.GetConstrType.StationType;
-            if (s2 <> '') and (cd.StationName <> '') then
-              s := s + ' (' + GetStationTypeAbbrev(s2) + ')';
-          except
-          end;
+          try  s := s + ' (' + cd.GetConstrType.StationType_abbrev + ')'; except end;
       end
       else
         s := s + ' (' + s2 + ')';
@@ -698,6 +706,13 @@ begin
       try
         j := TJSONObject.ParseJSONValue(js) as TJSONObject;
 
+        if (cd.Status = '') and (cd.CustomRequest <> '') then
+        begin
+          sl.Text := cd.CustomRequest;
+          for i := 0 to sl.Count - 1 do
+            totReqQty := totReqQty + StrToIntDef(sl.ValueFromIndex[i],0);
+        end
+        else
         if cd.Simulated then
         begin
 {
@@ -1028,19 +1043,20 @@ begin
         if Opts.Flags['ShowRecentMarket'] then
           if DataSrc.Market.Stock.Count > 0 then
           begin
-            s := DataSrc.Market.FullName;
+            {s := DataSrc.Market.FullName;
             if DataSrc.Market.StationType = 'FleetCarrier' then
             begin
               m := DataSrc.MarketFromId(DataSrc.Market.MarketId);
               if m <> nil then s := m.FullName;
-            end;
+            end;  }
+            s := DataSrc.Market.StationName_abbrev(true);
             l[colText] := '□ ' + s;
             addDistInfo(DataSrc.Market);
             addline;
           end;
         if bestMarket <> nil then
         begin
-          l[colText] := '○ ' + bestMarket.FullName;
+          l[colText] := '○ ' + bestMarket.StationName_abbrev(true); //FullName;
           addDistInfo(bestMarket);
           addline;
         end;
@@ -1050,7 +1066,7 @@ begin
           if not FAutoSelectMarket then
             s := '🤚';  //👉☝🤚
           l[colReq] := s;
-          l[colText] := '△ ' + FSecondaryMarket.FullName;
+          l[colText] := '△ ' + FSecondaryMarket.StationName_abbrev(true); //FullName;
           addDistInfo(FSecondaryMarket);
           addline;
         end;
@@ -1604,7 +1620,7 @@ begin
     end
     else
     begin
-      StatusPaintBox.Width := basew;
+      StatusPaintBox.Width := basew + 2; //tiny margins
       self.Width := basew * 8;
     end;
     StockColLabel.Width := basew;
@@ -1893,6 +1909,48 @@ begin
   end;
 end;
 
+procedure TEDCDForm.PasteReqQtyMenuItemClick(Sender: TObject);
+var sl,sl2: TStringList;
+    s: string;
+    i: Integer;
+begin
+  if FCurrentDepot = nil then Exit;
+  if FCurrentDepot.Status <> '' then Exit;
+  if not Clipboard.HasFormat(CF_TEXT) then Exit;
+  sl := TStringList.Create;
+  sl2 := TStringList.Create;
+  sl2.Text := FCurrentDepot.CustomRequest;
+  sl.Text := Clipboard.AsText;
+  try
+    if sl.Count > 50 then Exit;
+    for i := 0 to sl.Count - 1 do
+    begin
+      s := Trim(sl[i]);
+      if Pos(Chr(9),s) <= 0 then continue;
+      s := s.Replace(Chr(9),'=');
+      s := s.Replace(',','');
+      if sl2.IndexOf(s) < 0 then sl2.Add(s);
+    end;
+    if sl2.Count > 50 then Exit;
+    FCurrentDepot.CustomRequest := sl2.Text;
+    FCurrentDepot.GetSys.Save;
+    UpdateConstrDepot;
+  finally
+    sl.Free;
+    sl2.Free;
+  end;
+end;
+
+procedure TEDCDForm.ClearReqQtyMenuItemClick(Sender: TObject);
+begin
+  if FCurrentDepot = nil then Exit;
+  if FCurrentDepot.Status <> '' then Exit;
+  if FCurrentDepot.CustomRequest = '' then Exit;
+  FCurrentDepot.CustomRequest := '';
+  FCurrentDepot.GetSys.Save;
+  UpdateConstrDepot;
+end;
+
 procedure TEDCDForm.ActiveConstrMenuItemClick(Sender: TObject);
 begin
   MarketsForm.BeginFilterChange;
@@ -1974,9 +2032,8 @@ begin
     else
       if cd.ConstructionType <> '' then
         try
-          s := cd.GetConstrType.StationType;
-          if (s <> '') and (cd.StationName <> '') then
-            mitem.Caption := mitem.Caption + ' (' + GetStationTypeAbbrev(s) + ')';
+          if cd.StationName <> '' then
+            mitem.Caption := mitem.Caption + ' (' + cd.GetConstrType.StationType_abbrev + ')';
         except
         end;
     mitem.Tag := DataSrc.Constructions.IndexOfObject(cd);
@@ -2023,6 +2080,20 @@ begin
   SelectDepotSubMenu.Add(mitem);
 
   mitem := TMenuItem.Create(SelectDepotSubMenu);
+  mitem.Caption := 'Paste Request';
+  mitem.OnClick := PasteReqQtyMenuItemClick;
+  SelectDepotSubMenu.Add(mitem);
+
+  mitem := TMenuItem.Create(SelectDepotSubMenu);
+  mitem.Caption := 'Clear Request';
+  mitem.OnClick := ClearReqQtyMenuItemClick;
+  SelectDepotSubMenu.Add(mitem);
+
+  mitem := TMenuItem.Create(SelectDepotSubMenu);
+  mitem.Caption := '-';
+  SelectDepotSubMenu.Add(mitem);
+
+  mitem := TMenuItem.Create(SelectDepotSubMenu);
   mitem.Caption := 'Active Constructions';
   mitem.OnClick := ActiveConstrMenuItemClick;
   SelectDepotSubMenu.Add(mitem);
@@ -2031,10 +2102,6 @@ begin
   mitem.Caption := 'Planned Constructions';
   mitem.OnClick := ActiveConstrMenuItemClick;
   mitem.Tag := 1;
-  SelectDepotSubMenu.Add(mitem);
-
-  mitem := TMenuItem.Create(SelectDepotSubMenu);
-  mitem.Caption := '-';
   SelectDepotSubMenu.Add(mitem);
 
   mitem := TMenuItem.Create(SelectDepotSubMenu);
