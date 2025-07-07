@@ -559,6 +559,7 @@ object SystemInfoForm: TSystemInfoForm
       ParentShowHint = False
       ShowHint = True
       Transparent = False
+      OnDblClick = MiliLinksLabel1DblClick
     end
     object HighLinksLabel1: TLabel
       Left = 412
@@ -580,6 +581,7 @@ object SystemInfoForm: TSystemInfoForm
       ParentShowHint = False
       ShowHint = True
       Transparent = False
+      OnDblClick = MiliLinksLabel1DblClick
     end
     object RefiLinksLabel1: TLabel
       Left = 548
@@ -601,6 +603,7 @@ object SystemInfoForm: TSystemInfoForm
       ParentShowHint = False
       ShowHint = True
       Transparent = False
+      OnDblClick = MiliLinksLabel1DblClick
     end
     object AgriLinksLabel1: TLabel
       Left = 825
@@ -622,6 +625,7 @@ object SystemInfoForm: TSystemInfoForm
       ParentShowHint = False
       ShowHint = True
       Transparent = False
+      OnDblClick = MiliLinksLabel1DblClick
     end
     object ExtrLinksLabel1: TLabel
       Left = 685
@@ -643,6 +647,7 @@ object SystemInfoForm: TSystemInfoForm
       ParentShowHint = False
       ShowHint = True
       Transparent = False
+      OnDblClick = MiliLinksLabel1DblClick
     end
     object TourLinksLabel1: TLabel
       Left = 965
@@ -664,6 +669,7 @@ object SystemInfoForm: TSystemInfoForm
       ParentShowHint = False
       ShowHint = True
       Transparent = False
+      OnDblClick = MiliLinksLabel1DblClick
     end
     object MiliLinksLabel1: TLabel
       Left = 132
@@ -685,6 +691,7 @@ object SystemInfoForm: TSystemInfoForm
       ParentShowHint = False
       ShowHint = True
       Transparent = False
+      OnDblClick = MiliLinksLabel1DblClick
     end
     object SlotsLabel: TLabel
       Left = 634

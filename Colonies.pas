@@ -124,6 +124,7 @@ begin
   else
     Show;
   if WindowState = wsMinimized then WindowState := wsNormal;
+  BringToFront;
 end;
 
 {
@@ -493,7 +494,6 @@ var
   i,j,curCol: Integer;
   sys: TStarSystem;
   s: string;
-  item: TListItem;
   row: TStringList;
   fs,orgfs,cs,sups: string;
   items: THashedStringList;
@@ -505,6 +505,7 @@ var
 
   procedure addRow(data: TObject);
   var i,ln: Integer;
+      item: TListItem;
   begin
     for i := 0 to row.Count - 1 do
     begin

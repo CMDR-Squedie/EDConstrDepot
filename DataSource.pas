@@ -277,6 +277,7 @@ public
   BuildOrder: Integer;
   Layout: string;
   NameModified: Boolean;
+  IsOrphan: Boolean;  //body not found in system
   function GetSys: TStarSystem;
   function Faction_short: string;
   function FullName: string;

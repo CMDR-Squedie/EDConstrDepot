@@ -160,6 +160,7 @@ type
     procedure MarketHistoryMenuItemClick(Sender: TObject);
     procedure GroupAddRemoveMenuItemClick(Sender: TObject);
     procedure SystemNameLabelClick(Sender: TObject);
+    procedure MiliLinksLabel1DblClick(Sender: TObject);
   private
     { Private declarations }
     FCurrentSystem: TStarSystem;
@@ -885,6 +886,20 @@ begin
   TryOpenMarket;
 end;
 
+procedure TSystemInfoForm.MiliLinksLabel1DblClick(Sender: TObject);
+begin
+  ResetFilters;
+  BeginFilterChange;
+  try
+    FiltersCheck.Checked := True;
+    EconomiesCheck.Checked := True;
+    FilterEdit.Text := '🔗' + LeftStr(TLabel(Sender).Caption,4);
+  finally
+    EndFilterChange;
+    UpdateView;
+  end;
+end;
+
 procedure TSystemInfoForm.OnEDDataUpdate;
 begin
   if Visible then UpdateView;
@@ -1055,7 +1070,11 @@ begin
   remcl.Assign(orgcl);
 
   for i := 0 to remcl.Count - 1 do
-    TConstructionDepot(remcl[i]).LinkHub := False;
+    with TConstructionDepot(remcl[i]) do
+    begin
+      LinkHub := False;
+      IsOrphan := False;
+    end;
 
   for i := 0 to FCurrentSystem.Bodies.Count - 1 do
   begin
@@ -1084,7 +1103,10 @@ begin
 
   //orphans go to main star
   for i := 0 to remcl.Count - 1 do
+  begin
+    TConstructionDepot(remcl[i]).IsOrphan := True;
     TSystemBody(FCurrentSystem.Bodies.Objects[0]).Constructions.Add(remcl[i]);
+  end;
 
 
   for i := 0 to FCurrentSystem.Bodies.Count - 1 do
@@ -1209,7 +1231,6 @@ end;
 procedure TSystemInfoForm.UpdateView(const keepSel: Boolean = true);
 var  i,i2,idx,cp2idx,cp3idx,curCol: Integer;
      s,s2: string;
-     item: TListItem;
      sl,t23sl,row: TStringList;
      cl: TList;
      b: TSystemBody;
@@ -1236,7 +1257,6 @@ var  i,i2,idx,cp2idx,cp3idx,curCol: Integer;
      orbSlotsTaken: array [0..2] of Integer;
      surfSlotsTaken: array [0..2] of Integer;
      orbFree,surfFree: Integer;
-     surfLinkHub,orbLinkHub: TConstructionDepot;
      cEconomies,orbLinks,surfLinks,wLinks,bwLinks: TEconomyArray;
      curEco,calcEco: string;
      ei: TEconomy;
@@ -1244,6 +1264,7 @@ var  i,i2,idx,cp2idx,cp3idx,curCol: Integer;
 
   procedure addRow(data: TObject);
   var i,ln: Integer;
+     item: TListItem;
   begin
     for i := 0 to row.Count - 1 do
     begin
@@ -1557,7 +1578,11 @@ begin
         if StarSystem = FCurrentSystem.StarSystem then
           if StationType <> 'FleetCarrier' then
             if sl.IndexOf(MarketId) = -1 then
-              TSystemBody(FCurrentSystem.Bodies.Objects[0]).Constructions.Add(DataSrc.RecentMarkets.Objects[i]);
+            begin
+              bm := TBaseMarket(DataSrc.RecentMarkets.Objects[i]);
+              bm.IsOrphan := True;
+              TSystemBody(FCurrentSystem.Bodies.Objects[0]).Constructions.Add(bm);
+            end;
 
 
     try
@@ -1608,16 +1633,18 @@ begin
           begin
             bm := TBaseMarket(b.Constructions[i2]);
 
-            //skip bodies from rings (not main star)
-            if (bm.Body <> b.BodyName) and (i <> 0) then continue;
+            //skip bodies from rings (not main star - it collects orphans)
+            if (bm.Body <> b.BodyName) and not bm.IsOrphan then continue;
 
             ct := DataSrc.ConstructionTypes.TypeById[bm.ConstructionType];
             if FiltersCheck.Checked then
-              addCaption('  ' + b.BodyName)
+              addCaption('  ' + bm.Body)
             else
-              addCaption('');
+              if (bm.Body <> b.BodyName) and bm.IsOrphan then
+                addCaption('? '+ bm.Body)
+              else
+                addCaption('');
             //orphans attached to main star
-            if (bm.Body <> b.BodyName) and (i = 0) then item.Caption := '?';
             m := nil;
             if bm is TMarket then m := TMarket(bm);
             if bm is TConstructionDepot then
@@ -1669,6 +1696,7 @@ begin
                 AddEconomies(cEconomies,b.Economies);
 
 //              if ct.IsPort then
+              eb := nil;
               if cd.LinkHub then
               begin
                 eb := b;
@@ -1698,7 +1726,7 @@ begin
                 calcEco := '';
               end;
 
-              if bm <> orbLinkHub then //no string links/uplinks from orbital link hub port
+              if (eb = nil) or (bm <> eb.orbLinkHub) then //no string links/uplinks from orbital link hub port
               begin
                 s2 := DataSrc.EconomySets.GetLinkEconomies_nice(cd,b);
                 if s2 <> '' then s := s + '(🔗' + s2 + ') ';

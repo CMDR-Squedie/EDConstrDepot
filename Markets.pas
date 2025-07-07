@@ -171,6 +171,7 @@ begin
   else
     Show;
   if WindowState = wsMinimized then WindowState := wsNormal;
+  BringToFront;
 end;
 
 procedure TMarketsForm.OtherGroupMenuItemClick(Sender: TObject);
@@ -588,7 +589,6 @@ var
   cd: TConstructionDepot;
   m: TMarket;
   s: string;
-  item: TListItem;
   fs,orgfs,cs,sups: string;
   items: THashedStringList;
   row: TStringList;
@@ -602,6 +602,7 @@ var
 
   procedure addRow(data: TObject);
   var i,ln: Integer;
+      item: TListItem;
   begin
     for i := 0 to row.Count - 1 do
     begin
