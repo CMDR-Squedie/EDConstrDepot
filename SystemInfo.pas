@@ -159,6 +159,7 @@ type
     procedure Label14Click(Sender: TObject);
     procedure MarketHistoryMenuItemClick(Sender: TObject);
     procedure GroupAddRemoveMenuItemClick(Sender: TObject);
+    procedure SystemNameLabelClick(Sender: TObject);
   private
     { Private declarations }
     FCurrentSystem: TStarSystem;
@@ -1030,6 +1031,12 @@ end;
 procedure TSystemInfoForm.SystemAddrLabelDblClick(Sender: TObject);
 begin
   Clipboard.AsText := Copy(SystemAddrLabel.Caption,2,200);
+end;
+
+procedure TSystemInfoForm.SystemNameLabelClick(Sender: TObject);
+begin
+  Clipboard.AsText := SystemNameLabel.Caption;
+  SplashForm.ShowInfo('System name copied...',1000);
 end;
 
 //assign construction to bodies and find link hubs (ports that accept strong links)

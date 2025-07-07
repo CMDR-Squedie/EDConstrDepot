@@ -92,6 +92,7 @@ type
     procedure Label12Click(Sender: TObject);
     procedure BuildOrderUpDownClick(Sender: TObject; Button: TUDBtnType);
     procedure LayoutComboChange(Sender: TObject);
+    procedure EstHaulLabelClick(Sender: TObject);
   private
     { Private declarations }
     FCurrentStation: TBaseMarket;
@@ -115,7 +116,7 @@ implementation
 
 {$R *.dfm}
 
-uses SystemInfo, Main;
+uses SystemInfo, Main, MaterialList;
 
 procedure TStationInfoForm.RestoreAndShow;
 begin
@@ -233,6 +234,14 @@ end;
 procedure TStationInfoForm.CommentEditChange(Sender: TObject);
 begin
   FDataChanged := True;
+end;
+
+procedure TStationInfoForm.EstHaulLabelClick(Sender: TObject);
+begin
+  if TypeCombo.ItemIndex < 1 then Exit;
+  MaterialListForm.SetConstructionType(
+    TConstructionType(TypeCombo.Items.Objects[TypeCombo.ItemIndex]));
+  MaterialListForm.Show;
 end;
 
 procedure TStationInfoForm.FormCreate(Sender: TObject);
@@ -461,7 +470,8 @@ begin
   EconomyInflLabel.Caption := t.Influence;
   CPCostLabel.Caption := FormatCP(t.CP2,t.CP3,true);
   CPRewardLabel.Caption := FormatCP(t.CP2,t.CP3,false);
-  EstHaulLabel.Caption := IntToStr(t.EstCargo);
+  EstHaulLabel.Caption := IntToStr(t.EstCargo) + ' [...]';
+  EstHaulLabel.Tag := TypeCombo.ItemIndex;
   if FCurrentStation is TConstructionDepot then
     with TConstructionDepot(FCurrentStation) do
       if ActualHaul > 0 then

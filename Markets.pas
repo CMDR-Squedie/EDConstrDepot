@@ -85,8 +85,8 @@ type
   private
     { Private declarations }
     FHoldUpdate: Boolean;
-    SortColumn: Integer;
     ClickedColumn: Integer;
+    SortColumn: Integer;
     SortAscending: Boolean;
     FSelectedItems: TStringList;
     function IsSelected(item: TListItem): Boolean;
@@ -104,6 +104,7 @@ type
     procedure UpdateItems(const _autoSizeCol: Boolean = false);
     procedure ShowComparison(ml: TStringList);
     procedure ShowMarketHistory(m: TMarket);
+    procedure SetRecentSort;
   end;
 
 var
@@ -501,11 +502,16 @@ begin
 
 end;
 
-procedure TMarketsForm.FormCreate(Sender: TObject);
-var i: Integer;
+procedure TMarketsForm.SetRecentSort;
 begin
   SortColumn := 4; //last visit
   SortAscending := False;
+end;
+
+procedure TMarketsForm.FormCreate(Sender: TObject);
+var i: Integer;
+begin
+  SetRecentSort;
   FSelectedItems := TStringList.Create;
 
   DataSrc.AddListener(self);
@@ -710,16 +716,18 @@ begin
           s := m.StationName_full;
       end;
       addCaption(s);
+      s := '(Depot)';
       if cd.Finished then
-        addSubItem('FinishedConstruction')
+        s := '(Finished)'
       else
         if cd.Planned then
-          addSubItem('PlannedConstruction')
+          s := '(Planned)'
         else
           if cd.Simulated then
-            addSubItem('SimulatedDepot')
-          else
-            addSubItem('ConstructionDepot');
+            s := '(Simul.)';
+      if cd.GetConstrType <> nil then
+        s := s + ' ' + cd.GetConstrType.StationType_full;
+      addSubItem(s);
       addSubItem(cd.StarSystem_nice);
       addSubItem(cd.Body);
       s := cd.LastDock;
@@ -734,9 +742,9 @@ begin
       addSubItem(cMarketIgnoreInd[DataSrc.GetMarketLevel(cd.MarketId)]);
       addSubItem('');
       s := DataSrc.MarketComments.Values[cd.MarketID];
-      if s = '' then
+      {if s = '' then
         if (cd.ConstructionType <> '') and (cd.GetConstrType <> nil) then
-          s := '(' + cd.GetConstrType.StationType + ')';
+          s := '(' + cd.GetConstrType.StationType + ')'; }
       addSubItem(s);
       addSubItem('');
       addSubItem(DataSrc.MarketGroups.Values[cd.MarketID]);

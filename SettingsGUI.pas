@@ -46,7 +46,7 @@ implementation
 {$R *.dfm}
 
 uses Settings, Main, Markets, MarketInfo, DataSource, Splash, Colonies,
-  SystemInfo, StationInfo, ConstrTypes;
+  SystemInfo, StationInfo, ConstrTypes, MaterialList, Toolbar;
 
 procedure TSettingsForm.BackupJournalLinkLinkClick(Sender: TObject;
   const Link: string; LinkType: TSysLinkType);
@@ -225,6 +225,8 @@ begin
   SystemInfoForm.ApplySettings;
   StationInfoForm.ApplySettings;
   ConstrTypesForm.ApplySettings;
+  MaterialListForm.ApplySettings;
+  ToolbarForm.ApplySettings;
 end;
 
 end.

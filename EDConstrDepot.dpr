@@ -16,11 +16,13 @@ uses
   SystemInfo in 'SystemInfo.pas' {SystemInfoForm},
   StationInfo in 'StationInfo.pas' {StationInfoForm},
   MarketInfo in 'MarketInfo.pas' {MarketInfoForm},
-  ConstrTypes in 'ConstrTypes.pas' {ConstrTypesForm};
+  ConstrTypes in 'ConstrTypes.pas' {ConstrTypesForm},
+  MaterialList in 'MaterialList.pas' {MaterialListForm},
+  Toolbar in 'Toolbar.pas' {ToolbarForm};
 
 {$R *.res}
 
-const gNiceVersion: string = 'Release 25, build 3';
+const gNiceVersion: string = 'Release 25, build 4';
 
 begin
   Application.Initialize;
@@ -42,6 +44,8 @@ begin
   Application.CreateForm(TSystemInfoForm, SystemInfoForm);
   Application.CreateForm(TStationInfoForm, StationInfoForm);
   Application.CreateForm(TConstrTypesForm, ConstrTypesForm);
+  Application.CreateForm(TMaterialListForm, MaterialListForm);
+  Application.CreateForm(TToolbarForm, ToolbarForm);
   SettingsForm.VersionLabel.Caption := gNiceVersion;
 
   Application.OnActivate :=  EDCDForm.AppActivate;

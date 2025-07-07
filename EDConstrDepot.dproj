@@ -186,6 +186,14 @@
             <Form>ConstrTypesForm</Form>
             <FormType>dfm</FormType>
         </DCCReference>
+        <DCCReference Include="MaterialList.pas">
+            <Form>MaterialListForm</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
+        <DCCReference Include="Toolbar.pas">
+            <Form>ToolbarForm</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

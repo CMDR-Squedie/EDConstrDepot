@@ -49,7 +49,8 @@ var
 
 implementation
 
-uses Main,Clipbrd,Settings,Splash, Markets, SystemPict, SystemInfo;
+uses Main,Clipbrd,Settings,Splash, Markets, SystemPict, SystemInfo,
+  MaterialList;
 
 {$R *.dfm}
 
@@ -148,6 +149,7 @@ var
   item: TListItem;
   ct: TConstructionType;
   row: TStringList;
+  ctcnt: TStock;
   fs,orgfs,cs,sups: string;
   items: THashedStringList;
   colMaxLen: array [0..100] of Integer;
@@ -224,6 +226,7 @@ begin
 //  autoSizeCol := autoSizeCol and Opts.Flags['AutoSizeColumns'];
 
   row := TStringList.Create;
+  ctcnt := TStock.Create;
 
   for i := 0 to ListView.Columns.Count - 1 do
   begin
@@ -239,6 +242,12 @@ begin
 
     orgfs := FilterEdit.Text;
     fs := LowerCase(orgfs);
+
+    for i := 0 to DataSrc.Constructions.Count - 1 do
+      with DataSrc.Constructions.ConstrByIdx[i] do
+        if Finished then
+        if (GetSys <> nil) and (DataSrc.Commanders.Values[GetSys.Architect] <> '') then
+          ctcnt.Qty[ConstructionType] := ctcnt.Qty[ConstructionType] + 1;
 
     for i := 0 to DataSrc.ConstructionTypes.Count - 1 do
     begin
@@ -267,6 +276,7 @@ begin
       addSubItem(tostr(ct.StdLivLev));
       addingStats := False;
       addSubItem(tostr(ct.EstCargo));
+      addSubItem(ctcnt.Values[ct.Id]);
 
       //this is hidden, actually equivalent to sorting but nice anyways
       addSubItem(stats);
@@ -356,6 +366,13 @@ begin
   if Sender is TMenuItem then action := TMenuItem(Sender).Tag;
   if action = -1 then Exit;
   ct := TConstructionType(ListView.Selected.Data);
+
+  if not AddToSystemCheck.Checked then
+  begin
+    MaterialListForm.SetConstructionType(ct);
+    MaterialListForm.Show;
+    Exit;
+  end;
 
   if AddToSystemCheck.Checked then
   if SystemInfoForm.Visible then

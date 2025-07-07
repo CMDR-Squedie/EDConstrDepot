@@ -113,10 +113,14 @@ type TConstructionType = class
   DevLev: Integer;
   InitPopInc: Integer;
   EstCargo: Integer;
+  ResourcesRequired: TStock;
+  MinResources: TStock;
+  MaxResources: TStock;
   function StationType_full: string;
   function StationType_abbrev: string;
   function IsOrbital: Boolean;
   function IsPort: Boolean; //a 'port' in economy meaning, ie. accepts weak links and uplinks
+  constructor Create;
 end;
 
 type TConstructionTypes = class (THashedStringList)
@@ -603,10 +607,32 @@ end;
 
 function TConstructionType.StationType_full: string;
 var s: string;
+
+  function _short(s: string): string;
+  begin
+    Result := s;
+    if Result = 'Orbital' then Result := 'Orb.';
+    if Result = 'Surface' then Result := 'Surf.';
+    if Result = 'Planetary Port' then Result := 'Planet. Port';
+    if Result = 'Installation' then Result := 'Inst.';
+    if Result = 'Settlement' then Result := 'Settl.';
+  end;
+
 begin
   s := Size;
   if s <> '' then s := ', ' + s;
-  Result := StationType + ' ' + Category + ' (T' + Tier + ' ' + Location + s + ')';
+  Result := StationType;
+  if Pos(Category,Result) <= 0 then
+    Result := Result + ' ' + _short(Category);
+
+  Result := Result + ' (T' + Tier + ' ' + _short(Location) + s + ')';
+end;
+
+constructor TConstructionType.Create;
+begin
+  ResourcesRequired := TStock.Create;
+  MinResources := TStock.Create;
+  MaxResources := TStock.Create;
 end;
 
 function TConstructionType.StationType_abbrev: string;
@@ -655,9 +681,10 @@ end;
 
 procedure TConstructionTypes.Load;
 var ct: TConstructionType;
-    jarr: TJSONArray;
-    i: Integer;
+    jarr,jarr2: TJSONArray;
+    i,i2,q: Integer;
     sl: TStringList;
+    s: string;
 begin
   sl := TStringList.Create;
   try
@@ -700,8 +727,20 @@ begin
         jarr[i].TryGetValue<Integer>('StdLivLev',ct.StdLivLev);
         jarr[i].TryGetValue<Integer>('DevLev',ct.DevLev);
         jarr[i].TryGetValue<Integer>('EstCargo',ct.EstCargo);
+
+        jarr2 := nil;
+        jarr[i].TryGetValue<TJSONArray>('ResourcesRequired',jarr2);
+        if jarr2 <> nil then
+          for i2 := 0 to jarr2.Count - 1 do
+          begin
+            jarr2[i2].TryGetValue<string>('Name',s);
+            jarr2[i2].TryGetValue<Integer>('Quantity',q);
+            ct.ResourcesRequired.Qty[s] := q;
+          end;
+
         AddObject(ct.Id,ct);
       end;
+
     finally
       jarr.Free;
     end;
@@ -1351,7 +1390,9 @@ end;
 procedure TConstructionDepot.UpdateHaul;
 var j: TJSONObject;
     resReq: TJSONArray;
-    i: Integer;
+    i,q,cq: Integer;
+    ct: TConstructionType;
+    nm,s: string;
 begin
   ActualHaul := 0;
   try
@@ -1359,7 +1400,19 @@ begin
     try
       resReq := j.GetValue<TJSONArray>('ResourcesRequired');
       for i := 0 to resReq.Count - 1 do
-        ActualHaul := ActualHaul + StrToInt(resReq.Items[i].GetValue<string>('RequiredAmount'));
+      begin
+        resReq.Items[i].TryGetValue<string>('Name_Localised',nm);
+        resReq.Items[i].TryGetValue<Integer>('RequiredAmount',q);
+        ActualHaul := ActualHaul + q;
+        ct := GetConstrType;
+        if ct <> nil then
+        begin
+          cq := ct.MinResources.Qty[nm];
+          if (cq = 0) or (q < cq) then ct.MinResources.Qty[nm] := q;
+          cq := ct.MaxResources.Qty[nm];
+          if (cq = 0) or (q > cq) then ct.MaxResources.Qty[nm] := q;
+        end;
+      end;
     finally
       j.Free;
     end;

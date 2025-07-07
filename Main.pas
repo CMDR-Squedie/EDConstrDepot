@@ -6,7 +6,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, Winapi.PsAPI, Winapi.ShellAPI, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, System.JSON, System.IOUtils, System.Math, System.StrUtils,
-  Vcl.ExtCtrls, Vcl.Menus, Vcl.ComCtrls, Settings, DataSource;
+  Vcl.ExtCtrls, Vcl.Menus, Vcl.ComCtrls, System.Types, Settings, DataSource;
 
 type TCDCol = (colReq,colText,colStock,colStatus);
 
@@ -58,6 +58,7 @@ type
     SystemInfoMenuItem: TMenuItem;
     SystemInfoCurrentMenuItem: TMenuItem;
     Wiki1: TMenuItem;
+    ManageContructionsMenuItem: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure UpdTimerTimer(Sender: TObject);
     procedure TextColLabelMouseMove(Sender: TObject; Shift: TShiftState; X,
@@ -102,6 +103,7 @@ type
     procedure CopyReqQtyMenuItemClick(Sender: TObject);
     procedure PasteReqQtyMenuItemClick(Sender: TObject);
     procedure ClearReqQtyMenuItemClick(Sender: TObject);
+    procedure UseMaxReqQtyMenuItemClick(Sender: TObject);
     procedure ActiveConstrMenuItemClick(Sender: TObject);
     procedure ConstructionTypesMenuItemClick(Sender: TObject);
     procedure ManageMarketsMenuItemClick(Sender: TObject);
@@ -165,7 +167,7 @@ implementation
 {$R *.dfm}
 
 uses Splash, Markets, SettingsGUI, MarketInfo, Clipbrd, Colonies, StationInfo,
-  SystemInfo, ConstrTypes;
+  SystemInfo, ConstrTypes, Toolbar;
 
 const cDefaultCapacity: Integer = 784;
 
@@ -231,6 +233,7 @@ begin
     self.Left := self.Left + pt.X - gLastCursorPos.X;
     self.Top := self.Top + pt.Y - gLastCursorPos.Y;
     UpdateLayersPos;
+    ToolbarForm.UpdatePosition;
     gLastCursorPos := pt;
   end;
 end;
@@ -1043,13 +1046,11 @@ begin
         if Opts.Flags['ShowRecentMarket'] then
           if DataSrc.Market.Stock.Count > 0 then
           begin
-            {s := DataSrc.Market.FullName;
+            m := nil;
             if DataSrc.Market.StationType = 'FleetCarrier' then
-            begin
               m := DataSrc.MarketFromId(DataSrc.Market.MarketId);
-              if m <> nil then s := m.FullName;
-            end;  }
-            s := DataSrc.Market.StationName_abbrev(true);
+            if m = nil then m := DataSrc.Market;
+            s := m.StationName_abbrev(true);
             l[colText] := '□ ' + s;
             addDistInfo(DataSrc.Market);
             addline;
@@ -1104,6 +1105,7 @@ LSkipDepotSelection:;
       h := h + 4;
       if (FLayer1 <> nil) and (FLayer1.Height <> h) then
         FLayer1.Height := h;
+      ToolbarForm.UpdatePosition;
     end;
 
     {
@@ -1364,7 +1366,10 @@ begin
       begin
         orgactivewnd := GetForegroundWindow;
         if orgactivewnd = FEliteWnd then
+        begin
           Application.BringToFront;
+          EDCDForm.BringToFront;
+        end;
         if GetKeyState(VK_CONTROL) < 0 then
           SystemInfoMenuItemClick(nil);
       end;
@@ -1680,7 +1685,17 @@ end;
 
 procedure TEDCDForm.ManageMarketsMenuItemClick(Sender: TObject);
 begin
-  MarketsForm.UpdateAndShow;
+  MarketsForm.BeginFilterChange;
+  try
+    MarketsForm.FilterEdit.Text := '';
+    MarketsForm.InclIgnoredCheck.Checked := False;
+    MarketsForm.MarketsCheck.Checked := True;
+    MarketsForm.ConstrCheck.Checked := False;
+    MarketsForm.SetRecentSort;
+  finally
+    MarketsForm.EndFilterChange;
+    MarketsForm.UpdateAndShow;
+  end;
 end;
 
 procedure TEDCDForm.MarketAsDepotDlg(m: TMarket);
@@ -1732,7 +1747,7 @@ procedure TEDCDForm.NewWindowMenuItemClick(Sender: TObject);
 begin
   with TEDCDForm.Create(Application) do
   begin
-    Top := self.Top + self.Height;
+    Top := self.Top + self.Height + ToolbarForm.Height;
     Show;
     UpdateLayersPos;
     UpdateConstrDepot;
@@ -1913,6 +1928,7 @@ procedure TEDCDForm.PasteReqQtyMenuItemClick(Sender: TObject);
 var sl,sl2: TStringList;
     s: string;
     i: Integer;
+    sarr: TStringDynArray;
 begin
   if FCurrentDepot = nil then Exit;
   if FCurrentDepot.Status <> '' then Exit;
@@ -1922,16 +1938,18 @@ begin
   sl2.Text := FCurrentDepot.CustomRequest;
   sl.Text := Clipboard.AsText;
   try
-    if sl.Count > 50 then Exit;
+    if sl.Count > 60 then Exit;
     for i := 0 to sl.Count - 1 do
     begin
       s := Trim(sl[i]);
-      if Pos(Chr(9),s) <= 0 then continue;
-      s := s.Replace(Chr(9),'=');
-      s := s.Replace(',','');
-      if sl2.IndexOf(s) < 0 then sl2.Add(s);
+      sarr := SplitString(s,Chr(9));
+      if High(sarr) < 1 then continue;
+      sarr[1] := sarr[1].Replace('.','');
+      sarr[1] := sarr[1].Replace(',','');
+      sarr[1] := sarr[1].Replace(' ','');
+      sl2.Values[sarr[0]] := sarr[1];
     end;
-    if sl2.Count > 50 then Exit;
+    if sl2.Count > 60 then Exit;
     FCurrentDepot.CustomRequest := sl2.Text;
     FCurrentDepot.GetSys.Save;
     UpdateConstrDepot;
@@ -1939,6 +1957,30 @@ begin
     sl.Free;
     sl2.Free;
   end;
+end;
+
+procedure TEDCDForm.UseMaxReqQtyMenuItemClick(Sender: TObject);
+var i,q: Integer;
+    maxreq: TStock;
+    s: string;
+begin
+  if FCurrentDepot = nil then Exit;
+  if FCurrentDepot.Status <> '' then Exit;
+  if FCurrentDepot.GetConstrType = nil then Exit;
+  maxreq := TStock.Create;
+  maxreq.Assign(FCurrentDepot.GetConstrType.ResourcesRequired);
+  if TMenuItem(Sender).Tag = 1 then
+    for i := 0 to maxreq.Count - 1 do
+    begin
+      s := maxreq.Names[i];
+      q := maxreq.Qty[s];
+      q := q + Ceil(q*0.05);
+      maxreq.Qty[s] := q;
+    end;
+  FCurrentDepot.CustomRequest := maxreq.Text;
+  FCurrentDepot.GetSys.Save;
+  UpdateConstrDepot;
+  maxreq.Free;
 end;
 
 procedure TEDCDForm.ClearReqQtyMenuItemClick(Sender: TObject);
@@ -1959,13 +2001,14 @@ begin
     MarketsForm.InclIgnoredCheck.Checked := False;
     MarketsForm.MarketsCheck.Checked := False;
     MarketsForm.ConstrCheck.Checked := True;
-    if TMenuItem(Sender).Tag = 1 then
+    MarketsForm.SetRecentSort;
+    if TComponent(Sender).Tag = 0 then
+      MarketsForm.FilterEdit.Text := '(Depot)';
+    if TComponent(Sender).Tag = 1 then
     begin
       MarketsForm.InclPlannedCheck.Checked := True;
-      MarketsForm.FilterEdit.Text := 'PlannedConstruction'
+      MarketsForm.FilterEdit.Text := '(Planned)'
     end
-    else
-      MarketsForm.FilterEdit.Text := 'ConstructionDepot';
   finally
     MarketsForm.EndFilterChange;
     MarketsForm.UpdateAndShow;
@@ -1984,7 +2027,7 @@ var
   cd: TConstructionDepot;
   ct: TConstructionType;
   m: TMarket;
-  selectedf,activef: Boolean;
+  selectedf,activef,custreqf: Boolean;
   s: string;
   sl: TStringList;
 begin
@@ -2079,15 +2122,34 @@ begin
   mitem.OnClick := CopyReqQtyMenuItemClick;
   SelectDepotSubMenu.Add(mitem);
 
-  mitem := TMenuItem.Create(SelectDepotSubMenu);
-  mitem.Caption := 'Paste Request';
-  mitem.OnClick := PasteReqQtyMenuItemClick;
-  SelectDepotSubMenu.Add(mitem);
+  custreqf := (FCurrentDepot <> nil) and (FCurrentDepot.Status = '');
+  if custreqf then
+  begin
+    mitem := TMenuItem.Create(SelectDepotSubMenu);
+    mitem.Caption := 'Paste Request';
+    mitem.OnClick := PasteReqQtyMenuItemClick;
+    //mitem.Enabled := custreqf;
+    SelectDepotSubMenu.Add(mitem);
 
-  mitem := TMenuItem.Create(SelectDepotSubMenu);
-  mitem.Caption := 'Clear Request';
-  mitem.OnClick := ClearReqQtyMenuItemClick;
-  SelectDepotSubMenu.Add(mitem);
+    mitem := TMenuItem.Create(SelectDepotSubMenu);
+    mitem.Caption := 'Use Avg. Request';
+    mitem.OnClick := UseMaxReqQtyMenuItemClick;
+    //mitem.Enabled := custreqf;
+    SelectDepotSubMenu.Add(mitem);
+
+    mitem := TMenuItem.Create(SelectDepotSubMenu);
+    mitem.Caption := 'Use Max. Request';
+    mitem.OnClick := UseMaxReqQtyMenuItemClick;
+    mitem.Tag := 1;
+    //mitem.Enabled := custreqf;
+    SelectDepotSubMenu.Add(mitem);
+
+    mitem := TMenuItem.Create(SelectDepotSubMenu);
+    mitem.Caption := 'Clear Request';
+    mitem.OnClick := ClearReqQtyMenuItemClick;
+    //mitem.Enabled := custreqf;
+    SelectDepotSubMenu.Add(mitem);
+  end;
 
   mitem := TMenuItem.Create(SelectDepotSubMenu);
   mitem.Caption := '-';
@@ -2376,6 +2438,9 @@ begin
     begin
       Font := CloseLabel.Font;
       Color := CloseLabel.Color;
+
+      if (self = EDCDForm) and not ToolbarForm.Visible then
+        ToolbarForm.Show;
     end
     else
     begin
@@ -2384,6 +2449,8 @@ begin
         Color := clBlack
       else
         Color := TextColLabel.Color;
+
+      ToolbarForm.Hide;
     end;
   end;
   if not Opts.Flags['ShowCloseBox'] then CloseLabel.Visible := activef;

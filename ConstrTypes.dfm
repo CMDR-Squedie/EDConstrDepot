@@ -96,6 +96,10 @@ object ConstrTypesForm: TConstrTypesForm
       item
         Alignment = taRightJustify
         Caption = 'Est.Haul'
+      end
+      item
+        Alignment = taRightJustify
+        Caption = 'Built'
       end>
     Ctl3D = False
     Font.Charset = DEFAULT_CHARSET

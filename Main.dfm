@@ -307,6 +307,11 @@ object EDCDForm: TEDCDForm
       Caption = 'Manage Markets'
       OnClick = ManageMarketsMenuItemClick
     end
+    object ManageContructionsMenuItem: TMenuItem
+      Tag = -1
+      Caption = 'Manage Constr.'
+      OnClick = ActiveConstrMenuItemClick
+    end
     object ManageAllMenuItem: TMenuItem
       Caption = 'Manage All'
       OnClick = ManageAllMenuItemClick

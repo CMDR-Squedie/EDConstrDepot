@@ -123,6 +123,7 @@ object SystemInfoForm: TSystemInfoForm
       Height = 16
       AutoSize = False
       Caption = '--------------------'
+      OnClick = SystemNameLabelClick
     end
     object FactionsLabel: TLabel
       Left = 217

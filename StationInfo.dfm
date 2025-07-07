@@ -368,6 +368,7 @@ object StationInfoForm: TStationInfoForm
     Width = 154
     Height = 19
     Caption = '----------------------'
+    OnClick = EstHaulLabelClick
   end
   object CPRewardLabel: TLabel
     Left = 424
