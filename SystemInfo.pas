@@ -161,6 +161,8 @@ type
     procedure GroupAddRemoveMenuItemClick(Sender: TObject);
     procedure SystemNameLabelClick(Sender: TObject);
     procedure MiliLinksLabel1DblClick(Sender: TObject);
+    procedure ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
+      Data: Integer; var Compare: Integer);
   private
     { Private declarations }
     FCurrentSystem: TStarSystem;
@@ -170,6 +172,8 @@ type
     FSelectedObj: TObject;
     FListViewVScrollPos: Integer;
     FClickedColumn: Integer;
+    FSortColumn: Integer;
+    FSortAscending: Boolean;
     FShowEconomies: Boolean;
     FHoldUpdate: Boolean;
     procedure TryPasteImage;
@@ -189,7 +193,7 @@ type
     function SelectedMarket: TMarket;
   public
     { Public declarations }
-    procedure SetSystem(s: TStarSystem);
+    procedure SetSystem(s: TStarSystem; const bm: TBaseMarket = nil; const stationsOnly: Boolean = false);
     procedure ApplySettings;
     procedure OnEDDataUpdate;
     procedure UpdateView(const keepSel: Boolean = true);
@@ -344,9 +348,14 @@ begin
 end;
 
 procedure TSystemInfoForm.EconomiesCheckClick(Sender: TObject);
+var margin: Integer;
 begin
-  InfoPanel2.Height := 96 - InfoPanel2.Height;
   FShowEconomies := not FShowEconomies;
+  margin := SecLabel.Top + 4;
+  if FShowEconomies then
+    InfoPanel2.Height := MiliLinksLabel1.Top + MiliLinksLabel1.Height + margin
+  else
+    InfoPanel2.Height := SecLabel.Top + SecLabel.Height + margin;
   UpdateView;
 end;
 
@@ -640,10 +649,13 @@ end;
 
 procedure TSystemInfoForm.SaveDataButtonClick(Sender: TObject);
 begin
-  SaveData;
-  SavePicture;
-  if ColoniesForm.Visible then
-    ColoniesForm.UpdateItems;
+  DataSrc.BeginUpdate;
+  try
+    SaveData;
+    SavePicture;
+  finally
+    DataSrc.EndUpdate;
+  end;
 end;
 
 procedure TSystemInfoForm.SavePicture;
@@ -748,6 +760,57 @@ begin
     if TConstructionDepot(data).Simulated then Exit;
     StationInfoForm.SetStation(TBaseMarket(data));
   end;
+end;
+
+procedure TSystemInfoForm.ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
+  Data: Integer; var Compare: Integer);
+var s1,s2,b1,b2: string;
+    sItem1, sItem2: TListItem;
+
+  function getBody(item: TListItem): string;
+  begin
+    if TObject(item.Data) is TSystemBody then
+      Result := TSystemBody(item.Data).BodyName
+    else
+      Result := TBaseMarket(item.Data).Body;
+  end;
+begin
+{
+  Compare := 0;
+
+  sItem1 := Item1;
+  sItem2 := Item2;
+
+  if BodiesCheck.Checked then
+  begin
+    if Item1.SubItems.Objects[0] <> nil then
+      sItem1 := TListItem(Item1.SubItems.Objects[0]);
+    if Item2.SubItems.Objects[0] <> nil then
+      sItem2 := TListItem(Item2.SubItems.Objects[0]);
+  end;
+
+  b1 := getBody(sItem1);
+  b2 := getBody(sItem2);
+  if FSortColumn <= 0 then
+  begin
+    s1 := b1;
+    s2 := b2;
+  end
+  else
+  if FSortColumn <= 8 then
+  begin
+    s1 := sItem1.SubItems[FSortColumn-1] + b1;
+    s2 := sItem2.SubItems[FSortColumn-1] + b2;
+  end
+  else
+  begin
+    s1 := sItem1.SubItems[FSortColumn-1].PadLeft(20) + b1;
+    s2 := sItem2.SubItems[FSortColumn-1].PadLeft(20) + b2;
+  end;
+
+  Compare := CompareText(s1,s2);
+  if not FSortAscending then Compare := -Compare;
+  }
 end;
 
 procedure TSystemInfoForm.ListViewCustomDrawItem(Sender: TCustomListView;
@@ -869,7 +932,7 @@ procedure TSystemInfoForm.GroupAddRemoveMenuItemClick(Sender: TObject);
 begin
   if ListView.Selected = nil then Exit;
   if TObject(ListView.Selected.Data) is TConstructionDepot then
-    EDCDForm.SetDepot(TConstructionDepot(ListView.Selected.Data).MarketID,true);
+    EDCDForm.AddDepotToGroup(TConstructionDepot(ListView.Selected.Data));
 end;
 
 procedure TSystemInfoForm.MarketHistoryMenuItemClick(Sender: TObject);
@@ -905,7 +968,8 @@ begin
   if Visible then UpdateView;
 end;
 
-procedure TSystemInfoForm.SetSystem(s: TStarSystem);
+procedure TSystemInfoForm.SetSystem(s: TStarSystem; const bm: TBaseMarket = nil;
+  const stationsOnly: Boolean = false);
 var png: TPngImage;
 begin
   if Visible and (FCurrentSystem <> nil) then
@@ -939,7 +1003,24 @@ begin
   FDataChanged := False;
   FImageChanged := False;
 
+  if stationsOnly then
+  begin
+    BeginFilterChange;
+    try
+      FiltersCheck.Checked := True;
+      BodiesCheck.Checked := False;
+    finally
+      EndFilterChange;
+    end;
+  end;
+
+
   UpdateView;
+  if bm <> nil then
+  begin
+    FSelectedObj := bm;
+    RestoreSelection;
+  end;
 end;
 
 procedure TSystemInfoForm.ShowUpLinksCheckClick(Sender: TObject);
@@ -1054,6 +1135,18 @@ begin
   SplashForm.ShowInfo('System name copied...',1000);
 end;
 
+function CompareConstr(Item1, Item2: Pointer): Integer;
+var s1,s2: string;
+begin
+  Result := 0;
+  try
+    s1 := Ord(TBaseMarket(Item1).IsOrbital).ToString + TBaseMarket(Item1).LastUpdate;
+    s2 := Ord(TBaseMarket(Item2).IsOrbital).ToString + TBaseMarket(Item2).LastUpdate;
+    Result := CompareText(s1,s2);
+  except
+  end;
+end;
+
 //assign construction to bodies and find link hubs (ports that accept strong links)
 procedure TSystemInfoForm.ResolveConstructions(orgcl: TList);
 var i,i2: Integer;
@@ -1113,6 +1206,8 @@ begin
   begin
     b := TSystemBody(FCurrentSystem.Bodies.Objects[i]);
     if b.IsRing then continue;
+
+    b.Constructions.Sort(@CompareConstr);
 
     surfFirstSeq := ''; //build sequence tag
     orbFirstSeq := '';
@@ -1230,7 +1325,7 @@ end;
 
 procedure TSystemInfoForm.UpdateView(const keepSel: Boolean = true);
 var  i,i2,idx,cp2idx,cp3idx,curCol: Integer;
-     s,s2: string;
+     s,s2,comment: string;
      sl,t23sl,row: TStringList;
      cl: TList;
      b: TSystemBody;
@@ -1620,7 +1715,8 @@ begin
           addSubItem(FloatToStrF(b.OrbitalPeriod,ffFixed,7,1));
           addSubItem(FloatToStrF(b.SemiMajorAxis,ffFixed,12,1));
 
-          if CheckFilter(b) then addRow(b);
+           if CheckFilter(b) then addRow(b);
+
 
          //if b is a ring, the link resolution is not reset after parent's iteration
           //and thus carries over from parent body
@@ -1655,6 +1751,7 @@ begin
               //s := s + IfThen(TConstructionDepot(bm).Finished,'','🚧');
               s := s + IfThen(cd.Planned,'✏',
                        IfThen(cd.Finished,'🚩','🚧'));
+              s := s + IfThen(cd.IsOrbital,'⚪•','🏭'); //⚪○• 🏭
               if bm.LinkedMarketId <> '' then
               begin
                 m := DataSrc.MarketFromID(bm.LinkedMarketId);
@@ -1677,10 +1774,14 @@ begin
               addSubItem('  🛒 '+ bm.StationName);
             end;
             s := '';
+            comment := bm.GetComment;
             if ct <> nil then
-             s := ct.StationType_full;
-             if s = '' then
-              s := DataSrc.MarketComments.Values[bm.MarketId];
+              s := ct.StationType_full;
+            if s = '' then
+            begin
+              s := comment;
+              comment := '';
+            end;
             addSubItem(s);
 
             curEco := '';
@@ -1743,7 +1844,7 @@ begin
             if bm.BuildOrder <> 0 then
               s := '#' + bm.BuildOrder.ToString;
             addSubItem(s);
-            addSubItem('');
+            addSubItem(comment);
             addSubItem('');
             s := '';
             if m <> nil then s := m.Faction_short;
@@ -1780,7 +1881,8 @@ begin
     end;
 
     for i := 0 to ListView.Columns.Count - 1 do
-      ListView.Column[i].Width := ListView.Canvas.TextWidth(colMaxTxt[i]) + 15; //margins
+      ListView.Column[i].Width := ListView.Canvas.TextWidth(colMaxTxt[i]) +
+        15 + ListView.Font.Size div 6; //margins
 
   finally
     ListView.Items.EndUpdate;

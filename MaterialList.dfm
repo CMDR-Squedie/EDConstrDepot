@@ -17,7 +17,7 @@ object MaterialListForm: TMaterialListForm
     Left = 0
     Top = 0
     Width = 393
-    Height = 57
+    Height = 47
     Align = alTop
     BevelOuter = bvNone
     Color = 12105912
@@ -25,7 +25,7 @@ object MaterialListForm: TMaterialListForm
     TabOrder = 0
     object StationLabel: TLabel
       Left = 8
-      Top = 10
+      Top = 6
       Width = 291
       Height = 16
       AutoSize = False
@@ -38,7 +38,7 @@ object MaterialListForm: TMaterialListForm
     end
     object EstCargoLabel: TLabel
       Left = 8
-      Top = 32
+      Top = 26
       Width = 137
       Height = 16
       AutoSize = False
@@ -51,7 +51,7 @@ object MaterialListForm: TMaterialListForm
     end
     object CalcCargoLabel: TLabel
       Left = 170
-      Top = 32
+      Top = 26
       Width = 137
       Height = 16
       AutoSize = False
@@ -64,7 +64,7 @@ object MaterialListForm: TMaterialListForm
     end
     object CopyButton: TButton
       Left = 329
-      Top = 7
+      Top = 4
       Width = 56
       Height = 20
       Caption = 'Copy'
@@ -73,7 +73,7 @@ object MaterialListForm: TMaterialListForm
     end
     object PasteButton: TButton
       Left = 267
-      Top = 7
+      Top = 4
       Width = 56
       Height = 20
       Caption = 'Paste'
@@ -83,7 +83,7 @@ object MaterialListForm: TMaterialListForm
     end
     object JSONButton: TButton
       Left = 329
-      Top = 33
+      Top = 25
       Width = 56
       Height = 20
       Caption = 'JSON'
@@ -94,9 +94,9 @@ object MaterialListForm: TMaterialListForm
   end
   object ListView: TListView
     Left = 0
-    Top = 57
+    Top = 47
     Width = 393
-    Height = 531
+    Height = 541
     Align = alClient
     BevelInner = bvNone
     BevelOuter = bvNone
@@ -127,6 +127,9 @@ object MaterialListForm: TMaterialListForm
     SortType = stText
     TabOrder = 1
     ViewStyle = vsReport
+    OnDblClick = ListViewDblClick
     OnKeyUp = ListViewKeyUp
+    ExplicitTop = 57
+    ExplicitHeight = 531
   end
 end

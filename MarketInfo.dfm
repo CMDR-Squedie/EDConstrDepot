@@ -2,7 +2,7 @@ object MarketInfoForm: TMarketInfoForm
   Left = 0
   Top = 0
   Caption = 'Market Info'
-  ClientHeight = 523
+  ClientHeight = 729
   ClientWidth = 368
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -19,16 +19,17 @@ object MarketInfoForm: TMarketInfoForm
     Left = 367
     Top = 55
     Width = 1
-    Height = 468
+    Height = 674
     Align = alRight
     Visible = False
     ExplicitLeft = 338
+    ExplicitHeight = 468
   end
   object ListView: TListView
     Left = 0
     Top = 55
     Width = 367
-    Height = 468
+    Height = 674
     Align = alClient
     BevelInner = bvNone
     BevelOuter = bvNone
@@ -37,7 +38,6 @@ object MarketInfoForm: TMarketInfoForm
     Columns = <
       item
         Caption = 'Commodity'
-        MinWidth = 150
       end
       item
         Alignment = taRightJustify
@@ -46,18 +46,15 @@ object MarketInfoForm: TMarketInfoForm
       item
         Alignment = taRightJustify
         Caption = 'Price'
-        MinWidth = 100
       end
       item
         Alignment = taRightJustify
-        Caption = '+/- of avg'
-        MaxWidth = 120
+        Caption = '% of avg'
         Width = 64
       end
       item
         Alignment = taCenter
         Caption = ' '
-        MaxWidth = 28
         MinWidth = 28
         Width = 28
       end>
@@ -69,6 +66,7 @@ object MarketInfoForm: TMarketInfoForm
     TabOrder = 0
     ViewStyle = vsReport
     OnDblClick = ListViewDblClick
+    ExplicitHeight = 468
   end
   object Panel1: TPanel
     Left = 0

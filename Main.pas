@@ -59,11 +59,14 @@ type
     SystemInfoCurrentMenuItem: TMenuItem;
     Wiki1: TMenuItem;
     ManageContructionsMenuItem: TMenuItem;
+    StarMapMenuItem: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure UpdTimerTimer(Sender: TObject);
     procedure TextColLabelMouseMove(Sender: TObject; Shift: TShiftState; X,
       Y: Integer);
     procedure TextColLabelMouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    procedure Layer1MouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -111,6 +114,7 @@ type
     procedure SystemInfoMenuItemClick(Sender: TObject);
     procedure SystemInfoCurrentMenuItemClick(Sender: TObject);
     procedure Wiki1Click(Sender: TObject);
+    procedure StarMapMenuItemClick(Sender: TObject);
 private
     { Private declarations }
     FSelectedConstructions: TStringList;
@@ -148,6 +152,7 @@ private
     { Public declarations }
     procedure OnEDDataUpdate;
     procedure UpdateConstrDepot;
+    procedure AddDepotToGroup(cd: TConstructionDepot);
     procedure SetDepot(mID: string; groupf: Boolean);
     procedure SetDepotGroup(mIDs: string);
     procedure SetSecondaryMarket(mID: string);
@@ -167,7 +172,7 @@ implementation
 {$R *.dfm}
 
 uses Splash, Markets, SettingsGUI, MarketInfo, Clipbrd, Colonies, StationInfo,
-  SystemInfo, ConstrTypes, Toolbar;
+  SystemInfo, ConstrTypes, Toolbar, StarMap;
 
 const cDefaultCapacity: Integer = 784;
 
@@ -456,6 +461,10 @@ begin
         end;
       end;
 
+//penalty for no large pads
+      if score > 0 then
+        if m.LPads = 0 then
+          score := score * 2 div 3;  //33% penalty
 
 //bonus for favorite market
       if score > 0 then
@@ -579,7 +588,8 @@ procedure TEDCDForm.UpdateConstrDepot;
 var j: TJSONObject;
     jarr,resReq: TJSONArray;
     sl: TStringList;
-    js,s,s2,fn,cnames,cprogress,lastUpdate,itemName,normItem,prevSys: string;
+    csl: TStock;
+    js,s,s2,fn,cnames,cprogress,lastUpdate,itemName,normItem,prevSys,warning: string;
     i,ci,res,lastWIP,h,w,q,prec,sortPrefixLen: Integer;
     fa: DWord;
     reqQty,delQty,cargo,stock,prevQty,maxQty: Integer;
@@ -619,6 +629,7 @@ label
 begin
 
   sl := TStringList.Create;
+  csl := TStock.Create;
 
   prevSys := '';
   if FCurrentDepot <> nil then
@@ -696,13 +707,17 @@ begin
           try  s := s + ' (' + cd.GetConstrType.StationType_abbrev + ')'; except end;
       end
       else
-        s := s + ' (' + s2 + ')';
+        if s2 <> '' then
+          s := s + ' (' + s2 + ')';
       if Opts.Flags['ShowStarSystem'] then
         s := s + ' ✧' + GetStarSystemAbbrev(cd.StarSystem);
       if FSelectedConstructions.Count > 1 then
         s := Copy(s,1,30 div FSelectedConstructions.Count) + '…';
       cnames := cnames + s;
 
+      if FSelectedConstructions.Count > 1 then
+        if (cd.Status = '') and (cd.CustomRequest = '') and not cd.Simulated then
+          warning := '⚠ EMPTY MAT. LISTS';
 
       js := cd.Status;
 
@@ -711,9 +726,15 @@ begin
 
         if (cd.Status = '') and (cd.CustomRequest <> '') then
         begin
-          sl.Text := cd.CustomRequest;
-          for i := 0 to sl.Count - 1 do
-            totReqQty := totReqQty + StrToIntDef(sl.ValueFromIndex[i],0);
+          csl.Text := cd.CustomRequest;
+          for i := 0 to csl.Count - 1 do
+          begin
+            s := csl.Names[i];
+            prevQty := StrToIntDef(sl.Values[s],0);
+            reqQty := csl.Qty[s];
+            sl.Values[s] := IntToStr(prevQty + reqQty);
+            totReqQty := totReqQty + reqQty;
+          end;
         end
         else
         if cd.Simulated then
@@ -1079,6 +1100,18 @@ begin
 
 LSkipDepotSelection:;
 
+    if warning <> '' then
+    begin
+      l[colText] := warning; addline;
+    end;
+
+    if a[colText] = '' then
+    begin
+      l[colText] := 'Empty material list. '; addline;
+      l[colText] := 'Dock to depot, paste list'; addline;
+      l[colText] := 'or use avg./max. request.'; addline;
+    end;
+
     ReqQtyColLabel.Caption := a[colReq];
     TextColLabel.Caption := a[colText];
     StockColLabel.Caption := a[colStock];
@@ -1119,6 +1152,7 @@ LSkipDepotSelection:;
 
     j.Free;
     sl.Free;
+    csl.Free;
   end;
 
   if FCurrentDepot <> nil then
@@ -1266,6 +1300,9 @@ begin
     t := HWND_TOPMOST;
   SetWindowPos(FLayer1.Handle, t, 0, 0 , 0, 0, SWP_NOACTIVATE or SWP_NOMOVE or SWP_NOSIZE);
   SetWindowPos(self.Handle, t, 0, 0 , 0, 0, SWP_NOACTIVATE or SWP_NOMOVE or SWP_NOSIZE);
+
+  SetWindowPos(ToolbarForm.Handle, t, 0, 0 , 0, 0, SWP_NOACTIVATE or SWP_NOMOVE or SWP_NOSIZE);
+
 end;
 
 procedure TEDCDForm.UpdTimerTimer(Sender: TObject);
@@ -1441,7 +1478,9 @@ begin
           if FCurrentDepot <> nil then
             if FSelectedConstructions.Count = 0 then
               FSelectedConstructions.Add(FCurrentDepot.MarketId);
-          FSelectedConstructions.Add(cd.MarketId)
+          FSelectedConstructions.Add(cd.MarketId);
+          if (cd.Status = '') and (cd.CustomRequest = '') then
+            ShowMessage('WARNING: Construction with no material list added to group.');
         end
         else
           FSelectedConstructions.Text := cd.MarketId;
@@ -1471,6 +1510,14 @@ begin
     FSelectedConstructions.Text := mID;
   FSelectedItems.Clear;
   UpdateConstrDepot;
+end;
+
+procedure TEDCDForm.AddDepotToGroup(cd: TConstructionDepot);
+var i: Integer;
+begin
+  SetDepot(cd.MarketId,true);
+  if (cd.Status = '') and (cd.CustomRequest = '') then
+    ShowMessage('WARNING: Construction with no material list added to group.');
 end;
 
 procedure TEDCDForm.SetDepotGroup(mIDs: string);
@@ -1519,7 +1566,12 @@ begin
 end;
 
 procedure TEDCDForm.Layer1Click(Sender: TObject);
-var fs: TFormStyle;
+begin
+  self.BringToFront;
+end;
+
+procedure TEDCDForm.Layer1MouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
 begin
   self.BringToFront;
 end;
@@ -1549,7 +1601,10 @@ begin
   FLayer1.FormStyle := fsStayOnTop;
   FLayer1.PopupMenu := self.PopupMenu;
 
+  //can't use Enabled=false here, which solved most of problems - I need the dblclicks
   FLayer1.OnClick := Layer1Click;
+  //FLayer1.OnMouseActivate := ;
+  FLayer1.OnMouseDown := Layer1MouseDown;
   FLayer1.OnDblClick := Layer1DblClick;
 
   FLayer1.Visible := False;
@@ -1795,6 +1850,11 @@ begin
   UpdateConstrDepot;
 end;
 
+procedure TEDCDForm.StarMapMenuItemClick(Sender: TObject);
+begin
+  StarMapForm.Show;
+end;
+
 procedure TEDCDForm.StatusPaintBoxPaint(Sender: TObject);
 var r: TRect;
     i,j,y,dx,dy,dx2: Integer;
@@ -1884,7 +1944,9 @@ begin
   begin
     SystemInfoForm.SetSystem(FCurrentDepot.GetSys);
     SystemInfoForm.RestoreAndShow;
-  end;
+  end
+  else
+    SystemInfoCurrentMenuItemClick(Sender);
 end;
 
 procedure TEDCDForm.MarketInfoMenuItemClick(Sender: TObject);
@@ -1925,38 +1987,11 @@ begin
 end;
 
 procedure TEDCDForm.PasteReqQtyMenuItemClick(Sender: TObject);
-var sl,sl2: TStringList;
-    s: string;
-    i: Integer;
-    sarr: TStringDynArray;
 begin
   if FCurrentDepot = nil then Exit;
   if FCurrentDepot.Status <> '' then Exit;
   if not Clipboard.HasFormat(CF_TEXT) then Exit;
-  sl := TStringList.Create;
-  sl2 := TStringList.Create;
-  sl2.Text := FCurrentDepot.CustomRequest;
-  sl.Text := Clipboard.AsText;
-  try
-    if sl.Count > 60 then Exit;
-    for i := 0 to sl.Count - 1 do
-    begin
-      s := Trim(sl[i]);
-      sarr := SplitString(s,Chr(9));
-      if High(sarr) < 1 then continue;
-      sarr[1] := sarr[1].Replace('.','');
-      sarr[1] := sarr[1].Replace(',','');
-      sarr[1] := sarr[1].Replace(' ','');
-      sl2.Values[sarr[0]] := sarr[1];
-    end;
-    if sl2.Count > 60 then Exit;
-    FCurrentDepot.CustomRequest := sl2.Text;
-    FCurrentDepot.GetSys.Save;
-    UpdateConstrDepot;
-  finally
-    sl.Free;
-    sl2.Free;
-  end;
+  FCurrentDepot.PasteRequest;
 end;
 
 procedure TEDCDForm.UseMaxReqQtyMenuItemClick(Sender: TObject);
@@ -2001,9 +2036,10 @@ begin
     MarketsForm.InclIgnoredCheck.Checked := False;
     MarketsForm.MarketsCheck.Checked := False;
     MarketsForm.ConstrCheck.Checked := True;
+    MarketsForm.InclPlannedCheck.Checked := True;
     MarketsForm.SetRecentSort;
     if TComponent(Sender).Tag = 0 then
-      MarketsForm.FilterEdit.Text := '(Depot)';
+      MarketsForm.FilterEdit.Text := '(Active)';
     if TComponent(Sender).Tag = 1 then
     begin
       MarketsForm.InclPlannedCheck.Checked := True;
@@ -2332,6 +2368,7 @@ begin
     //force position saving; FormClose is not called on termination!
     if MarketsForm.Visible then MarketsForm.Close;
     if ColoniesForm.Visible then ColoniesForm.Close;
+    if StarMapForm.Visible then StarMapForm.Close;
 
     Opts['Left'] := IntToStr(self.Left);
     Opts['Top'] := IntToStr(self.Top);
@@ -2440,7 +2477,10 @@ begin
       Color := CloseLabel.Color;
 
       if (self = EDCDForm) and not ToolbarForm.Visible then
+      begin
         ToolbarForm.Show;
+        //ToolbarForm.SendToBack;
+      end;
     end
     else
     begin

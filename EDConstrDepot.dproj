@@ -194,6 +194,14 @@
             <Form>ToolbarForm</Form>
             <FormType>dfm</FormType>
         </DCCReference>
+        <DCCReference Include="ToolTip.pas">
+            <Form>TooltipForm</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
+        <DCCReference Include="StarMap.pas">
+            <Form>StarMapForm</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

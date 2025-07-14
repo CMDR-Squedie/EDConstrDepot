@@ -173,7 +173,7 @@ public
   FeaturesModified: Boolean;
   Parent: string;
   Rings: TList;
-  Constructions: TList; //this is only populated in System View;
+  Constructions: TList; //this is only populated on demand, eg. in System View;
   SurfLinkHub: TConstructionDepot;
   OrbLinkHub: TConstructionDepot;
   procedure UpdateEconomies;
@@ -192,7 +192,6 @@ private
   FAlterName: string;
   FBodies: TStringList;
   FResourceReserve: string;
-  function GetFactions(abbrevf: Boolean): string;
   function GetFactions_short: string;
   function GetFactions_full: string;
   function GetArchitectName: string;
@@ -222,6 +221,9 @@ public
   NavBeaconScan: Boolean;
   OrbitalSlots: Integer;
   SurfaceSlots: Integer;
+  TaskGroup: string;
+  MapKey: Integer;
+  Constructions: TList; //this is only populated on demand, eg. in Map View;
   function ResourceReserve: string;
   function DistanceTo(s: TStarSystem): Double;
   function PopForTimeStamp(tms: string): Int64;
@@ -231,10 +233,12 @@ public
   procedure AddSignals(js: string; j: TJSONObject);
   function BodyByName(name: string): TSystemBody;
   function BodyById(id: string): TSystemBody;
+  function GetFactions(abbrevf: Boolean; majorf: Boolean): string;
   procedure UpdateBodies_EDSM;
   procedure UpdateFromScan_EDSM;
   procedure ResetEconomies;
   function ImagePath: string;
+  procedure UpdateSave;
   procedure Save;
   constructor Create;
   destructor Destroy;
@@ -278,6 +282,8 @@ public
   Layout: string;
   NameModified: Boolean;
   IsOrphan: Boolean;  //body not found in system
+  MPads: Integer;
+  LPads: Integer;
   function GetSys: TStarSystem;
   function Faction_short: string;
   function FullName: string;
@@ -312,6 +318,7 @@ TConstructionDepot = class (TBaseMarket)
   CustomRequest: string;
   ReplacedWith: string; //session only, when player's construction is replaced with actual one by name
   procedure UpdateHaul;
+  procedure PasteRequest;
   function InProgress: Boolean;
 end;
 
@@ -389,6 +396,7 @@ type TEDDataSource = class (TDataModule)
     FConstructions: TConstructionList;
     FCargoExt: TMarket;
     FSimDepot: TConstructionDepot;
+//    FMissions: TConstructionDepot;  //test
     FMarket: TMarket;
     FMarketComments: THashedStringList;
     FMarketLevels: THashedStringList;
@@ -418,7 +426,7 @@ type TEDDataSource = class (TDataModule)
     FConstructionTypes: TConstructionTypes;
     FEconomySets: TEconomySets;
     FEconomyList: THashedStringList;
-    FPreventNotify: Boolean;
+    FPreventNotify: Boolean; //todo: change to counter!
 
     FProcessedEvents: THashedStringList;
 
@@ -481,6 +489,7 @@ type TEDDataSource = class (TDataModule)
     procedure UpdateSecondaryMarket(forcef: Boolean);
     procedure RemoveSecondaryMarket(m: TMarket);
     procedure RemoveConstruction(cd: TConstructionDepot);
+    procedure UpdateSystemConstructions;
     procedure SetMarketLevel(mID: string; level: TMarketLevel);
     function GetMarketLevel(mID: string): TMarketLevel;
     procedure UpdateMarketComment(mID: string; s: string);
@@ -510,7 +519,7 @@ implementation
 
 {$R *.dfm}
 
-uses Main;
+uses Main,Clipbrd;
 
 
 procedure __log_except(fname: string;info: string);
@@ -1380,12 +1389,48 @@ begin
   Stock := TStock.Create;
   DockToDockTimes := TDockToDockTimes.Create;
   DistFromStar := -1;
+  LPads := -1;
+  MPads := -1;
 end;
 
 destructor TBaseMarket.Destroy;
 begin
   Stock.Free;
   DockToDockTimes.Free;
+end;
+
+procedure TConstructionDepot.PasteRequest;
+var sl,sl2: TStringList;
+    s: string;
+    i: Integer;
+    sarr: TStringDynArray;
+begin
+  if Status <> '' then Exit;
+  if not Clipboard.HasFormat(CF_TEXT) then Exit;
+  sl := TStringList.Create;
+  sl2 := TStringList.Create;
+  sl2.Text := CustomRequest;
+  sl.Text := Clipboard.AsText;
+  try
+    if sl.Count > 60 then Exit;
+    for i := 0 to sl.Count - 1 do
+    begin
+      s := Trim(sl[i]);
+      sarr := SplitString(s,Chr(9));
+      if High(sarr) < 1 then continue;
+      sarr[1] := sarr[1].Replace('.','');
+      sarr[1] := sarr[1].Replace(',','');
+      sarr[1] := sarr[1].Replace(' ','');
+      sl2.Values[sarr[0]] := sarr[1];
+    end;
+    if sl2.Count > 60 then Exit;
+    CustomRequest := sl2.Text;
+    if GetSys <> nil then
+      GetSys.UpdateSave;
+  finally
+    sl.Free;
+    sl2.Free;
+  end;
 end;
 
 procedure TConstructionDepot.UpdateHaul;
@@ -1476,12 +1521,12 @@ begin
   PopHistory.AddPair(tms,IntToStr(pop));
 end;
 
-function TStarSystem.GetFactions(abbrevf: Boolean): string;
+function TStarSystem.GetFactions(abbrevf: Boolean; majorf: Boolean): string;
 var j: TJSONObject;
     jarr: TJSONArray;
     i,i2: Integer;
     s,s2,name: string;
-    infl: Extended;
+    infl,previnfl: Extended;
     sl,sl2: TStringList;
 begin
   Result := '';
@@ -1499,14 +1544,26 @@ begin
         if not abbrevf then
           s := s + '   ' + name;
 
-        infl := jarr.Items[i].GetValue<Extended>('Influence');
-        s2 := FloatToStrF(infl*100,ffFixed,7,1);
+        infl := jarr.Items[i].GetValue<Extended>('Influence') * 100;
+        s2 := FloatToStrF(infl,ffFixed,7,1 - Ord(majorf));
         sl.Add(s2.PadLeft(10,' ') + s + '=' + s2);
       end;
 
       sl.Sort;
+      previnfl := 0;
       for i := sl.Count - 1 downto 0 do
       begin
+
+        if majorf then
+        begin
+          infl := sl.ValueFromIndex[i].ToExtended;
+          if previnfl <> 0 then
+            if previnfl - infl > 10 then
+              break;
+          previnfl := infl;
+        end;
+
+
         if Result <> '' then
           if abbrevf then
             Result := Result + '; '
@@ -1528,13 +1585,13 @@ function TStarSystem.GetFactions_short: string;
 begin
   Result := FFactions;
   if Result <> '' then Exit;
-  FFactions := GetFactions(true);
+  FFactions := GetFactions(true,false);
   Result := FFactions;
 end;
 
 function TStarSystem.GetFactions_full: string;
 begin
-  Result := GetFactions(false);
+  Result := GetFactions(false,false);
 end;
 
 function TStarSystem.TryAddBodyFromId(orgBodyId: string): TSystemBody;
@@ -1842,6 +1899,16 @@ begin
   end;
 end;
 
+procedure TStarSystem.UpdateSave;
+begin
+  DataSrc.BeginUpdate;
+  try
+    Save;
+  finally
+    DataSrc.EndUpdate;
+  end;
+end;
+
 procedure TStarSystem.Save;
 var j: TJSONObject;
     fn: string;
@@ -1863,6 +1930,8 @@ begin
   j.AddPair(TJSONPair.Create('PrimaryPortId', PrimaryPortId));
   j.AddPair(TJSONPair.Create('OrbitalSlots', OrbitalSlots));
   j.AddPair(TJSONPair.Create('SurfaceSlots', SurfaceSlots));
+  j.AddPair(TJSONPair.Create('TaskGroup', TaskGroup));
+  j.AddPair(TJSONPair.Create('MapKey', MapKey));
 
   sarr := TJSONArray.Create;
   j.AddPair(TJSONPair.Create('Stations', sarr));
@@ -2032,6 +2101,7 @@ constructor TSystemList.Create;
 begin
   FAlterNames := THashedStringList.Create;
   FAddresses := THashedStringList.Create;
+  inherited;
 end;
 
 procedure TSystemList.UpdateFromFSDJump(js: string; j: TJSONObject);
@@ -2122,6 +2192,8 @@ begin
         j.TryGetValue<string>('PrimaryPortId',PrimaryPortId);
         j.TryGetValue<Integer>('OrbitalSlots',OrbitalSlots);
         j.TryGetValue<Integer>('SurfaceSlots',SurfaceSlots);
+        j.TryGetValue<string>('TaskGroup',TaskGroup);
+        j.TryGetValue<Integer>('MapKey',MapKey);
 
         if FSystemScan_EDSM <> '' then
           UpdateFromScan_EDSM;
@@ -2361,21 +2433,17 @@ begin
         Result := cd;
         break;
       end;
-      Result := cd;
-      if (Result <> nil) and (Body <> '') then
-        if Result.Body <> body then
-          Result := nil;
-     {if (Result <> nil) and (StationType <> '') then
-        if Result.StationType <> StationType then
-          Result := nil; }
-      if (Result <> nil) and (ActHaul > 0) then
+
+      if Body <> '' then
+        if cd.Body <> body then continue;
+      ct := cd.GetConstrType;
+      if ct <> nil then
       begin
-        ct := cd.GetConstrType;
-        if ct <> nil then
+        d := Abs(100 * (ActHaul - ct.EstCargo) div ct.EstCargo);
+        if (d <= 5) then  //max. 5% dev.
         begin
-          d := Abs(100 * (ActHaul - ct.EstCargo) div ct.EstCargo);
-          if (d > 5) then  //max. 5% dev.
-            Result := nil;
+          if (Result = nil) or not cd.Planned then //active constructions go first
+            Result := cd;
         end;
       end;
     end;
@@ -2822,7 +2890,8 @@ begin
         if event = 'Commander' then
         begin
           s := j.GetValue<string>('FID');
-          FCommanders.Values[s] := j.GetValue<string>('Name');
+          if not FCommanders.Sorted then //preloaded for testing only!
+            FCommanders.Values[s] := j.GetValue<string>('Name');
           FCurrentCmdr := s;
           goto LUpdateTms;
         end;
@@ -3027,27 +3096,25 @@ begin
 
                 if (m.Status = '') or (tms > m.LastUpdate) then //markets with no stored data
                 begin
-                  m.StationType := j.GetValue<string>('StationType');
                   m.StarSystem := j.GetValue<string>('StarSystem');
+                  m.StationType := j.GetValue<string>('StationType');
                   s := '';
                   try s := j.GetValue<string>('StationName_Localised'); except end;
                   if s = '' then s := j.GetValue<string>('StationName');
                   if not m.NameModified then
                     m.StationName := s;
+                  //some planetary ports have no LandingPands info!
+                  if m.StationType.StartsWith('Crater') then
+                    if m.LPads = -1 then m.LPads := 1;
                 end;
-
-                //this one is very tricky, let's see how it works...
-                {if m.Body = '' then
-                  if FLastConstructionDone <> '' then
-                  begin
-                    cd := DepotFromId(FLastConstructionDone);
-                    if cd.StarSystem = m.StarSystem then
-                      m.Body := cd.Body;
-                  end; }
 
                 try
                   m.DistFromStar := Trunc(j.GetValue<single>('DistFromStarLS'));
-                except end;
+                  //these should stay with default value of -1 if getValue fails!
+                  m.MPads := j.GetValue<Integer>('LandingPads.Medium');
+                  m.LPads := j.GetValue<Integer>('LandingPads.Large');
+                except
+                end;
 
                 m.LastDock := tms;
                 if m.StationType = 'FleetCarrier' then
@@ -3130,7 +3197,9 @@ begin
 
             if newstationf and not FInitialLoad then
             begin
-              cd2 := FConstructions.FindCustomConstr(cd.StarSystem,cd.StationName,cd.Body,cd.ActualHaul);
+              //Orbital/Surface flag is not needed as of now because of est.haul differences
+              cd2 := FConstructions.FindCustomConstr(cd.StarSystem,cd.StationName,
+                cd.Body,cd.ActualHaul);
               if cd2 <> nil then
               begin
                 cd.ConstructionType := cd2.ConstructionType;
@@ -3606,6 +3675,28 @@ begin
 //  cd.Free;
 end;
 
+procedure TEDDataSource.UpdateSystemConstructions;
+var i: Integer;
+    sys: TStarSystem;
+begin
+  for i := 0 to DataSrc.StarSystems.Count - 1 do
+  begin
+    sys := DataSrc.StarSystems[i];
+    if sys.Constructions = nil then
+      sys.Constructions := TList.Create
+    else
+      sys.Constructions.Clear;
+  end;
+
+  for i := 0 to DataSrc.Constructions.Count - 1 do
+  begin
+    sys := DataSrc.Constructions[i].GetSys;
+    if sys <> nil then
+      if sys.Constructions <> nil then
+        sys.Constructions.Add(DataSrc.Constructions[i]);
+  end;
+end;
+
 procedure TEDDataSource.MarketToSimDepot(mID: string);
 var midx: Integer;
 begin
@@ -3743,6 +3834,10 @@ begin
     s := FMarketGroups.ValueFromIndex[i];
     if s <> '' then sl.Add(s);
   end;
+  for i := 0 to FStarSystems.Count - 1 do
+  begin
+    if FStarSystems[i].TaskGroup <> '' then sl.Add(FStarSystems[i].TaskGroup);
+  end;
   if FTaskGroup <> '' then
     sl.Add(FTaskGroup);
 end;
@@ -3809,6 +3904,12 @@ begin
 
   FCommanders := TStringList.Create;
 
+  //tests only
+  try
+    FCommanders.LoadFromFile(FWorkingDir + 'commanders.txt');
+    FCommanders.Sorted := True;
+  except end;
+
   FMarket := TMarket.Create;
   FCargo := TStock.Create;
   FSimDepot := TConstructionDepot.Create;
@@ -3828,6 +3929,14 @@ begin
   FConstructionTypes := TConstructionTypes.Create;
   FEconomySets := TEconomySets.Create;
   FDataChanged := false;
+
+  {
+  FMissions := TConstructionDepot.Create;
+  FMissions.MarketID := '$missions';
+  FMissions.StationName := 'Missions';
+  FMissions.Simulated := True;
+  FConstructions.AddObject(FMissions.MarketID,FMissions);
+  }
 
   FInitialLoad := true;
 

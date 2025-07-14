@@ -102,6 +102,7 @@ object SystemInfoForm: TSystemInfoForm
     TabOrder = 0
     ViewStyle = vsReport
     OnClick = ListViewClick
+    OnCompare = ListViewCompare
     OnCustomDrawItem = ListViewCustomDrawItem
     OnDblClick = ListViewDblClick
     OnMouseDown = ListViewMouseDown

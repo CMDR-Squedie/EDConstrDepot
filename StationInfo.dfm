@@ -469,6 +469,14 @@ object StationInfoForm: TStationInfoForm
     Height = 19
     Caption = 'Layout'
   end
+  object Label17: TLabel
+    Left = 542
+    Top = 123
+    Width = 17
+    Height = 19
+    Caption = '[...]'
+    OnClick = Label17Click
+  end
   object Panel1: TPanel
     Left = 0
     Top = 524
@@ -503,6 +511,15 @@ object StationInfoForm: TStationInfoForm
       Caption = 'Next'
       TabOrder = 2
       OnClick = NextButtonClick
+    end
+    object PasteMatButton: TButton
+      Left = 9
+      Top = 8
+      Width = 106
+      Height = 25
+      Caption = 'Paste Mat.'
+      TabOrder = 3
+      OnClick = PasteMatButtonClick
     end
   end
   object CommentEdit: TEdit
@@ -625,5 +642,29 @@ object StationInfoForm: TStationInfoForm
     ParentColor = True
     TabOrder = 13
     OnChange = LayoutComboChange
+  end
+  object PopupMenu: TPopupMenu
+    Left = 176
+    Top = 452
+    object PasteRequestMenuItem: TMenuItem
+      Caption = 'Paste Request'
+      OnClick = PasteRequestMenuItemClick
+    end
+    object UseAvgRequestMenuItem: TMenuItem
+      Caption = 'Use Avg. Request'
+      OnClick = UseAvgRequestMenuItemClick
+    end
+    object UseMaxRequestMenuItem: TMenuItem
+      Tag = 1
+      Caption = 'Use Max. Request'
+      OnClick = UseAvgRequestMenuItemClick
+    end
+    object PasteRequest2: TMenuItem
+      Caption = '-'
+    end
+    object ClearMatListMenuItem: TMenuItem
+      Caption = 'Clear Request'
+      OnClick = ClearMatListMenuItemClick
+    end
   end
 end

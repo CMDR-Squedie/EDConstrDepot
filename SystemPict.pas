@@ -19,6 +19,7 @@ type
     SysLabel: TLabel;
     InfoLabel: TLabel;
     EditPictureMenuItem: TMenuItem;
+    ReloadPictureMenuItem: TMenuItem;
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure PastePictureMenuItemClick(Sender: TObject);
     procedure SavePictureMenuItemClick(Sender: TObject);
@@ -26,6 +27,7 @@ type
     procedure ClearPictureMenuItemClick(Sender: TObject);
     procedure EditPictureMenuItemClick(Sender: TObject);
     procedure PopupMenuPopup(Sender: TObject);
+    procedure ReloadPictureMenuItemClick(Sender: TObject);
   private
     { Private declarations }
     FCurrentSystem: TStarSystem;
@@ -102,6 +104,19 @@ begin
   picf := SysImage.Picture.Width > 0;
   SavePictureMenuItem.Enabled := picf;
   EditPictureMenuItem.Enabled := picf;
+end;
+
+procedure TSystemPictForm.ReloadPictureMenuItemClick(Sender: TObject);
+var png: TPngImage;
+begin
+  if SysImage.Picture.Width = 0 then Exit;
+  png := TPngImage.Create;
+  try
+    png.LoadFromFile(FCurrentSystem.ImagePath);
+    SysImage.Picture.Assign(png);
+    FImageChanged := False;
+  except
+  end;
 end;
 
 procedure TSystemPictForm.TryPasteImage;

@@ -93,6 +93,10 @@ object SystemPictForm: TSystemPictForm
       Caption = 'Edit Picture'
       OnClick = EditPictureMenuItemClick
     end
+    object ReloadPictureMenuItem: TMenuItem
+      Caption = 'Refresh'
+      OnClick = ReloadPictureMenuItemClick
+    end
     object N1: TMenuItem
       Caption = '-'
     end

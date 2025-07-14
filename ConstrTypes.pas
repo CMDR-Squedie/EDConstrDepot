@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.ComCtrls, DataSource,
-  Vcl.StdCtrls, Vcl.Menus, System.Math, System.IniFiles, System.StrUtils;
+  Vcl.StdCtrls, Vcl.Menus, System.Math, System.IniFiles, System.StrUtils, System.Types;
 
 type
   TConstrTypesForm = class(TForm)
@@ -41,7 +41,7 @@ type
   public
     { Public declarations }
     procedure ApplySettings;
-    procedure UpdateItems(const _autoSizeCol: Boolean = false);
+    procedure UpdateItems(const _autoSizeCol: Boolean = true);
   end;
 
 var
@@ -112,7 +112,7 @@ begin
     end;
   end;
 
-  if Visible then UpdateItems(true);
+  if Visible then UpdateItems;
 end;
 
 
@@ -139,10 +139,10 @@ end;
 
 procedure TConstrTypesForm.FormShow(Sender: TObject);
 begin
-  UpdateItems(true);
+  UpdateItems;
 end;
 
-procedure TConstrTypesForm.UpdateItems(const _autoSizeCol: Boolean = false);
+procedure TConstrTypesForm.UpdateItems(const _autoSizeCol: Boolean = true);
 var
   i,j,curCol: Integer;
   s: string;
@@ -150,12 +150,13 @@ var
   ct: TConstructionType;
   row: TStringList;
   ctcnt: TStock;
-  fs,orgfs,cs,sups: string;
+  fs,orgfs,cs: string;
   items: THashedStringList;
   colMaxLen: array [0..100] of Integer;
   colMaxTxt: array [0..100] of string;
   autoSizeCol,addingStats: Boolean;
   stats: string;
+  fsarr: TStringDynArray;
 
   procedure addRow(data: TObject);
   var i,ln: Integer;
@@ -195,18 +196,23 @@ var
   end;
 
   function CheckFilter: Boolean;
-  var i: Integer;
+  var i,i2,mcnt: Integer;
+      s: string;
   begin
     Result := True;
-    sups := '';
     if fs <> '' then
     begin
-      Result := False;
-      for i := 0 to row.Count - 1 do
-        if Pos(fs,LowerCase(row[i])) > 0 then
+      for i2 := 0 to High(fsarr) do
+        if fsarr[i2] <> '' then
         begin
-          Result := true;
-          break;
+          Result := False;
+          for i := 0 to row.Count - 1 do
+          if Pos(fsarr[i2],LowerCase(row[i])) > 0 then
+          begin
+            Result := true;
+            break;
+          end;
+          if not Result then break;
         end;
     end;
   end;
@@ -242,6 +248,7 @@ begin
 
     orgfs := FilterEdit.Text;
     fs := LowerCase(orgfs);
+    fsarr := SplitString(fs,'+');
 
     for i := 0 to DataSrc.Constructions.Count - 1 do
       with DataSrc.Constructions.ConstrByIdx[i] do

@@ -140,11 +140,14 @@ begin
   FDefaults.Values['AutoSnapshots'] := '0';
   FDefaults.Values['AllowMoreWindows'] := '0';
   FDefaults.Values['DarkMode'] := '1';
+  FDefaults.Values['HighlightGoals'] := '0';
   FDefaults.Values['AnyMarketAsDepot'] := '0'; //this enables using any market type as FC
   FDefaults.Values['BaseWidthText'] := '00000';
   FDefaults.Values['FontGlow'] := '48';
   FDefaults.Values['JournalStart'] := '2025-04-14';    //trailblazers journals start
-  FDefaults.Values['FontGlow'] := '48';
+  FDefaults.Values['MapProjX'] := 'X';
+  FDefaults.Values['MapProjY'] := 'Z';
+  FDefaults.Values['MapLanes'] := 'A';
   FDefaults.Values['MaxIdleDockTime'] := '60';  //seconds
   FDefaults.Values['DockToUndockTime'] := '15';
   FDefaults.Values['MaxColonyDist'] := '1500';  //Ly in any direction from Sol

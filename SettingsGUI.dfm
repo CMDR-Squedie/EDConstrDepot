@@ -2,7 +2,7 @@ object SettingsForm: TSettingsForm
   Left = 0
   Top = 0
   Caption = 'Settings'
-  ClientHeight = 652
+  ClientHeight = 674
   ClientWidth = 623
   Color = clSilver
   Font.Charset = DEFAULT_CHARSET
@@ -19,7 +19,7 @@ object SettingsForm: TSettingsForm
     Left = 0
     Top = 0
     Width = 623
-    Height = 631
+    Height = 653
     Align = alClient
     BevelEdges = []
     BevelInner = bvNone
@@ -50,18 +50,16 @@ object SettingsForm: TSettingsForm
     TabOrder = 0
     ViewStyle = vsReport
     OnDblClick = ListViewDblClick
-    ExplicitHeight = 616
   end
   object Panel1: TPanel
     Left = 0
-    Top = 631
+    Top = 653
     Width = 623
     Height = 21
     Align = alBottom
     BevelOuter = bvNone
     ParentBackground = False
     TabOrder = 1
-    ExplicitTop = 616
     object VersionLabel: TLabel
       Left = 0
       Top = 0

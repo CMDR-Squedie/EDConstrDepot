@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.ComCtrls, DataSource,
-  Vcl.StdCtrls, Vcl.Menus, System.Math, System.IniFiles, System.StrUtils;
+  Vcl.StdCtrls, Vcl.Menus, System.Math, System.IniFiles, System.StrUtils, System.Types;
 
 type
   TMarketsForm = class(TForm, IEDDataListener)
@@ -41,7 +41,7 @@ type
     MarketSnapshotMenuItem: TMenuItem;
     InclSnapshotsCheck: TCheckBox;
     RemoveSnapshotMenuItem: TMenuItem;
-    CompareCheck: TCheckBox;
+    AltSelCheck: TCheckBox;
     GroupDepotGroupMenuItem: TMenuItem;
     N5: TMenuItem;
     ConstructionsSubMenu: TMenuItem;
@@ -72,7 +72,7 @@ type
     procedure MarketSnapshotMenuItemClick(Sender: TObject);
     procedure RemoveSnapshotMenuItemClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
-    procedure CompareCheckClick(Sender: TObject);
+    procedure AltSelCheckClick(Sender: TObject);
     procedure Panel1MouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure Panel1MouseMove(Sender: TObject; Shift: TShiftState; X,
@@ -84,6 +84,7 @@ type
     procedure MarketHistoryMenuItemClick(Sender: TObject);
   private
     { Private declarations }
+    FHighlightColor: Integer;
     FHoldUpdate: Boolean;
     ClickedColumn: Integer;
     SortColumn: Integer;
@@ -101,7 +102,7 @@ type
     procedure SetMarketFilter(fs: string; const cmdtyf: Boolean = false);
     procedure BeginFilterChange;
     procedure EndFilterChange;
-    procedure UpdateItems(const _autoSizeCol: Boolean = false);
+    procedure UpdateItems(const _autoSizeCol: Boolean = true);
     procedure ShowComparison(ml: TStringList);
     procedure ShowMarketHistory(m: TMarket);
     procedure SetRecentSort;
@@ -298,7 +299,7 @@ end;
 
 procedure TMarketsForm.MarketsCheckClick(Sender: TObject);
 begin
-  UpdateItems(true);
+  UpdateItems;
 end;
 
 procedure TMarketsForm.MarketSnapshotMenuItemClick(Sender: TObject);
@@ -319,14 +320,14 @@ begin
    UpdateItems;
 end;
 
-procedure TMarketsForm.CompareCheckClick(Sender: TObject);
+procedure TMarketsForm.AltSelCheckClick(Sender: TObject);
 begin
-  ListView.Checkboxes := CompareCheck.Checked;
+  ListView.Checkboxes := AltSelCheck.Checked;
 end;
 
 function TMarketsForm.IsSelected(item: TListItem): Boolean;
 begin
-  if CompareCheck.Checked then
+  if AltSelCheck.Checked then
     Result := item.Checked
   else
     Result := item.Selected;
@@ -442,7 +443,9 @@ end;
 procedure TMarketsForm.EditTimerTimer(Sender: TObject);
 begin
   try
+    if AltSelCheck.Checked then SaveSelection;
     UpdateItems;
+    if AltSelCheck.Checked then RestoreSelection;
   finally
     EditTimer.Enabled := False;
   end;
@@ -458,7 +461,10 @@ procedure TMarketsForm.ApplySettings;
 var i,fs: Integer;
     fn: string;
     clr: TColor;
+    crec: System.UITypes.TColorRec;
 begin
+  FHighlightColor := clBlack;
+
   if not Opts.Flags['DarkMode'] then
   begin
     with ListView do
@@ -478,6 +484,11 @@ begin
       GridLines := False;
     end;
 
+    crec.Color := clr;
+    crec.R := Min(255,48 + crec.R);
+    crec.G := Min(255,48 + crec.G);
+    crec.B := Min(255,48 + crec.B);
+    FHighlightColor := crec.Color;
   end;
   with ListView do
   begin
@@ -539,15 +550,26 @@ end;
 
 procedure TMarketsForm.GroupDepotGroupMenuItemClick(Sender: TObject);
 var i: Integer;
-    s: string;
+    s, errstr: string;
 begin
   s := '';
+  errstr := '';
   for i := 0 to ListView.Items.Count -1 do
     if IsSelected(ListView.Items[i]) then
       if TBaseMarket(ListView.Items[i].Data) is TConstructionDepot then
-        s := s + TBaseMarket(ListView.Items[i].Data).MarketID + Chr(13);
+      with TConstructionDepot(ListView.Items[i].Data) do
+      begin
+        s := s + MarketID + Chr(13);
+        if (Status = '') and (CustomRequest = '') then
+          errstr := errstr + Chr(13) + StationName_full;
+      end;
   if s <> '' then
+  begin
     EDCDForm.SetDepotGroup(s);
+    if errstr <> '' then
+     ShowMessage('WARNING: Constructions in group with no material list:' + errstr);
+  end;
+
 end;
 
 procedure TMarketsForm.SaveSelection;
@@ -569,7 +591,7 @@ begin
     if ListView.Items[i].Data <> nil then
     if FSelectedItems.IndexOf(TBaseMarket(ListView.Items[i].Data).MarketID) > -1 then
     begin
-      if CompareCheck.Checked then
+      if AltSelCheck.Checked then
         ListView.Items[i].Checked := True
       else
         ListView.Items[i].Selected := True;
@@ -583,7 +605,7 @@ begin
   end;
 end;
 
-procedure TMarketsForm.UpdateItems(const _autoSizeCol: Boolean = false);
+procedure TMarketsForm.UpdateItems(const _autoSizeCol: Boolean = true);
 var
   i,j,curCol: Integer;
   cd: TConstructionDepot;
@@ -599,6 +621,8 @@ var
   colMaxLen: array [0..100] of Integer;
   colMaxTxt: array [0..100] of string;
   autoSizeCol: Boolean;
+  fsarr: TStringDynArray;
+  fscmdty: TBooleanDynArray;
 
   procedure addRow(data: TObject);
   var i,ln: Integer;
@@ -606,7 +630,7 @@ var
   begin
     for i := 0 to row.Count - 1 do
     begin
-      ln := Length(row[i]);
+      ln := Min(Length(row[i]),35);
       if ln > colMaxLen[i] then
       begin
         colMaxLen[i] := ln;
@@ -632,7 +656,7 @@ var
     row.Add(s);
   end;
 
-  function CheckFilter(bm: TBaseMarket): Boolean;
+{  function CheckFilter(bm: TBaseMarket): Boolean;
   var i: Integer;
   begin
     Result := True;
@@ -656,6 +680,39 @@ var
         end;
     end;
   end;
+ }
+  function CheckFilter(bm: TBaseMarket): Boolean;
+  var i,i2,mcnt: Integer;
+      s: string;
+  begin
+    Result := True;
+    if fs <> '' then
+    begin
+      for i2 := 0 to High(fsarr) do
+        if fsarr[i2] <> '' then
+        begin
+          Result := False;
+          for i := 0 to row.Count - 1 do
+          if Pos(fsarr[i2],LowerCase(row[i])) > 0 then
+          begin
+            Result := true;
+            break;
+          end;
+          if not Result then
+            if bm is TMarket then
+              if fscmdty[i2] then
+                Result := bm.Stock.Qty[fsarr[i2]] > 0
+              else
+              begin
+                s := TMarket(bm).Stock.Text;
+                Result := Pos(fsarr[i2],s) > 0;
+              end;
+
+          if not Result then break;
+        end;
+    end;
+  end;
+
 
   function niceTime(tms: string): string;
   begin
@@ -693,7 +750,12 @@ begin
 
     orgfs := FilterEdit.Text;
     fs := LowerCase(orgfs);
-    findcmdtyf := FilterEdit.Items.IndexOf(fs) <> -1;
+
+    fsarr := SplitString(fs,'+');
+    SetLength(fscmdty,High(fsarr)+1);
+    for i := 0 to High(fsarr) do
+      fscmdty[i] := (FilterEdit.Items.IndexOf(fsarr[i]) <> -1);
+    findcmdtyf := (FilterEdit.Items.IndexOf(fs) <> -1) or (Pos('+',fs) > 0);
 
   //  cs := CommodityCombo.Text;
 
@@ -717,7 +779,7 @@ begin
           s := m.StationName_full;
       end;
       addCaption(s);
-      s := '(Depot)';
+      s := '(Active)';
       if cd.Finished then
         s := '(Finished)'
       else
@@ -742,7 +804,8 @@ begin
       addSubItem('');
       addSubItem(cMarketIgnoreInd[DataSrc.GetMarketLevel(cd.MarketId)]);
       addSubItem('');
-      s := DataSrc.MarketComments.Values[cd.MarketID];
+      s := cd.GetComment;
+//      s := DataSrc.MarketComments.Values[cd.MarketID];
       {if s = '' then
         if (cd.ConstructionType <> '') and (cd.GetConstrType <> nil) then
           s := '(' + cd.GetConstrType.StationType + ')'; }
@@ -798,12 +861,16 @@ begin
       addSubItem(s);
       s := '';
       if findcmdtyf then
-        s := Format('%.0n', [double(m.Stock.Qty[fs])]);
+        if High(fsarr) > 0 then
+          s := '(' + IntToStr(High(fsarr)+1) + ' items)'
+        else
+          s := Format('%.0n', [double(m.Stock.Qty[fs])]);
       addSubItem(s);
       addSubItem(cMarketIgnoreInd[lev]);
       addSubItem(cMarketFavInd[lev]);
 //      addSubItem(s);
-      addSubItem(DataSrc.MarketComments.Values[m.MarketID]);
+      //addSubItem(DataSrc.MarketComments.Values[m.MarketID]);
+      addSubItem(m.GetComment);
       addSubItem(m.Economies);
       addSubItem(DataSrc.MarketGroups.Values[m.MarketID]);
 
@@ -837,7 +904,8 @@ begin
       addSubItem(s);
       addSubItem('');
       addSubItem('');
-      addSubItem(DataSrc.MarketComments.Values[m.MarketID]);
+//      addSubItem(DataSrc.MarketComments.Values[m.MarketID]);
+      addSubItem(m.GetComment);
       addSubItem(m.Economies);
       addSubItem('');
       if CheckFilter(m) then addRow(m);
@@ -852,7 +920,8 @@ begin
       //ListView.Column[ListView.Columns.Count - 1].Width := -1;  //this stays at -1
 
       for i := 0 to ListView.Columns.Count - 1 do
-        ListView.Column[i].Width := ListView.Canvas.TextWidth(colMaxTxt[i]) + 15; //margins
+        ListView.Column[i].Width := ListView.Canvas.TextWidth(colMaxTxt[i]) +
+          15 + ListView.Font.Size div 6; //margins
     end;
 
     if findcmdtyf then
@@ -896,20 +965,22 @@ begin
   end
   else
   begin
-    if SortColumn = 5 then
+    if (SortColumn = 5) or (SortColumn = 7)  then
       Compare := CompareText(
         Item1.SubItems[SortColumn-1].PadLeft(10),
         Item2.SubItems[SortColumn-1].PadLeft(10))
     else
     if SortColumn = 6 then
       Compare := CompareValue(TBaseMarket(Item1.Data).DistFromStar,TBaseMarket(Item2.Data).DistFromStar)
-    else
+{    else
+
     if SortColumn = 7 then
     begin
       s := FilterEdit.Text;
       Compare := CompareValue(
         TBaseMarket(Item1.Data).Stock.Qty[s],TBaseMarket(Item2.Data).Stock.Qty[s])
     end
+ }
     else
       Compare := CompareText(
         Item1.SubItems[SortColumn-1] + '    ' + Item1.Caption,
@@ -932,6 +1003,30 @@ begin
     if Item.Index mod 2 = 0 then
       Sender.Canvas.Brush.Color := Sender.Canvas.Brush.Color - $202020;
   end;
+
+  if Opts.Flags['HighlightGoals'] then
+  if TObject(Item.Data) is TConstructionDepot then
+  if not TConstructionDepot(Item.Data).Finished then
+  if TConstructionDepot(Item.Data).GetSys <> nil then
+    if (Pos('!',TConstructionDepot(Item.Data).Comment) > 0) or
+       (TConstructionDepot(Item.Data).GetSys.CurrentGoals <> '') then
+    begin
+      if (Pos('!',TConstructionDepot(Item.Data).Comment) > 0) or
+         (Pos('!',TConstructionDepot(Item.Data).GetSys.CurrentGoals) > 0)  then
+      begin
+        if not Opts.Flags['DarkMode'] then
+          Sender.Canvas.Font.Color := clBlue
+        else
+          Sender.Canvas.Font.Color := clWhite;
+      end
+      else
+        if not Opts.Flags['DarkMode'] then
+          Sender.Canvas.Font.Color := clNavy
+        else
+          Sender.Canvas.Font.Color := FHighlightColor;
+    end
+    else
+      Sender.Canvas.Font.Color := ListView.Font.Color;
 end;
 
 procedure TMarketsForm.ListViewAction(Sender: TObject);
@@ -959,8 +1054,14 @@ begin
   case action  of
   2:
     begin
-      FilterEdit.Text := bm.StarSystem_nice;
-      UpdateItems;
+      sys := bm.GetSys;
+      if sys <> nil then
+      begin
+        SystemInfoForm.SetSystem(sys,bm,true);
+        SystemInfoForm.RestoreAndShow;
+      end;
+//      FilterEdit.Text := bm.StarSystem_nice;
+//      UpdateItems;
     end;
   3:
     begin
@@ -988,11 +1089,19 @@ begin
     end;
   6:
     begin
-      orgs := DataSrc.MarketComments.Values[mid];
+      orgs := bm.GetComment;
       s := Vcl.Dialogs.InputBox(bm.StationName, 'Info', orgs);
       if s <> orgs then
       begin
-        DataSrc.UpdateMarketComment(mid,s);
+        if (bm is TConstructionDepot) and (bm.GetSys <> nil) then
+        begin
+          bm.Comment := s;
+          bm.GetSys.UpdateSave;
+          //remove old solution entry for construction depots
+          DataSrc.UpdateMarketComment(mid,'');
+        end
+        else
+          DataSrc.UpdateMarketComment(mid,s);
       end;
     end;
   8:
@@ -1008,7 +1117,7 @@ begin
   11:
     begin
       if bm is TConstructionDepot then
-        EDCDForm.SetDepot(mid,true);
+        EDCDForm.AddDepotToGroup(TConstructionDepot(bm));
     end;
   12:
     begin
@@ -1027,7 +1136,7 @@ begin
 //        with MarketInfoForm do
         with TMarketInfoForm.Create(Application) do
         begin
-          SetMarket(TMarket(bm),false);
+          SetMarket(TMarket(bm),false,LowerCase(FilterEdit.Text));
           FormStyle := fsStayOnTop;
           Show;
         end;
@@ -1042,7 +1151,7 @@ begin
       sys := bm.GetSys;
       if sys <> nil then
       begin
-        SystemInfoForm.SetSystem(sys);
+        SystemInfoForm.SetSystem(sys,bm);
         SystemInfoForm.RestoreAndShow;
       end;
     end;

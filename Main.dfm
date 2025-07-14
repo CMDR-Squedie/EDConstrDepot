@@ -4,7 +4,7 @@ object EDCDForm: TEDCDForm
   BorderIcons = []
   BorderStyle = bsNone
   BorderWidth = 1
-  Caption = 'ED ConstrDepot'
+  Caption = '9'
   ClientHeight = 513
   ClientWidth = 231
   Color = 3158064
@@ -319,6 +319,11 @@ object EDCDForm: TEDCDForm
     object SettingsMenuItem: TMenuItem
       Caption = 'Settings'
       OnClick = SettingsMenuItemClick
+    end
+    object StarMapMenuItem: TMenuItem
+      Caption = 'Star Map'
+      Visible = False
+      OnClick = StarMapMenuItemClick
     end
     object Wiki1: TMenuItem
       Caption = 'Wiki'

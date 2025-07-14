@@ -22,6 +22,7 @@ type
     procedure ListViewKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure JSONButtonClick(Sender: TObject);
     procedure CopyButtonClick(Sender: TObject);
+    procedure ListViewDblClick(Sender: TObject);
   private
     { Private declarations }
     FCurrentCType: TConstructionType;
@@ -40,7 +41,7 @@ implementation
 
 {$R *.dfm}
 
-uses Settings, Main, Clipbrd;
+uses Settings, Main, Clipbrd, Markets;
 
 procedure TMaterialListForm.CopyButtonClick(Sender: TObject);
 var s: string;
@@ -82,6 +83,12 @@ begin
   s := Copy(s,2,Length(s)-2);
   Clipboard.AsText := s;
   j.Free;
+end;
+
+procedure TMaterialListForm.ListViewDblClick(Sender: TObject);
+begin
+  if ListView.Selected = nil then Exit;
+  MarketsForm.SetMarketFilter(LowerCase(ListView.Selected.Caption),true);
 end;
 
 procedure TMaterialListForm.ListViewKeyUp(Sender: TObject; var Key: Word;

@@ -81,6 +81,9 @@ object ColoniesForm: TColoniesForm
         Caption = 'Ign.'
         Tag = 6
         Width = 40
+      end
+      item
+        Caption = 'Task Group'
       end>
     Ctl3D = False
     Font.Charset = DEFAULT_CHARSET
@@ -242,6 +245,15 @@ object ColoniesForm: TColoniesForm
       TabOrder = 7
       OnClick = ColoniesCheckClick
     end
+    object MapButton: TButton
+      Left = 1124
+      Top = 5
+      Width = 53
+      Height = 23
+      Caption = '2D Map'
+      TabOrder = 8
+      OnClick = MapButtonClick
+    end
   end
   object PopupMenu: TPopupMenu
     OnPopup = PopupMenuPopup
@@ -294,6 +306,23 @@ object ColoniesForm: TColoniesForm
       Caption = 'Long-term Objectives...'
       OnClick = ListViewAction
     end
+    object TaskGroupSubMenu: TMenuItem
+      Caption = 'Task Group'
+      object askGroup2: TMenuItem
+        Caption = '-'
+      end
+      object OtherGroupMenuItem: TMenuItem
+        Caption = 'New...'
+        OnClick = OtherGroupMenuItemClick
+      end
+      object N3: TMenuItem
+        Caption = '-'
+      end
+      object Clear1: TMenuItem
+        Caption = 'Clear'
+        OnClick = TaskGroupMenuItemClick
+      end
+    end
     object N4: TMenuItem
       Caption = '-'
     end
@@ -311,22 +340,6 @@ object ColoniesForm: TColoniesForm
     end
     object N5: TMenuItem
       Caption = '-'
-    end
-    object TaskGroupSubMenu: TMenuItem
-      Caption = 'Task Group'
-      Visible = False
-      object askGroup2: TMenuItem
-        Caption = '-'
-      end
-      object OtherGroupMenuItem: TMenuItem
-        Caption = 'New...'
-      end
-      object N3: TMenuItem
-        Caption = '-'
-      end
-      object Clear1: TMenuItem
-        Caption = 'Clear'
-      end
     end
     object ToggleIgnoredMenuItem: TMenuItem
       Tag = 4

@@ -43,7 +43,7 @@ implementation
 
 {$R *.dfm}
 
-uses Main;
+uses Main, ToolTip;
 
 procedure TToolbarForm.ApplySettings;
 var i: Integer;
@@ -94,6 +94,12 @@ end;
 procedure TToolbarForm.InfoLabelMouseEnter(Sender: TObject);
 begin
   TLabel(Sender).Color := $303030;
+  TooltipForm.InfoLabel.Caption := TLabel(Sender).Hint;
+  TooltipForm.Top := self.Top + self.Height;
+  TooltipForm.Left := self.Left;
+  TooltipForm.Width := self.Width;
+  TooltipForm.Color := TLabel(Sender).Color;
+  TooltipForm.Show;
 end;
 
 procedure TToolbarForm.InProgressLabelClick(Sender: TObject);
@@ -114,6 +120,7 @@ end;
 procedure TToolbarForm.PlannedLabelMouseLeave(Sender: TObject);
 begin
    TLabel(Sender).Color := clBlack;
+   TooltipForm.Hide;
 end;
 
 procedure TToolbarForm.SettingsLabelClick(Sender: TObject);
@@ -123,7 +130,7 @@ end;
 
 procedure TToolbarForm.SystemLabelClick(Sender: TObject);
 begin
-  EDCDForm.SystemInfoCurrentMenuItemClick(Sender);
+  EDCDForm.SystemInfoMenuItemClick(Sender);
 end;
 
 end.

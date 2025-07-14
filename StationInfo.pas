@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls, DataSource, Settings,
-  System.StrUtils, System.DateUtils, Vcl.ComCtrls;
+  System.StrUtils, System.DateUtils, Vcl.ComCtrls, Vcl.Menus, System.Math;
 
 type
   TStationInfoForm = class(TForm)
@@ -76,6 +76,14 @@ type
     BuildOrderUpDown: TUpDown;
     Label15: TLabel;
     LayoutCombo: TComboBox;
+    Label17: TLabel;
+    PasteMatButton: TButton;
+    PopupMenu: TPopupMenu;
+    PasteRequestMenuItem: TMenuItem;
+    PasteRequest2: TMenuItem;
+    ClearMatListMenuItem: TMenuItem;
+    UseAvgRequestMenuItem: TMenuItem;
+    UseMaxRequestMenuItem: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure TypeComboChange(Sender: TObject);
     procedure OKButtonClick(Sender: TObject);
@@ -93,6 +101,11 @@ type
     procedure BuildOrderUpDownClick(Sender: TObject; Button: TUDBtnType);
     procedure LayoutComboChange(Sender: TObject);
     procedure EstHaulLabelClick(Sender: TObject);
+    procedure Label17Click(Sender: TObject);
+    procedure PasteMatButtonClick(Sender: TObject);
+    procedure UseAvgRequestMenuItemClick(Sender: TObject);
+    procedure ClearMatListMenuItemClick(Sender: TObject);
+    procedure PasteRequestMenuItemClick(Sender: TObject);
   private
     { Private declarations }
     FCurrentStation: TBaseMarket;
@@ -116,7 +129,7 @@ implementation
 
 {$R *.dfm}
 
-uses SystemInfo, Main, MaterialList;
+uses SystemInfo, Main, MaterialList, ConstrTypes;
 
 procedure TStationInfoForm.RestoreAndShow;
 begin
@@ -189,7 +202,8 @@ begin
       if FCurrentStation.GetComment <> CommentEdit.Text then
       begin
         FCurrentStation.Comment := CommentEdit.Text;
-        DataSrc.UpdateMarketComment(FCurrentStation.MarketID,FCurrentStation.Comment);
+        //remove old solution entry for construction depots
+        DataSrc.UpdateMarketComment(FCurrentStation.MarketID,'');
       end;
 
       if FCurrentStation.BuildOrder <> StrToIntDef(BuildOrderEdit.Text,0) then
@@ -264,6 +278,11 @@ end;
 procedure TStationInfoForm.Label12Click(Sender: TObject);
 begin
   PrimaryCheck.Checked := not PrimaryCheck.Checked;
+end;
+
+procedure TStationInfoForm.Label17Click(Sender: TObject);
+begin
+  ConstrTypesForm.Show;
 end;
 
 procedure TStationInfoForm.Label2Click(Sender: TObject);
@@ -354,6 +373,8 @@ begin
 
   PrimaryCheck.Checked := (FCurrentStation.GetSys.PrimaryPortId <> '') and
     (FCurrentStation.GetSys.PrimaryPortId = FCurrentStation.MarketID);
+
+  PasteMatButton.Visible := (FCurrentStation is TConstructionDepot) and (FCurrentStation.Status = '');
   FDataChanged := False;
 end;
 
@@ -475,13 +496,58 @@ begin
   if FCurrentStation is TConstructionDepot then
     with TConstructionDepot(FCurrentStation) do
       if ActualHaul > 0 then
-        EstHaulLabel.Caption := EstHaulLabel.Caption + ' / ' + IntToStr(ActualHaul);
+        EstHaulLabel.Caption := EstHaulLabel.Caption + ' / ' + IntToStr(ActualHaul)
+      else
+        if CustomRequest <> '' then
+          EstHaulLabel.Caption := EstHaulLabel.Caption + ' / (custom list)';
+
 
   ReqLabel.Caption := t.Requirements;
   LayoutCombo.Items.CommaText := t.Layouts;
   dummy.Free;
   FDataChanged := True;
 end;
+
+procedure TStationInfoForm.PasteRequestMenuItemClick(Sender: TObject);
+begin
+  if FCurrentStation = nil then Exit;
+  TConstructionDepot(FCurrentStation).PasteRequest;
+end;
+
+procedure TStationInfoForm.UseAvgRequestMenuItemClick(Sender: TObject);
+var i,q: Integer;
+    maxreq: TStock;
+    s: string;
+begin
+  if FCurrentStation = nil then Exit;
+  if FCurrentStation.Status <> '' then Exit;
+  if FCurrentStation.GetConstrType = nil then Exit;
+  maxreq := TStock.Create;
+  maxreq.Assign(FCurrentStation.GetConstrType.ResourcesRequired);
+  if TMenuItem(Sender).Tag = 1 then
+    for i := 0 to maxreq.Count - 1 do
+    begin
+      s := maxreq.Names[i];
+      q := maxreq.Qty[s];
+      q := q + Ceil(q*0.05);
+      maxreq.Qty[s] := q;
+    end;
+  TConstructionDepot(FCurrentStation).CustomRequest := maxreq.Text;
+  FCurrentStation.GetSys.UpdateSave;
+  maxreq.Free;
+  TypeComboChange(nil);
+end;
+
+procedure TStationInfoForm.ClearMatListMenuItemClick(Sender: TObject);
+begin
+  if FCurrentStation = nil then Exit;
+  if FCurrentStation.Status <> '' then Exit;
+  if TConstructionDepot(FCurrentStation).CustomRequest = '' then Exit;
+  TConstructionDepot(FCurrentStation).CustomRequest := '';
+  FCurrentStation.GetSys.UpdateSave;
+  TypeComboChange(nil);
+end;
+
 
 procedure TStationInfoForm.BuildOrderUpDownClick(Sender: TObject;
   Button: TUDBtnType);
@@ -490,6 +556,15 @@ begin
     BuildOrderEdit.Text := (StrToIntDef(BuildOrderEdit.Text,0) + 1).ToString
   else
     BuildOrderEdit.Text := (StrToIntDef(BuildOrderEdit.Text,0) - 1).ToString;
+end;
+
+procedure TStationInfoForm.PasteMatButtonClick(Sender: TObject);
+var pt: TPoint;
+begin
+  pt.X := PasteMatButton.Left;
+  pt.Y := PasteMatButton.Top + PasteMatButton.Height;
+  pt := Panel1.ClientToScreen(pt);
+  PopupMenu.Popup(pt.X,pt.Y)
 end;
 
 procedure TStationInfoForm.ApplySettings;

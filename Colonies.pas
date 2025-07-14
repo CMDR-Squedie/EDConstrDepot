@@ -49,6 +49,7 @@ type
     EditTimer: TTimer;
     AddNeighboursMenuItem: TMenuItem;
     SystemInfoMenuItem: TMenuItem;
+    MapButton: TButton;
     procedure ListViewColumnClick(Sender: TObject; Column: TListColumn);
     procedure ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
@@ -60,8 +61,8 @@ type
     procedure CopyMenuItemClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure ClearFilterButtonClick(Sender: TObject);
-//    procedure TaskGroupMenuItemClick(Sender: TObject);
-//    procedure OtherGroupMenuItemClick(Sender: TObject);
+    procedure TaskGroupMenuItemClick(Sender: TObject);
+    procedure OtherGroupMenuItemClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure Panel1MouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
@@ -78,8 +79,10 @@ type
     procedure AddNeighboursMenuItemClick(Sender: TObject);
     procedure ListViewCustomDrawItem(Sender: TCustomListView; Item: TListItem;
       State: TCustomDrawState; var DefaultDraw: Boolean);
+    procedure MapButtonClick(Sender: TObject);
   private
     { Private declarations }
+    FHighlightColor: TColor;
     SortColumn: Integer;
     ClickedColumn: Integer;
     SortAscending: Boolean;
@@ -88,6 +91,7 @@ type
     function IsSelected(item: TListItem): Boolean;
     procedure SaveSelection;
     procedure RestoreSelection;
+    procedure UpdateTaskGroups(s: string);
   public
     { Public declarations }
     procedure OnEDDataUpdate;
@@ -101,7 +105,7 @@ var
 
 implementation
 
-uses Main,Clipbrd,Settings,Splash, Markets, SystemPict, SystemInfo;
+uses Main,Clipbrd,Settings,Splash, Markets, SystemPict, SystemInfo, StarMap;
 
 {$R *.dfm}
 
@@ -127,38 +131,40 @@ begin
   BringToFront;
 end;
 
-{
-procedure TColoniesForm.OtherGroupMenuItemClick(Sender: TObject);
+
+procedure TColoniesForm.UpdateTaskGroups(s: string);
 var i: Integer;
-    s: string;
+    sys: TStarSystem;
 begin
   DataSrc.BeginUpdate;
   try
-    s := Vcl.Dialogs.InputBox('Task Group', 'Name', '');;
     for i := 0 to ListView.Items.Count -1 do
       if IsSelected(ListView.Items[i]) then
-        DataSrc.UpdateMarketGroup(TBaseMarket(ListView.Items[i].Data).MarketID,s,false);
+      begin
+        sys := TStarSystem(ListView.Items[i].Data);
+        sys.TaskGroup := s;
+        sys.Save;
+      end;
   finally
     DataSrc.EndUpdate;
   end;
+end;
+
+procedure TColoniesForm.OtherGroupMenuItemClick(Sender: TObject);
+var s: string;
+begin
+  s := Vcl.Dialogs.InputBox('Task Group', 'Name', '');
+  UpdateTaskGroups(s);
 end;
 
 
 procedure TColoniesForm.TaskGroupMenuItemClick(Sender: TObject);
-var i: Integer;
-    s: string;
+var s: string;
 begin
-  DataSrc.BeginUpdate;
-  try
-    s := TMenuItem(Sender).Hint;
-    for i := 0 to ListView.Items.Count -1 do
-      if IsSelected(ListView.Items[i]) then
-        DataSrc.UpdateMarketGroup(TBaseMarket(ListView.Items[i].Data).MarketID,s,false);
-  finally
-    DataSrc.EndUpdate;
-  end;
+  s := TMenuItem(Sender).Hint;
+  UpdateTaskGroups(s);
 end;
-}
+
 
 procedure TColoniesForm.Panel1MouseDown(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
@@ -223,7 +229,7 @@ begin
     if TaskGroupSubMenu.Items[i].Tag > 0 then
       TaskGroupSubMenu.Delete(i);
   end;
-{
+
   sl := TStringList.Create;
   DataSrc.GetUniqueGroups(sl);
   for i := sl.Count - 1 downto 0  do
@@ -236,7 +242,7 @@ begin
     TaskGroupSubMenu.Insert(0,mitem);
   end;
   sl.Free;
-}
+
 end;
 
 procedure TColoniesForm.ClearFilterButtonClick(Sender: TObject);
@@ -378,7 +384,10 @@ procedure TColoniesForm.ApplySettings;
 var i,fs: Integer;
     fn: string;
     clr: TColor;
+    crec: System.UITypes.TColorRec;
 begin
+  FHighlightColor := clBlack;
+
   if not Opts.Flags['DarkMode'] then
   begin
     with ListView do
@@ -399,6 +408,11 @@ begin
       //GridLines := False;
     end;
 
+    crec.Color := clr;
+    crec.R := Min(255,48 + crec.R);
+    crec.G := Min(255,48 + crec.G);
+    crec.B := Min(255,48 + crec.B);
+    FHighlightColor := crec.Color;
   end;
   with ListView do
   begin
@@ -495,6 +509,7 @@ var
   sys: TStarSystem;
   s: string;
   row: TStringList;
+  hsysl: TList;
   fs,orgfs,cs,sups: string;
   items: THashedStringList;
   coloniesf,targetf,candidf,otherf,okf,ignf: Boolean;
@@ -509,7 +524,7 @@ var
   begin
     for i := 0 to row.Count - 1 do
     begin
-      ln := Length(row[i]);
+      ln := Min(Length(row[i]),35);
       if ln > colMaxLen[i] then
       begin
         colMaxLen[i] := ln;
@@ -563,6 +578,7 @@ begin
   //autoSizeCol := autoSizeCol and Opts.Flags['AutoSizeColumns'];
 
   row := TStringList.Create;
+  hsysl := TList.Create;
 
   coloniesf := ColoniesCheck.Checked;
   targetf := ColonTargetsCheck.Checked;
@@ -585,9 +601,15 @@ begin
     orgfs := FilterEdit.Text;
     fs := LowerCase(orgfs);
 
+    if Opts.Flags['HighlightGoals'] then
+      for i := 0 to DataSrc.Constructions.Count - 1 do
+        if not DataSrc.Constructions.ConstrByIdx[i].Finished then
+          if Pos('!',DataSrc.Constructions.ConstrByIdx[i].Comment) > 0 then
+            hsysl.Add(DataSrc.Constructions.ConstrByIdx[i].GetSys);
+
 //stress test
 //for j := 1 to 100 do
-  
+
     for i := 0 to DataSrc.StarSystems.Count - 1 do
     begin
       sys := DataSrc.StarSystems[i];
@@ -631,14 +653,20 @@ begin
       if FileExists(sys.ImagePath) then
         s := '✓';
       addSubItem(s);
-      addSubItem(sys.CurrentGoals);
+      s := sys.CurrentGoals;
+      if hsysl.IndexOf(sys) > -1 then
+        if Pos('!',s) <= 0 then
+          s := s + '(!)';
+      addSubItem(s);
       addSubItem(sys.Objectives);
       s := '';
       if sys.Ignored then s := '●';
       addSubItem(s);
+      addSubItem(sys.TaskGroup);
 
 
-      if CheckFilter then addRow(sys);
+      if CheckFilter then
+        addRow(sys);
     end;
 
     if autoSizeCol then
@@ -648,7 +676,8 @@ begin
       //ListView.Column[ListView.Columns.Count - 1].Width := -1;  //this stays at -1
 
       for i := 0 to ListView.Columns.Count - 1 do
-        ListView.Column[i].Width := ListView.Canvas.TextWidth(colMaxTxt[i]) + 15; //margins
+        ListView.Column[i].Width := ListView.Canvas.TextWidth(colMaxTxt[i]) +
+          15 + ListView.Font.Size div 6; //margins
     end;
 
 
@@ -714,6 +743,25 @@ begin
       Sender.Canvas.Brush.Color := Sender.Canvas.Brush.Color - $202020;
   end;
 
+  if Opts.Flags['HighlightGoals'] then
+  if TObject(Item.Data) is TStarSystem then
+    if Item.SubItems[9] <> '' then
+    begin
+      if Pos('!',Item.SubItems[9]) > 0 then
+      begin
+        if not Opts.Flags['DarkMode'] then
+          Sender.Canvas.Font.Color := clBlue
+        else
+          Sender.Canvas.Font.Color := clWhite;
+      end
+      else
+        if not Opts.Flags['DarkMode'] then
+          Sender.Canvas.Font.Color := clNavy
+        else
+          Sender.Canvas.Font.Color := FHighlightColor;
+    end
+    else
+      Sender.Canvas.Font.Color := ListView.Font.Color;
 end;
 
 procedure TColoniesForm.ListViewAction(Sender: TObject);
@@ -748,8 +796,7 @@ begin
       if s <> orgs then
       begin
         sys.ArchitectName := s;
-        sys.Save;
-        UpdateItems;
+        sys.UpdateSave;
       end;
     end;
   5:
@@ -761,8 +808,7 @@ begin
   6:
     begin
       sys.Ignored := not sys.Ignored;
-      sys.Save;
-      UpdateItems;
+      sys.UpdateSave;
     end;
   7:
     begin
@@ -771,8 +817,7 @@ begin
       if s <> orgs then
       begin
         sys.AlterName := s;
-        sys.Save;
-        UpdateItems;
+        sys.UpdateSave;
       end;
     end;
   8:
@@ -782,8 +827,7 @@ begin
       if s <> orgs then
       begin
         sys.Comment := s;
-        sys.Save;
-        UpdateItems;
+        sys.UpdateSave;
       end;
     end;
   9:
@@ -793,8 +837,7 @@ begin
       if s <> orgs then
       begin
         sys.CurrentGoals := s;
-        sys.Save;
-        UpdateItems;
+        sys.UpdateSave;
       end;
     end;
   10:
@@ -804,8 +847,7 @@ begin
       if s <> orgs then
       begin
         sys.Objectives := s;
-        sys.Save;
-        UpdateItems;
+        sys.UpdateSave;
       end;
     end;
   15:
@@ -847,6 +889,11 @@ begin
       break;
     end;
   end;
+end;
+
+procedure TColoniesForm.MapButtonClick(Sender: TObject);
+begin
+  StarMapForm.Show;
 end;
 
 end.

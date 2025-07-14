@@ -46,7 +46,7 @@ implementation
 {$R *.dfm}
 
 uses Settings, Main, Markets, MarketInfo, DataSource, Splash, Colonies,
-  SystemInfo, StationInfo, ConstrTypes, MaterialList, Toolbar;
+  SystemInfo, StationInfo, ConstrTypes, MaterialList, Toolbar, ToolTip;
 
 procedure TSettingsForm.BackupJournalLinkLinkClick(Sender: TObject;
   const Link: string; LinkType: TSysLinkType);
@@ -113,6 +113,7 @@ begin
   DefineOpt('ShowProgress','0-no info; 1-beneath the list; 2-in the title bar',0,2,'');
   DefineOpt('ShowFlightsLeft','0-no info; 1-beneath the list; 2-in the title bar',0,2,'');
   DefineFlag('ShowStarSystem','star system abbrev. in title bar');
+  DefineFlag('HighlightGoals','highlight colonies with non-empty current goals');
   DefineFlag('ShowDelTime','includes delivery time left, recent and average dock-to-dock time');
   DefineFlag('ShowRecentMarket','');
   DefineFlag('ShowBestMarket','');
@@ -227,6 +228,7 @@ begin
   ConstrTypesForm.ApplySettings;
   MaterialListForm.ApplySettings;
   ToolbarForm.ApplySettings;
+  TooltipForm.ApplySettings;
 end;
 
 end.

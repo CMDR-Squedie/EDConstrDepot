@@ -1,10 +1,12 @@
 object ToolbarForm: TToolbarForm
   Left = 0
   Top = 0
+  AlphaBlend = True
+  AlphaBlendValue = 224
   BorderIcons = []
   BorderStyle = bsNone
-  ClientHeight = 28
-  ClientWidth = 221
+  ClientHeight = 29
+  ClientWidth = 222
   Color = clBlack
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clSilver
@@ -19,7 +21,8 @@ object ToolbarForm: TToolbarForm
     Left = 168
     Top = 0
     Width = 28
-    Height = 28
+    Height = 29
+    Hint = 'Planned Constructions'
     Align = alLeft
     Alignment = taCenter
     AutoSize = False
@@ -30,13 +33,15 @@ object ToolbarForm: TToolbarForm
     OnClick = PlannedLabelClick
     OnMouseEnter = InfoLabelMouseEnter
     OnMouseLeave = PlannedLabelMouseLeave
+    ExplicitHeight = 28
   end
   object ConstructionsLabel: TLabel
     Tag = -1
     Left = 112
     Top = 0
     Width = 28
-    Height = 28
+    Height = 29
+    Hint = 'All Constructions'
     Align = alLeft
     Alignment = taCenter
     AutoSize = False
@@ -47,12 +52,14 @@ object ToolbarForm: TToolbarForm
     OnClick = ConstructionsLabelClick
     OnMouseEnter = InfoLabelMouseEnter
     OnMouseLeave = PlannedLabelMouseLeave
+    ExplicitHeight = 28
   end
   object MarketsLabel: TLabel
     Left = 84
     Top = 0
     Width = 28
-    Height = 28
+    Height = 29
+    Hint = 'Markets'
     Align = alLeft
     Alignment = taCenter
     AutoSize = False
@@ -63,12 +70,14 @@ object ToolbarForm: TToolbarForm
     OnClick = MarketsLabelClick
     OnMouseEnter = InfoLabelMouseEnter
     OnMouseLeave = PlannedLabelMouseLeave
+    ExplicitHeight = 28
   end
   object SystemLabel: TLabel
     Left = 28
     Top = 0
     Width = 28
-    Height = 28
+    Height = 29
+    Hint = 'System Info'
     Align = alLeft
     Alignment = taCenter
     AutoSize = False
@@ -79,12 +88,14 @@ object ToolbarForm: TToolbarForm
     OnClick = SystemLabelClick
     OnMouseEnter = InfoLabelMouseEnter
     OnMouseLeave = PlannedLabelMouseLeave
+    ExplicitHeight = 28
   end
   object InfoLabel: TLabel
     Left = 0
     Top = 0
     Width = 28
-    Height = 28
+    Height = 29
+    Hint = 'Construction Info'
     Align = alLeft
     Alignment = taCenter
     AutoSize = False
@@ -95,12 +106,14 @@ object ToolbarForm: TToolbarForm
     OnClick = InfoLabelClick
     OnMouseEnter = InfoLabelMouseEnter
     OnMouseLeave = PlannedLabelMouseLeave
+    ExplicitHeight = 28
   end
   object ColoniesLabel: TLabel
     Left = 56
     Top = 0
     Width = 28
-    Height = 28
+    Height = 29
+    Hint = 'Colonies'
     Align = alLeft
     Alignment = taCenter
     AutoSize = False
@@ -111,12 +124,14 @@ object ToolbarForm: TToolbarForm
     OnClick = ColoniesLabelClick
     OnMouseEnter = InfoLabelMouseEnter
     OnMouseLeave = PlannedLabelMouseLeave
+    ExplicitHeight = 28
   end
   object SettingsLabel: TLabel
     Left = 196
     Top = 0
     Width = 28
-    Height = 28
+    Height = 29
+    Hint = 'Settings'
     Align = alLeft
     Alignment = taCenter
     AutoSize = False
@@ -127,12 +142,14 @@ object ToolbarForm: TToolbarForm
     OnClick = SettingsLabelClick
     OnMouseEnter = InfoLabelMouseEnter
     OnMouseLeave = PlannedLabelMouseLeave
+    ExplicitHeight = 28
   end
   object InProgressLabel: TLabel
     Left = 140
     Top = 0
     Width = 28
-    Height = 28
+    Height = 29
+    Hint = 'Active Constructions'
     Align = alLeft
     Alignment = taCenter
     AutoSize = False
@@ -143,5 +160,6 @@ object ToolbarForm: TToolbarForm
     OnClick = InProgressLabelClick
     OnMouseEnter = InfoLabelMouseEnter
     OnMouseLeave = PlannedLabelMouseLeave
+    ExplicitHeight = 28
   end
 end

@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, Winapi.CommCtrl, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.ComCtrls,
-  DataSource, System.JSON, System.StrUtils, Vcl.Menus;
+  DataSource, System.JSON, System.StrUtils, Vcl.Menus, System.Types;
 
 type
   TMarketInfoForm = class(TForm, IEDDataListener)
@@ -49,13 +49,13 @@ type
     FSelectedCommodities: TStringList;
     FLastScrollBarPos: Integer;
     Comparing: Boolean;
-    procedure Update;
+    procedure UpdateItems;
     procedure InternalSetCategory(s: string; sl: TStringList; clearself: Boolean);
     procedure FillCommodities(sl: TStringList);
     procedure SetCategory(s: string;  sl: TStringList; clearself: Boolean);
   public
     { Public declarations }
-    procedure SetMarket(m: TMarket; comparef: Boolean);
+    procedure SetMarket(m: TMarket; comparef: Boolean; const cmdtyfilter: string = '');
     procedure ApplySettings;
     procedure OnEDDataUpdate;
     procedure CloseComparison;
@@ -160,7 +160,7 @@ end;
 procedure TMarketInfoForm.OnEDDataUpdate;
 begin
   if Comparing then Exit;
-  if Visible then Update;
+  if Visible then UpdateItems;
 end;
 
 procedure TMarketInfoForm.PopupMenuPopup(Sender: TObject);
@@ -180,14 +180,34 @@ begin
     SetCategory('',nil,true);
 end;
 
-procedure TMarketInfoForm.SetMarket(m: TMarket; comparef: Boolean);
+procedure TMarketInfoForm.SetMarket(m: TMarket; comparef: Boolean; const cmdtyfilter: string = '');
+var i,i2: Integer;
+    fsarr: TStringDynArray;
 begin
   Comparing := comparef;
   FCurrentMarket := m.MarketId;
   FCurrentCategory := '';
   FSelectedCommodities.Clear;
+  if cmdtyfilter <> '' then
+  begin
+    FSelectedCommodities.Sorted := False;
+    fsarr := SplitString(cmdtyfilter,'+');
+    for i := 0 to High(fsarr) do
+      FSelectedCommodities.Add(fsarr[i]);
+    for i := 0 to FSelectedCommodities.Count - 1 do
+      if DataSrc.ItemNames.Values[FSelectedCommodities[i]] = '' then
+      begin
+        for i2 := 0 to DataSrc.ItemNames.Count - 1 do
+          if Pos(FSelectedCommodities[i],DataSrc.ItemNames.Names[i2]) > 0 then
+          begin
+            FSelectedCommodities[i] := DataSrc.ItemNames.Names[i2];
+            break;
+          end;
+      end;
+    FSelectedCommodities.Sorted := True;
+  end;
   FSharedItems.Clear;
-  Update;
+  UpdateItems;
 end;
 
 procedure TMarketInfoForm.ShowDifferences1MenuItemClick(Sender: TObject);
@@ -241,28 +261,71 @@ begin
             FSelectedCommodities.Clear;
           end;
           FSharedItems.Assign(sl);
-          Update;
+          UpdateItems;
         end;
   sl.Free;
   asl.Free;
 end;
 
-procedure TMarketInfoForm.Update;
+procedure TMarketInfoForm.UpdateItems;
 var  j: TJSONObject;
      jarr: TJSONArray;
      i: Integer;
-     s,normItem: string;
-     item: TListItem;
+     s,normItem,name: string;
      group: TListGroup;
      sl,cmpsl: TStringList;
      p,q,mean,groupid: Integer;
      m: TMarket;
+     colSz: array [0..100] of Integer;
+     colMaxLen: array [0..100] of Integer;
+     colMaxTxt: array [0..100] of string;
+     row: TStringList;
+
+  procedure addRow(groupid: Integer);
+  var i,ln: Integer;
+      item: TListItem;
+  begin
+    for i := 0 to row.Count - 1 do
+    begin
+      ln := Length(row[i]);
+      if ln > colMaxLen[i] then
+      begin
+        colMaxLen[i] := ln;
+        colMaxTxt[i] := row[i];
+      end;
+    end;
+
+    item := ListView.Items.Add;
+    item.GroupID := groupid;
+    item.Caption := row[0];
+    row.Delete(0);
+    item.SubItems.Assign(row);
+  end;
+
+  procedure addCaption(s: string);
+  begin
+    row.Clear;
+    row.Add(s);
+  end;
+
+  procedure addSubItem(s: string);
+  begin
+    row.Add(s);
+  end;
+
 begin
   ListView.Items.Clear;
   ListView.Groups.Clear;
 
   if FCurrentMarket = '' then Exit;
-  
+
+  for i := 0 to ListView.Columns.Count - 1 do
+  begin
+    colMaxLen[i] := Length(ListView.Columns[i].Caption);
+    colMaxTxt[i] := ListView.Columns[i].Caption;
+  end;
+
+
   m := DataSrc.MarketFromId(FCurrentMarket);
   if m = nil then
   begin
@@ -279,6 +342,7 @@ begin
 
 
   sl := TStringList.Create;
+  row := TStringList.Create;
   cmpsl := TStringList.Create;
   cmpsl.Assign(FSelectedCommodities);
   
@@ -313,13 +377,12 @@ begin
       groupid := sl.IndexOf(DataSrc.ItemCategories.Values[s]);
       if groupid = -1 then continue;
 
-      item := ListView.Items.Add;
-      item.Caption := DataSrc.ItemNames.Values[s];
-      item.SubItems.Add(Format('%.0n', [double(q)]));
-      item.SubItems.Add('?');
-      item.SubItems.Add('?');
-      item.SubItems.Add('');
-      item.GroupID := groupid;
+      addCaption(DataSrc.ItemNames.Values[s]);
+      addSubItem(Format('%.0n', [double(q)]));
+      addSubItem('?');
+      addSubItem('?');
+      addSubItem('');
+      addRow(groupid);
       ListView.Groups[groupid].Subtitle := '';
     end;
   end
@@ -339,23 +402,21 @@ begin
         groupid := sl.IndexOf(jarr.Items[i].GetValue<string>('Category_Localised'));
         if groupid = -1 then continue;
 
-        s := jarr.Items[i].GetValue<string>('Name_Localised');
+        name := jarr.Items[i].GetValue<string>('Name_Localised');
         if FCompareSelected then
         begin
-          if FSelectedCommodities.IndexOf(s) = -1 then continue;
-          cmpsl.Delete(cmpsl.IndexOf(s));
+          if FSelectedCommodities.IndexOf(name) = -1 then continue;
+          cmpsl.Delete(cmpsl.IndexOf(name));
         end;
-        if FSharedItems.IndexOf(s) > -1 then continue;
+        if FSharedItems.IndexOf(name) > -1 then continue;
 
-        item := ListView.Items.Add;
-        item.Caption := s;
-        item.GroupID := groupid;
+        addCaption(name);
         ListView.Groups[groupid].Subtitle := '';
        
-        item.SubItems.Add(Format('%.0n', [double(q)]));
+        addSubItem(Format('%.0n', [double(q)]));
         s := jarr.Items[i].GetValue<string>('SellPrice');
         p := StrToInt(s);
-        item.SubItems.Add(Format('%.0n', [double(p)]));
+        addSubItem(Format('%.0n', [double(p)]));
         s := '';
         try
           mean := StrToInt(jarr.Items[i].GetValue<string>('MeanPrice'));
@@ -363,11 +424,12 @@ begin
           if p > mean then s := '+' + s;
         except
         end;
-        item.SubItems.Add(s);
+        addSubItem(s);
         s := '';
-        if FSelectedCommodities.IndexOf(item.Caption) > -1 then
+        if FSelectedCommodities.IndexOf(name) > -1 then
            s := cSelectedMark;
-        item.SubItems.Add(s);
+        addSubItem(s);
+        addRow(groupid);
       end;
 
       if FCompareSelected then
@@ -375,14 +437,13 @@ begin
         begin
           groupid := sl.IndexOf(DataSrc.ItemCategories.Values[LowerCase(cmpsl[i])]);
           if groupid = -1 then continue;
-          item := ListView.Items.Add;
-          item.Caption := cmpsl[i];
-          item.GroupID := groupid;
+          addCaption(cmpsl[i]);
           ListView.Groups[groupid].Subtitle := '';
-          item.SubItems.Add(''); 
-          item.SubItems.Add(''); 
-          item.SubItems.Add(''); 
-          item.SubItems.Add(''); 
+          addSubItem('');
+          addSubItem('');
+          addSubItem('');
+          addSubItem('');
+          addRow(groupid);
         end;
 
       
@@ -392,12 +453,16 @@ begin
     end;
   except
   end;
-  for i := 0 to 1 do  //last 3 columns not auto-scaled!
-  begin
-     ListView.Column[i].Width := -2;
-  end;
+
+  if colMaxLen[1] <= 9 then
+    colMaxTxt[1] := '3 456 789';
+  for i := 0 to ListView.Columns.Count - 1 do
+    ListView.Column[i].Width := ListView.Canvas.TextWidth(LeftStr(colMaxTxt[i],18)) +
+      16 + ListView.Font.Size div 6; //margins
+
   sl.Free;
   cmpsl.Free;
+  row.Free;
 end;
 
 procedure TMarketInfoForm.ApplySettings;
@@ -426,6 +491,11 @@ begin
   begin
     Font.Name := Opts['FontName2'];
     Font.Size := Opts.Int['FontSize2'];
+    try
+      Canvas.Font.Name := Opts['FontName2'];
+      Canvas.Font.Size := Opts.Int['FontSize2'];
+    except
+    end;
   end;
 
 end;
@@ -454,7 +524,7 @@ begin
     FSelectedCommodities.Clear;
     FSharedItems.Clear;
   end;
-  Update;
+  UpdateItems;
 end;
 
 procedure TMarketInfoForm.SetCategory(s: string;  sl: TStringList; clearself: Boolean);
@@ -518,7 +588,7 @@ begin
         with TMarketInfoForm(Application.Components[i]) do
         begin
           FCompareSelected := not FCompareSelected;
-          Update;
+          UpdateItems;
         end;
 end;
 

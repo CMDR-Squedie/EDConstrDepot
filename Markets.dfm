@@ -206,14 +206,14 @@ object MarketsForm: TMarketsForm
       TabOrder = 6
       OnClick = MarketsCheckClick
     end
-    object CompareCheck: TCheckBox
+    object AltSelCheck: TCheckBox
       Left = 987
       Top = 8
       Width = 111
       Height = 17
       Caption = 'Alt. Select Mode'
       TabOrder = 7
-      OnClick = CompareCheckClick
+      OnClick = AltSelCheckClick
     end
     object InclPlannedCheck: TCheckBox
       Left = 567

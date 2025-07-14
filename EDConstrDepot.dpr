@@ -18,11 +18,13 @@ uses
   MarketInfo in 'MarketInfo.pas' {MarketInfoForm},
   ConstrTypes in 'ConstrTypes.pas' {ConstrTypesForm},
   MaterialList in 'MaterialList.pas' {MaterialListForm},
-  Toolbar in 'Toolbar.pas' {ToolbarForm};
+  Toolbar in 'Toolbar.pas' {ToolbarForm},
+  ToolTip in 'ToolTip.pas' {TooltipForm},
+  StarMap in 'StarMap.pas' {StarMapForm};
 
 {$R *.res}
 
-const gNiceVersion: string = 'Release 25, build 4';
+const gNiceVersion: string = 'Release 26, build 1';
 
 begin
   Application.Initialize;
@@ -36,6 +38,7 @@ begin
 
   Application.CreateForm(TEDCDForm, EDCDForm);
   Application.CreateForm(TSplashForm, SplashForm);
+  Application.CreateForm(TToolbarForm, ToolbarForm);
   Application.CreateForm(TMarketsForm, MarketsForm);
   Application.CreateForm(TColoniesForm, ColoniesForm);
   Application.CreateForm(TSettingsForm, SettingsForm);
@@ -45,7 +48,8 @@ begin
   Application.CreateForm(TStationInfoForm, StationInfoForm);
   Application.CreateForm(TConstrTypesForm, ConstrTypesForm);
   Application.CreateForm(TMaterialListForm, MaterialListForm);
-  Application.CreateForm(TToolbarForm, ToolbarForm);
+  Application.CreateForm(TTooltipForm, TooltipForm);
+  Application.CreateForm(TStarMapForm, StarMapForm);
   SettingsForm.VersionLabel.Caption := gNiceVersion;
 
   Application.OnActivate :=  EDCDForm.AppActivate;
