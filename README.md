@@ -28,6 +28,7 @@ Features:
 - add planned constructions and check how they influence the economies [details](https://github.com/CMDR-Squedie/EDConstrDepot/wiki#system-body-and-station-economies)
 - check bodies from system scan information, check inherent body economies 
 - check station economies, strong links and up-links, including planned stations
+- manage your colonies from 2D colony map with custom projections and info layers
 - task groups - group markets and depots by context (personal projects/location in galaxy etc.)
 
 More in [Wiki](https://github.com/CMDR-Squedie/EDConstrDepot/wiki)
