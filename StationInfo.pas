@@ -512,6 +512,9 @@ procedure TStationInfoForm.PasteRequestMenuItemClick(Sender: TObject);
 begin
   if FCurrentStation = nil then Exit;
   TConstructionDepot(FCurrentStation).PasteRequest;
+  if FCurrentStation.MarketId <> '' then
+    FCurrentStation.GetSys.UpdateSave;
+  TypeComboChange(nil);
 end;
 
 procedure TStationInfoForm.UseAvgRequestMenuItemClick(Sender: TObject);
@@ -533,7 +536,8 @@ begin
       maxreq.Qty[s] := q;
     end;
   TConstructionDepot(FCurrentStation).CustomRequest := maxreq.Text;
-  FCurrentStation.GetSys.UpdateSave;
+  if FCurrentStation.MarketId <> '' then
+    FCurrentStation.GetSys.UpdateSave;
   maxreq.Free;
   TypeComboChange(nil);
 end;
@@ -544,7 +548,8 @@ begin
   if FCurrentStation.Status <> '' then Exit;
   if TConstructionDepot(FCurrentStation).CustomRequest = '' then Exit;
   TConstructionDepot(FCurrentStation).CustomRequest := '';
-  FCurrentStation.GetSys.UpdateSave;
+  if FCurrentStation.MarketId <> '' then
+    FCurrentStation.GetSys.UpdateSave;
   TypeComboChange(nil);
 end;
 

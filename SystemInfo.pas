@@ -110,6 +110,10 @@ type
     N7: TMenuItem;
     MarketHistoryMenuItem: TMenuItem;
     GroupAddRemoveMenuItem: TMenuItem;
+    Label15: TLabel;
+    TaskGroupEdit: TEdit;
+    EDSMScanLabel: TLabel;
+    PopupMenu3: TPopupMenu;
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure EDSMScanButtonClick(Sender: TObject);
@@ -163,6 +167,10 @@ type
     procedure MiliLinksLabel1DblClick(Sender: TObject);
     procedure ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
+    procedure EDSMScanLabelClick(Sender: TObject);
+    procedure PopupMenu3Popup(Sender: TObject);
+    procedure ArchitectLabelClick(Sender: TObject);
+    procedure ChangeArchitectMenuItemClick(Sender: TObject);
   private
     { Private declarations }
     FCurrentSystem: TStarSystem;
@@ -188,11 +196,11 @@ type
       var totWeakLinks: TEconomyArray);
     procedure ResolveBodyLinks(b: TSystemBody; var surfLinks,orbLinks,bwLinks: TEconomyArray);
     procedure ResetFilters;
-    procedure BeginFilterChange;
-    procedure EndFilterChange;
     function SelectedMarket: TMarket;
   public
     { Public declarations }
+    procedure BeginFilterChange;
+    procedure EndFilterChange;
     procedure SetSystem(s: TStarSystem; const bm: TBaseMarket = nil; const stationsOnly: Boolean = false);
     procedure ApplySettings;
     procedure OnEDDataUpdate;
@@ -587,6 +595,52 @@ begin
   sl.Free;
 end;
 
+procedure TSystemInfoForm.PopupMenu3Popup(Sender: TObject);
+var mitem: TMenuItem;
+    var i: Integer;
+begin
+  PopupMenu3.Items.Clear;
+  for i := 0 to DataSrc.Commanders.Count - 1 do
+  begin
+    mitem := TMenuItem.Create(PopupMenu3);
+    mitem.Caption := DataSrc.Commanders.ValueFromIndex[i];
+    mitem.Hint := DataSrc.Commanders.ValueFromIndex[i];
+    mitem.OnClick := ChangeArchitectMenuItemClick;
+    PopupMenu3.Items.Add(mitem);
+  end;
+  if (FCurrentSystem.Population = 0) and (FCurrentSystem.Architect = '') then
+  begin
+    mitem := TMenuItem.Create(PopupMenu3);
+    mitem.Caption := '(target)';
+    mitem.Hint := '(target)';
+    mitem.OnClick := ChangeArchitectMenuItemClick;
+    PopupMenu3.Items.Add(mitem);
+  end;
+  mitem := TMenuItem.Create(PopupMenu3);
+  mitem.Caption := '-';
+  PopupMenu3.Items.Add(mitem);
+  mitem := TMenuItem.Create(PopupMenu3);
+  mitem.Caption := 'Clear';
+  mitem.Hint := '';
+  mitem.OnClick := ChangeArchitectMenuItemClick;
+  PopupMenu3.Items.Add(mitem);
+end;
+
+procedure TSystemInfoForm.ChangeArchitectMenuItemClick(Sender: TObject);
+begin
+  FCurrentSystem.ArchitectName := TMenuItem(Sender).Hint;
+  FCurrentSystem.UpdateSave;
+end;
+
+procedure TSystemInfoForm.ArchitectLabelClick(Sender: TObject);
+var pt: TPoint;
+begin
+  pt.X := ArchitectLabel.Left;
+  pt.Y := ArchitectLabel.Top + ArchitectLabel.Height;
+  pt := Panel1.ClientToScreen(pt);
+  PopupMenu3.Popup(pt.X,pt.Y);
+end;
+
 procedure TSystemInfoForm.PopupMenuPopup(Sender: TObject);
 var picf: Boolean;
 begin
@@ -643,6 +697,7 @@ begin
   FCurrentSystem.Comment := CommentEdit.Text;
   FCurrentSystem.CurrentGoals := GoalsEdit.Text;
   FCurrentSystem.Objectives := ObjectivesEdit.Text;
+  FCurrentSystem.TaskGroup := TaskGroupEdit.Text;
   FCurrentSystem.Save;
   FDataChanged := False;
 end;
@@ -673,10 +728,17 @@ begin
 end;
 
 
+procedure TSystemInfoForm.EDSMScanLabelClick(Sender: TObject);
+begin
+  FCurrentSystem.SystemScan_EDSM := '';
+  FCurrentSystem.Save;
+  UpdateView;
+end;
+
 procedure TSystemInfoForm.EDSMScanButtonClick(Sender: TObject);
 begin
   if FCurrentSystem.NavBeaconScan then
-    if Vcl.Dialogs.MessageDlg('This system already has full Nav Beacon scan. Fetch data from EDSM?',
+    if Vcl.Dialogs.MessageDlg('This system already has Nav Beacon/FSS scan. Fetch data from EDSM?',
       mtConfirmation, [mbYes, mbNo], 0, mbNo) = mrNo then Exit;
 
   FCurrentSystem.UpdateBodies_EDSM;
@@ -714,6 +776,7 @@ end;
 
 procedure TSystemInfoForm.FormCreate(Sender: TObject);
 begin
+  Panel1.Color := clBlack;
   FStartPos.X := -1;
   InfoPanel2.Height := 32;
   DataSrc.AddListener(self);
@@ -999,6 +1062,7 @@ begin
   CommentEdit.Text := FCurrentSystem.Comment;
   GoalsEdit.Text := FCurrentSystem.CurrentGoals;
   ObjectivesEdit.Text := FCurrentSystem.Objectives;
+  TaskGroupEdit.Text := FCurrentSystem.TaskGroup;
 
   FDataChanged := False;
   FImageChanged := False;
@@ -1500,13 +1564,18 @@ begin
     ListView.Items.Clear;
 
     SystemNameLabel.Caption := FCurrentSystem.StarSystem;
-    ArchitectLabel.Caption := 'Architect: ' + FCurrentSystem.ArchitectName;
+    s := FCurrentSystem.ArchitectName;
+     if s = '' then
+       //if FCurrentSystem.Population > 0 then
+         s := '(click to assign)';
+    ArchitectLabel.Caption := 'Architect: ' + s;
     PopulationLabel.Caption := 'Population: ' + Format('%.0n', [double(FCurrentSystem.Population)]);;
     FactionsLabel.Caption := FCurrentSystem.Factions;
     LastUpdateLabel.Caption := 'Last Update: ' +
       Copy(FCurrentSystem.LastUpdate,1,10) + ' ' + Copy(FCurrentSystem.LastUpdate,12,8) + ' UTC';
     SystemAddrLabel.Caption := '#' + FCurrentSystem.SystemAddress;
     SecurityLabel.Caption := 'Security: ' + FCurrentSystem.SystemSecurity;
+    EDSMScanLabel.Visible := FCurrentSystem.SystemScan_EDSM <> '';
 
     PrimaryLabel.Caption := '(select primary)';
     if FCurrentSystem.PrimaryPortId <> '' then

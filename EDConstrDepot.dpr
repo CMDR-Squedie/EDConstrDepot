@@ -24,7 +24,22 @@ uses
 
 {$R *.res}
 
-const gNiceVersion: string = 'Release 26, build 1';
+const gNiceVersion: string = 'Release 26, build 3';
+
+{
+  Build 4:
+   - optional system elevation (Y) marks (for colonies & targets only, measured against middle plane)
+   - colony map button in toolbar
+   - systems can now belong to multiple task groups (separated with comma)
+   - selected system label is always on top of map
+   - colonies filter now also supports '+' sign
+   - task group field added to System Info view
+   - Architect can be assigned directly in System Info view
+   - option to clear EDSM scan in System Info view
+   - holding Shift when using System Info button in toolbar opens current system
+   - new 'E' star lane type that favors short lanes
+   - Empty material list now only shows for actual depots
+}
 
 begin
   Application.Initialize;

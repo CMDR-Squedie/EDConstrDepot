@@ -6,7 +6,7 @@ object ToolbarForm: TToolbarForm
   BorderIcons = []
   BorderStyle = bsNone
   ClientHeight = 29
-  ClientWidth = 222
+  ClientWidth = 265
   Color = clBlack
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clSilver
@@ -18,7 +18,7 @@ object ToolbarForm: TToolbarForm
   TextHeight = 25
   object PlannedLabel: TLabel
     Tag = 1
-    Left = 168
+    Left = 196
     Top = 0
     Width = 28
     Height = 29
@@ -33,11 +33,12 @@ object ToolbarForm: TToolbarForm
     OnClick = PlannedLabelClick
     OnMouseEnter = InfoLabelMouseEnter
     OnMouseLeave = PlannedLabelMouseLeave
+    ExplicitLeft = 168
     ExplicitHeight = 28
   end
   object ConstructionsLabel: TLabel
     Tag = -1
-    Left = 112
+    Left = 140
     Top = 0
     Width = 28
     Height = 29
@@ -52,10 +53,11 @@ object ToolbarForm: TToolbarForm
     OnClick = ConstructionsLabelClick
     OnMouseEnter = InfoLabelMouseEnter
     OnMouseLeave = PlannedLabelMouseLeave
+    ExplicitLeft = 112
     ExplicitHeight = 28
   end
   object MarketsLabel: TLabel
-    Left = 84
+    Left = 112
     Top = 0
     Width = 28
     Height = 29
@@ -70,6 +72,7 @@ object ToolbarForm: TToolbarForm
     OnClick = MarketsLabelClick
     OnMouseEnter = InfoLabelMouseEnter
     OnMouseLeave = PlannedLabelMouseLeave
+    ExplicitLeft = 84
     ExplicitHeight = 28
   end
   object SystemLabel: TLabel
@@ -109,7 +112,7 @@ object ToolbarForm: TToolbarForm
     ExplicitHeight = 28
   end
   object ColoniesLabel: TLabel
-    Left = 56
+    Left = 84
     Top = 0
     Width = 28
     Height = 29
@@ -124,10 +127,11 @@ object ToolbarForm: TToolbarForm
     OnClick = ColoniesLabelClick
     OnMouseEnter = InfoLabelMouseEnter
     OnMouseLeave = PlannedLabelMouseLeave
+    ExplicitLeft = 56
     ExplicitHeight = 28
   end
   object SettingsLabel: TLabel
-    Left = 196
+    Left = 224
     Top = 0
     Width = 28
     Height = 29
@@ -142,10 +146,11 @@ object ToolbarForm: TToolbarForm
     OnClick = SettingsLabelClick
     OnMouseEnter = InfoLabelMouseEnter
     OnMouseLeave = PlannedLabelMouseLeave
+    ExplicitLeft = 196
     ExplicitHeight = 28
   end
   object InProgressLabel: TLabel
-    Left = 140
+    Left = 168
     Top = 0
     Width = 28
     Height = 29
@@ -160,6 +165,25 @@ object ToolbarForm: TToolbarForm
     OnClick = InProgressLabelClick
     OnMouseEnter = InfoLabelMouseEnter
     OnMouseLeave = PlannedLabelMouseLeave
+    ExplicitLeft = 140
     ExplicitHeight = 28
+  end
+  object MapLabel: TLabel
+    Left = 56
+    Top = 0
+    Width = 28
+    Height = 29
+    Hint = 'Colony Map'
+    Align = alLeft
+    Alignment = taCenter
+    AutoSize = False
+    Caption = #10024
+    Color = clBlack
+    ParentColor = False
+    Transparent = False
+    OnClick = MapLabelClick
+    OnMouseEnter = InfoLabelMouseEnter
+    OnMouseLeave = PlannedLabelMouseLeave
+    ExplicitLeft = 36
   end
 end

@@ -396,7 +396,7 @@ begin
             score := score + 10;
             if stock >= shipQty then
               if prevMarket = nil then
-                score := score + 1000;
+                score := score + 100;
           end;
 
 //extra points for station other than last visited (just for variety)
@@ -1106,6 +1106,7 @@ LSkipDepotSelection:;
     end;
 
     if a[colText] = '' then
+    if FCurrentDepot <> nil then
     begin
       l[colText] := 'Empty material list. '; addline;
       l[colText] := 'Dock to depot, paste list'; addline;
@@ -1298,10 +1299,10 @@ begin
   t := HWND_TOP;
   if self.FormStyle = fsStayOnTop then
     t := HWND_TOPMOST;
+  SetWindowPos(ToolbarForm.Handle, HWND_TOP, 0, 0 , 0, 0, SWP_NOACTIVATE or SWP_NOMOVE or SWP_NOSIZE);
   SetWindowPos(FLayer1.Handle, t, 0, 0 , 0, 0, SWP_NOACTIVATE or SWP_NOMOVE or SWP_NOSIZE);
   SetWindowPos(self.Handle, t, 0, 0 , 0, 0, SWP_NOACTIVATE or SWP_NOMOVE or SWP_NOSIZE);
 
-  SetWindowPos(ToolbarForm.Handle, t, 0, 0 , 0, 0, SWP_NOACTIVATE or SWP_NOMOVE or SWP_NOSIZE);
 
 end;
 
@@ -1992,6 +1993,8 @@ begin
   if FCurrentDepot.Status <> '' then Exit;
   if not Clipboard.HasFormat(CF_TEXT) then Exit;
   FCurrentDepot.PasteRequest;
+  FCurrentDepot.GetSys.Save;
+  UpdateConstrDepot;
 end;
 
 procedure TEDCDForm.UseMaxReqQtyMenuItemClick(Sender: TObject);

@@ -10,7 +10,6 @@ object SystemInfoForm: TSystemInfoForm
   Font.Height = -13
   Font.Name = 'Bahnschrift SemiCondensed'
   Font.Style = []
-  PopupMenu = PopupMenu
   Position = poDesigned
   OnClose = FormClose
   OnCloseQuery = FormCloseQuery
@@ -114,8 +113,8 @@ object SystemInfoForm: TSystemInfoForm
     Height = 73
     Align = alTop
     BevelOuter = bvNone
+    Color = clGray
     ParentBackground = False
-    ParentColor = True
     TabOrder = 1
     object SystemNameLabel: TLabel
       Left = 8
@@ -128,24 +127,24 @@ object SystemInfoForm: TSystemInfoForm
     end
     object FactionsLabel: TLabel
       Left = 217
-      Top = 30
-      Width = 313
+      Top = 52
+      Width = 347
       Height = 16
       AutoSize = False
       Caption = '----------------------'
     end
     object LastUpdateLabel: TLabel
       Left = 217
-      Top = 53
-      Width = 209
+      Top = 30
+      Width = 168
       Height = 16
       AutoSize = False
       Caption = '-----------------------'
     end
     object SystemAddrLabel: TLabel
-      Left = 408
-      Top = 8
-      Width = 153
+      Left = 1247
+      Top = 45
+      Width = 137
       Height = 16
       AutoSize = False
       Caption = '-------------------'
@@ -158,6 +157,7 @@ object SystemInfoForm: TSystemInfoForm
       Height = 16
       AutoSize = False
       Caption = '--------------------'
+      OnClick = ArchitectLabelClick
     end
     object PopulationLabel: TLabel
       Left = 8
@@ -195,6 +195,25 @@ object SystemInfoForm: TSystemInfoForm
       Width = 53
       Height = 16
       Caption = 'Objectives'
+    end
+    object Label15: TLabel
+      Left = 427
+      Top = 8
+      Width = 35
+      Height = 16
+      AutoSize = False
+      Caption = 'Group'
+      OnDblClick = SystemAddrLabelDblClick
+    end
+    object EDSMScanLabel: TLabel
+      Left = 1118
+      Top = 45
+      Width = 98
+      Height = 16
+      AutoSize = False
+      Caption = '[ Clear EDSM Scan ]'
+      OnClick = EDSMScanLabelClick
+      OnDblClick = SystemAddrLabelDblClick
     end
     object EDSMScanButton: TButton
       Left = 1011
@@ -239,6 +258,15 @@ object SystemInfoForm: TSystemInfoForm
       Height = 24
       ParentColor = True
       TabOrder = 4
+      OnChange = CommentEditChange
+    end
+    object TaskGroupEdit: TEdit
+      Left = 468
+      Top = 5
+      Width = 96
+      Height = 24
+      ParentColor = True
+      TabOrder = 5
       OnChange = CommentEditChange
     end
   end
@@ -917,12 +945,10 @@ object SystemInfoForm: TSystemInfoForm
     end
     object PastePictureMenuItem: TMenuItem
       Caption = 'Paste Picture'
-      ShortCut = 16470
       OnClick = PastePictureMenuItemClick
     end
     object SavePictureMenuItem: TMenuItem
       Caption = 'Save Picture'
-      ShortCut = 16467
       OnClick = SavePictureMenuItemClick
     end
     object EditPictureMenuItem: TMenuItem
@@ -1060,5 +1086,10 @@ object SystemInfoForm: TSystemInfoForm
       Caption = 'Copy All'
       OnClick = CopyAllMenuItemClick
     end
+  end
+  object PopupMenu3: TPopupMenu
+    OnPopup = PopupMenu3Popup
+    Left = 472
+    Top = 64
   end
 end

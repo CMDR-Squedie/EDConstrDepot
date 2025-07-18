@@ -16,6 +16,7 @@ type
     ColoniesLabel: TLabel;
     SettingsLabel: TLabel;
     InProgressLabel: TLabel;
+    MapLabel: TLabel;
     procedure FormShow(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure InfoLabelClick(Sender: TObject);
@@ -28,6 +29,7 @@ type
     procedure SettingsLabelClick(Sender: TObject);
     procedure InfoLabelMouseEnter(Sender: TObject);
     procedure PlannedLabelMouseLeave(Sender: TObject);
+    procedure MapLabelClick(Sender: TObject);
   private
     { Private declarations }
   public
@@ -43,7 +45,7 @@ implementation
 
 {$R *.dfm}
 
-uses Main, ToolTip;
+uses Main, ToolTip, Colonies;
 
 procedure TToolbarForm.ApplySettings;
 var i: Integer;
@@ -53,6 +55,7 @@ begin
 
   Width := EDCDForm.Width;
   Height := Max(Font.Size + 12,Canvas.TextHeight('Wq') + 2);
+  Tag := Height;
   for i := 0 to ComponentCount - 1 do
     if Components[i] is TLabel then
       TLabel(Components[i]).Width := self.Width div ComponentCount;
@@ -107,6 +110,11 @@ begin
   EDCDForm.ActiveConstrMenuItemClick(Sender);
 end;
 
+procedure TToolbarForm.MapLabelClick(Sender: TObject);
+begin
+  ColoniesForm.MapButtonClick(Sender);
+end;
+
 procedure TToolbarForm.MarketsLabelClick(Sender: TObject);
 begin
   EDCDForm.ManageMarketsMenuItemClick(Sender);
@@ -130,7 +138,10 @@ end;
 
 procedure TToolbarForm.SystemLabelClick(Sender: TObject);
 begin
-  EDCDForm.SystemInfoMenuItemClick(Sender);
+  if GetKeyState(VK_SHIFT) < 0 then
+    EDCDForm.SystemInfoCurrentMenuItemClick(Sender)
+  else
+    EDCDForm.SystemInfoMenuItemClick(Sender);
 end;
 
 end.

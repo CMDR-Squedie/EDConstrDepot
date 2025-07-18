@@ -136,6 +136,7 @@ end;
 type
 TStarSystem = class;
 TConstructionDepot = class;
+TMarket = class;
 
 TSystemBody = class
 private
@@ -210,7 +211,8 @@ public
   PopHistory: TStringList;
   LastUpdate: string;
   Status: string;
-  FSystemScan_EDSM: string;
+  SystemScan_EDSM: string;
+  ClaimDate: string;
   PrimaryDone: Boolean;
   PrimaryPortId: string;
   LastCmdr: string;
@@ -224,6 +226,7 @@ public
   TaskGroup: string;
   MapKey: Integer;
   Constructions: TList; //this is only populated on demand, eg. in Map View;
+  Stations: TList; //this is only populated on demand, eg. in Map View; 
   function ResourceReserve: string;
   function DistanceTo(s: TStarSystem): Double;
   function PopForTimeStamp(tms: string): Int64;
@@ -255,6 +258,7 @@ TBaseMarket = class
 private
   FSysData: TStarSystem;
   FConstrType: TConstructionType;
+  FLinkedMarket: TMarket;
   FOrbital_JRNL: Integer;
   FLinkChecked: Boolean;  //session only for auto link detection
 public
@@ -296,6 +300,8 @@ public
   function GetConstrType: TConstructionType;
   function IsPrimary: Boolean;
   function IsOrbital: Boolean;
+  function GetLinkedMarket: TMarket;
+  function GetMarketLevel: TMarketLevel;
   procedure Clear;
   constructor Create;
   destructor Destroy;
@@ -361,7 +367,7 @@ public
   procedure UpdateBodySignals(js: string; j: TJSONObject);
   function AddFromName(name: string): Boolean;
   function AddNeighbours_EDSM(origin: string): Integer;
-  procedure RemoveFromName(name: string);
+  procedure RemoveFromName(name: string; const delf: Boolean = true);
   constructor Create;
 end;
 
@@ -489,7 +495,7 @@ type TEDDataSource = class (TDataModule)
     procedure UpdateSecondaryMarket(forcef: Boolean);
     procedure RemoveSecondaryMarket(m: TMarket);
     procedure RemoveConstruction(cd: TConstructionDepot);
-    procedure UpdateSystemConstructions;
+    procedure UpdateSystemStations;
     procedure SetMarketLevel(mID: string; level: TMarketLevel);
     function GetMarketLevel(mID: string): TMarketLevel;
     procedure UpdateMarketComment(mID: string; s: string);
@@ -860,7 +866,8 @@ begin
     for j := 0 to features.Count - 1 do
       if Pos(es.Condition,features[j]) > 0 then
         for ei := Low(TEconomy) to High(TEconomy) do
-          //if FBaseEconomies[ei] = 0 then
+          //body economies should NOT stack! but sometimes they do...
+          if FBaseEconomies[ei] = 0 then   
             FBaseEconomies[ei] := FBaseEconomies[ei] +  es.Economies[ei];
   end;
 
@@ -1278,6 +1285,16 @@ begin
   Result := FConstrType;
 end;
 
+function TBaseMarket.GetLinkedMarket: TMarket;
+begin
+  if (FLinkedMarket = nil) or (LinkedMarketId <> FLinkedMarket.MarketId) then
+    if LinkedMarketId = '' then
+      FLinkedMarket := nil
+    else
+      FLinkedMarket := DataSrc.MarketFromId(LinkedMarketId);
+  Result := FLinkedMarket;
+end;
+
 function TBaseMarket.IsPrimary: Boolean;
 begin
   Result := False;
@@ -1318,6 +1335,13 @@ begin
   Result := Comment;
   if Comment = '' then
     Result := DataSrc.FMarketComments.Values[MarketId];
+end;
+
+function TBaseMarket.GetMarketLevel: TMarketLevel;
+begin
+//  Result := FMarketLevel;
+//  if FMarketLevel = -1 then
+  Result := DataSrc.GetMarketLevel(MarketId);
 end;
 
 function TBaseMarket.StarSystem_nice: string;
@@ -1425,8 +1449,6 @@ begin
     end;
     if sl2.Count > 60 then Exit;
     CustomRequest := sl2.Text;
-    if GetSys <> nil then
-      GetSys.UpdateSave;
   finally
     sl.Free;
     sl2.Free;
@@ -1601,6 +1623,14 @@ var bodyId: string;
 begin
   Result := nil;
 
+//remove dummy body
+  if FBodies.Count = 1 then
+    if FBodies[0] = '?' then
+    begin
+      TSystemBody(FBodies.Objects[0]).Free;
+      FBodies.Delete(0);
+    end;
+
   bodyId := orgBodyId;
   bodyId := bodyId.PadLeft(6,'0');
   idx := FBodies.IndexOf(bodyId);
@@ -1763,7 +1793,7 @@ begin
     res := req.Get('https://www.edsm.net/api-system-v1/bodies?systemName=' + StarSystem);
     if res.StatusCode <> 200 then
       raise Exception.Create(res.StatusText);
-    FSystemScan_EDSM := res.ContentAsString;
+    SystemScan_EDSM := res.ContentAsString;
   finally
     req.Free;
   end;
@@ -1779,7 +1809,7 @@ var jdata: TJSONObject;
 begin
 
   try
-    jdata := TJSONObject.ParseJSONValue(FSystemScan_EDSM) as TJSONObject;
+    jdata := TJSONObject.ParseJSONValue(SystemScan_EDSM) as TJSONObject;
     try
       jarr := jdata.GetValue<TJSONArray>('bodies');
       for i := 0 to jarr.Count - 1 do
@@ -1926,7 +1956,7 @@ begin
   j.AddPair(TJSONPair.Create('CurrentGoals', CurrentGoals));
   j.AddPair(TJSONPair.Create('Objectives', Objectives));
   j.AddPair(TJSONPair.Create('Ignored', Ignored));
-  j.AddPair(TJSONPair.Create('FSystemScan_EDSM', FSystemScan_EDSM));
+  j.AddPair(TJSONPair.Create('FSystemScan_EDSM', SystemScan_EDSM));
   j.AddPair(TJSONPair.Create('PrimaryPortId', PrimaryPortId));
   j.AddPair(TJSONPair.Create('OrbitalSlots', OrbitalSlots));
   j.AddPair(TJSONPair.Create('SurfaceSlots', SurfaceSlots));
@@ -1962,6 +1992,7 @@ begin
   sarr := TJSONArray.Create;
   j.AddPair(TJSONPair.Create('Bodies', sarr));
   for i := 0 to FBodies.Count - 1 do
+    if FBodies[i] <> '?' then
     with TSystemBody(FBodies.Objects[i]) do
       if FeaturesModified then
       begin
@@ -2051,11 +2082,19 @@ end;
 
 
 constructor TStarSystem.Create;
+var b: TSystemBody;
 begin
   PopHistory := TStringList.Create;
   FBodies := TStringList.Create;
   FBodies.Sorted := True;
   FBodies.Duplicates := dupIgnore;
+
+//dummy body for orphan stations
+  b := TSystemBody.Create;
+  b.SysData := self;
+  b.BodyID := '?';
+  b.BodyName := '?';
+  FBodies.AddObject(b.BodyID,b);
 end;
 
 destructor TStarSystem.Destroy;
@@ -2188,14 +2227,14 @@ begin
         j.TryGetValue<string>('CurrentGoals',CurrentGoals);
         j.TryGetValue<string>('Objectives',Objectives);
         j.TryGetValue<Boolean>('Ignored',Ignored);
-        j.TryGetValue<string>('FSystemScan_EDSM',FSystemScan_EDSM);
+        j.TryGetValue<string>('FSystemScan_EDSM',SystemScan_EDSM);
         j.TryGetValue<string>('PrimaryPortId',PrimaryPortId);
         j.TryGetValue<Integer>('OrbitalSlots',OrbitalSlots);
         j.TryGetValue<Integer>('SurfaceSlots',SurfaceSlots);
         j.TryGetValue<string>('TaskGroup',TaskGroup);
         j.TryGetValue<Integer>('MapKey',MapKey);
 
-        if FSystemScan_EDSM <> '' then
+        if SystemScan_EDSM <> '' then
           UpdateFromScan_EDSM;
 
         jarr := nil;
@@ -2311,7 +2350,7 @@ begin
         sys.Save;
         AddObject(sys.StarSystem,sys);
         Result := Result + 1;
-        if Result > 50 then Exit; //just in case things get really bad...
+        if Result > 100 then Exit; //just in case things get really bad...
       end;
     finally
       jarr.Free;
@@ -2342,13 +2381,14 @@ begin
   Result := True;
 end;
 
-procedure TSystemList.RemoveFromName(name: string);
+procedure TSystemList.RemoveFromName(name: string; const delf: Boolean = true);
 var s: string;
     idx: Integer;
     sys: TStarSystem;
 begin
   idx := IndexOf(name);
   if idx < 0  then Exit;
+  if delf then
   with TStarSystem(Objects[idx]) do
   begin
     Delete;
@@ -2359,14 +2399,21 @@ end;
 
 procedure TSystemList.UpdateArchitect(cmdr: string; j: TJSONObject);
 var sys: TStarSystem;
-    s: string;
+    s,tms: string;
 begin
   try
     s := j.GetValue<string>('StarSystem');
+    tms := j.GetValue<string>('timestamp');
     sys := GetSystemByName(s);
 
     if sys <> nil then
+    begin
       sys.Architect := cmdr;
+      if cmdr = '' then
+        sys.ClaimDate := ''
+      else
+        sys.ClaimDate := tms;
+    end;
   except
   end;
 end;
@@ -2993,6 +3040,7 @@ begin
         if event = 'SupercruiseDestinationDrop' then
         begin
           m := MarketFromId(mID);
+          if m <> nil then m.FOrbital_JRNL := 1;
           if (m <> nil) and (m.StationType = 'FleetCarrier') then
           begin
             s := j.GetValue<string>('Type');
@@ -3675,7 +3723,7 @@ begin
 //  cd.Free;
 end;
 
-procedure TEDDataSource.UpdateSystemConstructions;
+procedure TEDDataSource.UpdateSystemStations;
 var i: Integer;
     sys: TStarSystem;
 begin
@@ -3686,6 +3734,10 @@ begin
       sys.Constructions := TList.Create
     else
       sys.Constructions.Clear;
+    if sys.Stations = nil then
+      sys.Stations := TList.Create
+    else
+      sys.Stations.Clear;
   end;
 
   for i := 0 to DataSrc.Constructions.Count - 1 do
@@ -3693,8 +3745,18 @@ begin
     sys := DataSrc.Constructions[i].GetSys;
     if sys <> nil then
       if sys.Constructions <> nil then
-        sys.Constructions.Add(DataSrc.Constructions[i]);
+        if not DataSrc.Constructions[i].Simulated then
+          sys.Constructions.Add(DataSrc.Constructions[i]);
   end;
+
+  for i := 0 to DataSrc.RecentMarkets.Count - 1 do
+  begin
+    sys := TMarket(DataSrc.RecentMarkets.Objects[i]).GetSys;
+    if sys <> nil then
+      if sys.Stations <> nil then
+        sys.Stations.Add(DataSrc.RecentMarkets.Objects[i]);
+  end;
+  
 end;
 
 procedure TEDDataSource.MarketToSimDepot(mID: string);
@@ -3840,6 +3902,8 @@ begin
   end;
   if FTaskGroup <> '' then
     sl.Add(FTaskGroup);
+  s := sl.Text;
+  sl.Text := s.Replace(',',Chr(13));
 end;
 
 procedure TEDDataSource.SetTaskGroup(s: string);

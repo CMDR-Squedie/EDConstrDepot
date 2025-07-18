@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.ComCtrls, DataSource,
-  Vcl.StdCtrls, Vcl.Menus, System.Math, System.IniFiles, System.StrUtils;
+  Vcl.StdCtrls, Vcl.Menus, System.Types, System.Math, System.IniFiles, System.StrUtils;
 
 type
   TColoniesForm = class(TForm, IEDDataListener)
@@ -142,7 +142,11 @@ begin
       if IsSelected(ListView.Items[i]) then
       begin
         sys := TStarSystem(ListView.Items[i].Data);
-        sys.TaskGroup := s;
+        if sys.TaskGroup = '' then
+          sys.TaskGroup := s
+        else
+          if Pos(s,sys.TaskGroup) <= 0 then
+            sys.TaskGroup := sys.TaskGroup + ',' + s;
         sys.Save;
       end;
   finally
@@ -517,6 +521,7 @@ var
   colMaxLen: array [0..100] of Integer;
   colMaxTxt: array [0..100] of string;
   autoSizeCol: Boolean;
+  fsarr: TStringDynArray;
 
   procedure addRow(data: TObject);
   var i,ln: Integer;
@@ -551,18 +556,23 @@ var
   end;
 
   function CheckFilter: Boolean;
-  var i: Integer;
+  var i,i2,mcnt: Integer;
+      s: string;
   begin
     Result := True;
-    sups := '';
     if fs <> '' then
     begin
-      Result := False;
-      for i := 0 to row.Count - 1 do
-        if Pos(fs,LowerCase(row[i])) > 0 then
+      for i2 := 0 to High(fsarr) do
+        if fsarr[i2] <> '' then
         begin
-          Result := true;
-          break;
+          Result := False;
+          for i := 0 to row.Count - 1 do
+          if Pos(fsarr[i2],LowerCase(row[i])) > 0 then
+          begin
+            Result := true;
+            break;
+          end;
+          if not Result then break;
         end;
     end;
   end;
@@ -600,6 +610,7 @@ begin
 
     orgfs := FilterEdit.Text;
     fs := LowerCase(orgfs);
+    fsarr := SplitString(fs,'+');
 
     if Opts.Flags['HighlightGoals'] then
       for i := 0 to DataSrc.Constructions.Count - 1 do
