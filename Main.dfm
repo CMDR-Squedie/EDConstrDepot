@@ -316,6 +316,10 @@ object EDCDForm: TEDCDForm
       Caption = 'Manage All'
       OnClick = ManageAllMenuItemClick
     end
+    object SummaryMenuItem: TMenuItem
+      Caption = 'Colony Totals'
+      OnClick = SummaryMenuItemClick
+    end
     object SettingsMenuItem: TMenuItem
       Caption = 'Settings'
       OnClick = SettingsMenuItemClick

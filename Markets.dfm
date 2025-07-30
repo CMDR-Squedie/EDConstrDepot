@@ -3,7 +3,7 @@ object MarketsForm: TMarketsForm
   Top = 0
   Caption = 'Manage Markets'
   ClientHeight = 462
-  ClientWidth = 1184
+  ClientWidth = 1264
   Color = clBackground
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -18,7 +18,7 @@ object MarketsForm: TMarketsForm
   object ListView: TListView
     Left = 0
     Top = 34
-    Width = 1184
+    Width = 1264
     Height = 428
     Align = alClient
     BevelEdges = []
@@ -103,11 +103,12 @@ object MarketsForm: TMarketsForm
     OnCustomDrawItem = ListViewCustomDrawItem
     OnDblClick = ListViewAction
     OnMouseDown = ListViewMouseDown
+    ExplicitWidth = 1184
   end
   object Panel1: TPanel
     Left = 0
     Top = 0
-    Width = 1184
+    Width = 1264
     Height = 34
     Align = alTop
     BevelEdges = []
@@ -123,6 +124,7 @@ object MarketsForm: TMarketsForm
     TabOrder = 1
     OnMouseDown = Panel1MouseDown
     OnMouseMove = Panel1MouseMove
+    ExplicitWidth = 1184
     object Label1: TLabel
       Left = 8
       Top = 8
@@ -232,6 +234,11 @@ object MarketsForm: TMarketsForm
     object SelectCurrentMenuItem: TMenuItem
       Tag = 1
       Caption = 'Set As Active'
+      OnClick = ListViewAction
+    end
+    object ShowOnMapMenuItem: TMenuItem
+      Tag = 22
+      Caption = 'Show On Map'
       OnClick = ListViewAction
     end
     object EditCommentMenuItem: TMenuItem

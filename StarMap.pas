@@ -57,6 +57,21 @@ type
     ElevationCheck: TCheckBox;
     MapKey6MenuItem: TMenuItem;
     ElevFollowSelCheck: TCheckBox;
+    ShowInListMenuItem: TMenuItem;
+    ColonModeCheck: TCheckBox;
+    ColonizationSubMenu: TMenuItem;
+    AddNeighboursEDSMMenuItem: TMenuItem;
+    Add2HopSystemsEDSMMenuItem: TMenuItem;
+    N3: TMenuItem;
+    AddToTargetsMenuItem: TMenuItem;
+    StartRouteMenuItem: TMenuItem;
+    RouteSubMenu: TMenuItem;
+    StopRouteMenuItem: TMenuItem;
+    ClearRouteMenuItem: TMenuItem;
+    N4: TMenuItem;
+    HideDistancesMenuItem: TMenuItem;
+    FindSystemMenuItem: TMenuItem;
+    FindBodiesMenuItem: TMenuItem;
     procedure PaintBoxPaint(Sender: TObject);
     procedure PaintBoxDblClick(Sender: TObject);
     procedure ProjectionXComboChange(Sender: TObject);
@@ -84,30 +99,53 @@ type
     procedure FormKeyPress(Sender: TObject; var Key: Char);
     procedure FormResize(Sender: TObject);
     procedure ElevationCheckClick(Sender: TObject);
+    procedure ShowInListMenuItemClick(Sender: TObject);
+    procedure ColonModeCheckClick(Sender: TObject);
+    procedure AddNeighboursEDSMMenuItemClick(Sender: TObject);
+    procedure Add2HopSystemsEDSMMenuItemClick(Sender: TObject);
+    procedure AddToTargetsMenuItemClick(Sender: TObject);
+    procedure StartRouteMenuItemClick(Sender: TObject);
+    procedure StopRouteMenuItemClick(Sender: TObject);
+    procedure DeleteRouteMenuItemClick(Sender: TObject);
+    procedure ClearRouteMenuItemClick(Sender: TObject);
+    procedure HideDistancesMenuItemClick(Sender: TObject);
+    procedure FindSystemMenuItemClick(Sender: TObject);
+    procedure FindBodiesMenuItemClick(Sender: TObject);
   private
     { Private declarations }
-
+    FShowNeighbours: Boolean;
+    FHideDistances: Boolean;
+    FCenterOnSelected: Boolean;
     FMap: TBitmap;
     FMapSpan: TRect; //in light years
-    FOrigin: TPoint; //in pixels, for panning
+    FOrigin: TPoint; //distance from LeftTop of current colon. area in pixels, for panning
     FSavedOrigin: TPoint;
     FStartPanPos: TPoint;
     FMapZoom: Integer;
     sysPosArr: array of TStarSystemLabel;
     FStarSystems: TSystemList;
+    FNeighbours: TSystemList;
+    FConnectors: TSystemList;
     FColonies: TSystemList;
+    FRoute: TSystemList;
+    FRouteName: string;
     FHistory: TSystemList;
     FHistoryEntry: Integer;
     FSelectedSystem: TStarSystem;
     FPreviewRect: TRect;
     function InfoLayer: string;
     procedure UpdateItems;
-    procedure UpdateMap(const autoCenter: Boolean = false);
+    procedure UpdateMap(const autoCenter: Boolean = false; const centerOnSelected: Boolean = false);
     procedure ResetMap;
     procedure UpdateOpts;
+    procedure SetRouteMenuItemClick(Sender: TObject);
+    procedure SaveRouteMenuItemClick(Sender: TObject);
   public
     { Public declarations }
     procedure OnEDDataUpdate;
+    procedure OnChangeSettings;
+    procedure SelectSystem(sys: TStarSystem);
+    procedure RestoreAndShow;
   end;
 
 var
@@ -117,7 +155,7 @@ implementation
 
 {$R *.dfm}
 
-uses SystemInfo, Settings, Clipbrd, SystemPict;
+uses SystemInfo, Settings, Clipbrd, SystemPict, Colonies, Main, Bodies;
 
 procedure TStarMapForm.OnEDDataUpdate;
 begin
@@ -129,12 +167,51 @@ begin
   end;
 end;
 
+procedure TStarMapForm.SelectSystem(sys: TStarSystem);
+begin
+  FSelectedSystem := sys;
+  if Visible then
+  begin
+    UpdateItems;
+    UpdateMap(true,true);
+    PaintBoxPaint(nil);
+  end
+  else
+    FCenterOnSelected := True;
+end;
+
+procedure TStarMapForm.RestoreAndShow;
+begin
+  if WindowState = wsMinimized then WindowState := wsNormal;
+  Show;
+end;
+
 procedure TStarMapForm.ResetMap;
 begin
   FOrigin := TPoint.Create(0,0);
   FMapZoom := 100;
   UpdateItems;
-  UpdateMap(true);
+  UpdateMap(true,FCenterOnSelected);
+  FCenterOnSelected := False;
+end;
+
+procedure TStarMapForm.ShowInListMenuItemClick(Sender: TObject);
+begin
+  if FSelectedSystem = nil then Exit;
+  ColoniesForm.SetReferenceSystem(FSelectedSystem,true);
+  ColoniesForm.Show;
+end;
+
+procedure TStarMapForm.StartRouteMenuItemClick(Sender: TObject);
+begin
+  DataSrc.CurrentRoute.StartRoute(FRoute);
+  EDCDForm.UpdateConstrDepot;
+end;
+
+procedure TStarMapForm.StopRouteMenuItemClick(Sender: TObject);
+begin
+  DataSrc.CurrentRoute.StopRoute;
+  EDCDForm.UpdateConstrDepot;
 end;
 
 procedure TStarMapForm.FormShow(Sender: TObject);
@@ -149,15 +226,36 @@ begin
   sl.Free;
 end;
 
-procedure TStarMapForm.HistTimerTimer(Sender: TObject);
+procedure TStarMapForm.HideDistancesMenuItemClick(Sender: TObject);
 begin
-  if FHistoryEntry >= FHistory.Count - 1 then
-    HistTimer.Enabled := False
-  else
-    FHistoryEntry := FHistoryEntry + 1;
-    //FHistoryEntry := 0;
+  FHideDistances := not FHideDistances;
   UpdateMap;
   PaintBoxPaint(nil);
+end;
+
+procedure TStarMapForm.HistTimerTimer(Sender: TObject);
+var idx: Integer;
+begin
+  try
+    if FHistoryEntry >= FHistory.Count - 1 then
+      HistTimer.Enabled := False
+    else
+    begin
+      FHistoryEntry := FHistoryEntry + 1;
+
+      //move the system to end of list so it gets printed last
+      if FHistoryEntry < FHistory.Count then
+      begin
+        idx := FStarSystems.IndexOfObject(FHistory[FHistoryEntry]);
+        if idx <> -1 then
+          FStarSystems.Move(idx,FStarSystems.Count-1);
+      end;
+    end;
+    UpdateMap;
+    PaintBoxPaint(nil);
+  except
+    HistTimer.Enabled := False;
+  end;
 end;
 
 function TStarMapForm.InfoLayer: string;
@@ -187,11 +285,11 @@ begin
   FHistoryEntry := 0;
   HistTimer.Enabled := False;
 
-  if InfoLayer = 'AH' then
-    HistTimer.Enabled := True;
-
   ResetMap;
   PaintBoxPaint(nil);
+
+  if InfoLayer = 'AH' then
+    HistTimer.Enabled := True;
 end;
 
 procedure TStarMapForm.MajorColCheckClick(Sender: TObject);
@@ -215,6 +313,59 @@ end;
 procedure TStarMapForm.MinPopComboChange(Sender: TObject);
 begin
   UpdateItems;
+  UpdateMap;
+  PaintBoxPaint(nil);
+end;
+
+procedure TStarMapForm.ColonModeCheckClick(Sender: TObject);
+begin
+  FShowNeighbours := not FShowNeighbours;
+  UpdateItems;
+  UpdateMap(false);
+  PaintBoxPaint(nil);
+end;
+
+procedure TStarMapForm.Add2HopSystemsEDSMMenuItemClick(Sender: TObject);
+var cnt: Integer;
+begin
+  if FSelectedSystem = nil then Exit;
+  cnt := DataSrc.StarSystems.AddNeighbours2_EDSM(FSelectedSystem);
+  ShowMessage('EDSM query successful, ' + IntToStr(cnt) + ' systems added.');
+  if cnt > 0 then
+  begin
+    UpdateItems;
+    if ColoniesForm.Visible then ColoniesForm.UpdateItems;
+  end;
+end;
+
+procedure TStarMapForm.AddNeighboursEDSMMenuItemClick(Sender: TObject);
+var cnt: Integer;
+begin
+  if FSelectedSystem = nil then Exit;
+  cnt := DataSrc.StarSystems.AddNeighbours_EDSM(FSelectedSystem.StarSystem);
+  ShowMessage('EDSM query successful, ' + IntToStr(cnt) + ' new systems added.');
+  if cnt > 0 then
+  begin
+    UpdateItems;
+    if ColoniesForm.Visible then ColoniesForm.UpdateItems;
+  end;
+end;
+
+procedure TStarMapForm.AddToTargetsMenuItemClick(Sender: TObject);
+begin
+  if FSelectedSystem = nil then Exit;
+  if FSelectedSystem.Architect = '' then
+  begin
+    FSelectedSystem.Architect := '(target)';
+    FSelectedSystem.UpdateSave;
+    //UpdateMap;
+    //PaintBoxPaint(nil);
+  end;
+end;
+
+procedure TStarMapForm.ClearRouteMenuItemClick(Sender: TObject);
+begin
+  FRoute.Clear;
   UpdateMap;
   PaintBoxPaint(nil);
 end;
@@ -250,10 +401,51 @@ begin
 end;
 
 
+procedure TStarMapForm.FindBodiesMenuItemClick(Sender: TObject);
+begin
+  BodiesForm.UpdateAndShow;
+end;
+
+procedure TStarMapForm.FindSystemMenuItemClick(Sender: TObject);
+var s: string;
+    i: Integer;
+    sys: TStarSystem;
+begin
+  s := LowerCase(Vcl.Dialogs.InputBox('Find System', 'Name', ''));
+  sys := nil;
+  if s <> '' then
+    for i := 0 to DataSrc.StarSystems.Count - 1 do
+    begin
+      if Pos(s,LowerCase(DataSrc.StarSystems[i].StarSystem)) > 0 then
+      begin
+        sys := DataSrc.StarSystems[i];
+        if s = LowerCase(DataSrc.StarSystems[i].StarSystem) then
+          break;
+      end;
+      if Pos(s,LowerCase(DataSrc.StarSystems[i].AlterName)) > 0 then
+      begin
+        sys := DataSrc.StarSystems[i];
+        if s = LowerCase(DataSrc.StarSystems[i].AlterName) then
+          break;
+      end;
+    end;
+  if sys <> nil then
+    SelectSystem(sys);
+end;
+
 procedure TStarMapForm.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
   UpdateOpts;
   HistTimer.Enabled := False;
+end;
+
+procedure TStarMapForm.OnChangeSettings;
+begin
+  if Visible then
+  begin
+    UpdateMap;
+    PaintBoxPaint(nil);
+  end;
 end;
 
 procedure TStarMapForm.FormCreate(Sender: TObject);
@@ -275,6 +467,10 @@ begin
   InfoCombo.ItemIndex := 0;
   FStarSystems := TSystemList.Create;
   FColonies := TSystemList.Create;
+  FNeighbours := TSystemList.Create;
+  FConnectors := TSystemList.Create;
+  FRoute := TSystemList.Create;
+  FRoute.StrictDelimiter := True;
   FHistory := TSystemList.Create;
   FHistoryEntry := 0;
   FMap := TBitmap.Create;
@@ -331,20 +527,43 @@ begin
   self.ActiveControl := nil;
 
   pt := Mouse.CursorPos;
+
+  if FStartPanPos.X <> -1 then
+    if (Abs(FStartPanPos.X-pt.X) > 10) or (Abs(FStartPanPos.Y-pt.Y) > 10) then Exit;
+
   pt := PaintBox.ScreenToClient(pt);
 
   if FPreviewRect.Left <> 0 then
     if PtInRect(FPreviewRect,pt) then Exit;
 
+  if not (GetKeyState(VK_SHIFT) < 0) then
+  begin
+    if not DataSrc.CurrentRoute.Active and (FRouteName = '') then
+    begin
+      FRoute.Clear;
+      FRouteName := '';
+    end;
+  end else
+    if FSelectedSystem <> nil then
+      if FRoute.Count = 0 then
+        FRoute.AddObject(FSelectedSystem.StarSystem,FSelectedSystem);
+
   for i := 0 to High(sysPosArr) do
     if PtInRect(sysPosArr[i].labelRect,pt) or PtInRect(sysPosArr[i].starRect,pt) then
     begin
+       if GetKeyState(VK_SHIFT) < 0 then
+         if FRoute.IndexOf(sysPosArr[i].sys.StarSystem) > -1 then
+           FRoute.RemoveFromName(sysPosArr[i].sys.StarSystem,false)
+         else
+           FRoute.AddObject(sysPosArr[i].sys.StarSystem,sysPosArr[i].sys);
        if FSelectedSystem <> sysPosArr[i].sys then
        begin
          FSelectedSystem := sysPosArr[i].sys;
-         UpdateMap;
-         PaintBoxPaint(nil);
+         if FShowNeighbours then
+           UpdateItems;
        end;
+       UpdateMap;
+       PaintBoxPaint(nil);
        Exit;
     end;
 
@@ -381,17 +600,22 @@ begin
     try
       if (InfoLayer = 'C1') or (InfoLayer = 'C2') then
       begin
-        BodiesCheck.Checked := False;
-        FinishedCheck.Checked := False;
+        if FSelectedSystem.Constructions <> nil then
+          if FSelectedSystem.Constructions.Count > 0 then
+          begin
+            BodiesCheck.Checked := False;
+            FinishedCheck.Checked := False;
+          end;
       end;
       if InfoLayer = 'LR' then FilterEdit.Text := 'Refi ';
+      if InfoLayer = 'LA' then FilterEdit.Text := 'Agri ';
       if InfoLayer = 'SY' then FilterEdit.Text := '🚀';
     finally
       EndFilterChange;
       UpdateView;
     end;
   end;
-  SystemInfoForm.Show;
+  SystemInfoForm.RestoreAndShow;
 end;
 
 procedure TStarMapForm.PaintBoxMouseDown(Sender: TObject; Button: TMouseButton;
@@ -424,18 +648,22 @@ procedure TStarMapForm.PaintBoxMouseUp(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
 begin
   FStartPanPos.X := -1;
-  if Button = mbRight then PaintBoxClick(nil);
+  //todo: change to test if a label was actually right-clicked
+  if not ColonModeCheck.Checked and (FRoute.Count = 0) then
+    if Button = mbRight then PaintBoxClick(nil);
 end;
 
 procedure TStarMapForm.UpdateItems;
 var i,i2: Integer;
     sys: TStarSystem;
     minPop: Integer;
-    s: string;
+    s,s2: string;
     okf,isColonyf: Boolean;
 begin
   FStarSystems.Clear;
   FColonies.Clear;
+  FNeighbours.Clear;
+  FConnectors.Clear;
 
   s := MinPopCombo.Text;
   s := s.Replace(' ','');
@@ -464,11 +692,33 @@ begin
 
     if sys.Ignored then isColonyf := False;
 
-{
-    if sys.TaskGroup <> '' then
-      if TaskGroupCombo.Text <> '' then
-         if sys.TaskGroup <> TaskGroupCombo.Text then okf := false;
-}
+    if FShowNeighbours then
+      if FSelectedSystem <> nil then
+        if (FSelectedSystem.Population = 0) or (sys.Population = 0) then
+        if sys.DistanceTo(FSelectedSystem) <= 15 then
+        begin
+          FNeighbours.AddObject('',sys);
+          if (sys.Population > 0) or (sys.Architect <> '') then
+            FSelectedSystem.NearestColony := sys;
+          okf := true;
+        end;
+
+    if sys = FSelectedSystem then
+      okf := true;
+
+    if not okf then
+      if FRoute.IndexOfObject(sys) > -1 then okf := true;
+      
+
+
+    if TaskGroupCombo.Text <> '' then
+//    if sys.TaskGroup <> '' then
+         if Pos(TaskGroupCombo.Text,sys.TaskGroup) > 0  then
+         begin
+           okf := True;
+           isColonyf := True; //include all system in Task Group in colony span calculation
+         end;
+
 
     if okf then
     begin
@@ -485,9 +735,9 @@ begin
       else
         sys.Constructions.Clear;
 
-      if isColonyf and not sys.Ignored then
+      if isColonyf then
       begin
-        if sys.TaskGroup <> '' then
+//        if sys.TaskGroup <> '' then
           if TaskGroupCombo.Text <> '' then
              if Pos(TaskGroupCombo.Text,sys.TaskGroup) <= 0  then continue;
         s := '0';
@@ -510,7 +760,7 @@ begin
   //if InfoCombo.ItemIndex > 0 then
   DataSrc.UpdateSystemStations;
 
-  if InfoLayer = 'AH' then
+  if (InfoLayer = 'AH') and not HistTimer.Enabled then
   begin
     FHistory.Clear;
     for i := 0 to FColonies.Count -1 do
@@ -527,28 +777,63 @@ begin
         begin
           if LastUpdate <> '' then
             if (s = '') or (LastUpdate < s) then s := LastUpdate;
+          if Finished and (Status <> '') then
+            if ActualHaul > Opts.Int['MinHistHaul'] then
+            begin
+              s2 := LastUpdate.PadRight(30,' ') + ' 🏗  ';
+              if GetLinkedMarket <> nil then
+                s2 := s2 + GetLinkedMarket.StationName
+              else
+                s2 := s2 + StationName;
+              if GetConstrType <> nil then
+                s2 := s2 + ' (' + GetConstrType.StationType + ')';
+              FHistory.AddObject(s2,FColonies[i]);
+            end;
+{
           if Finished and (Status <> '') and (GetConstrType <> nil) then
             if GetConstrType.IsPort then
               FHistory.AddObject(LastUpdate.PadRight(30,' ') + ' 🏗  ' + GetConstrType.StationType,FColonies[i]);
+}
         end;
 
-      if (FColonies[i].ClaimDate = '') and (s <> '') then
-        FHistory.AddObject(s.PadRight(30,' ') + ' 🏆  (History Start)',FColonies[i]);
+      //if (FColonies[i].ClaimDate = '') and (s <> '') then
+      //  FHistory.AddObject(s.PadRight(30,' ') + ' 🏆  (History Start)',FColonies[i]);
     end;
     FHistory.Sort;
   end;
+
+  if FShowNeighbours then
+  if FSelectedSystem <> nil then
+  if FSelectedSystem.Population = 0 then
+  if FSelectedSystem.NearestColony = nil then
+  begin
+    for i := 0 to FNeighbours.Count -1 do
+      if FNeighbours[i].NearestColony <> nil then
+        FConnectors.AddObject('',FNeighbours[i])
+      else
+      for i2 := 0 to FColonies.Count - 1 do
+        if FNeighbours[i] <> FColonies[i2] then
+          if FNeighbours[i].DistanceTo(FColonies[i2]) <= 15 then
+          begin
+            FNeighbours[i].NearestColony := FColonies[i2];
+            FConnectors.AddObject('',FNeighbours[i]);
+          end;
+  end;
+
 end;
 
-procedure TStarMapForm.UpdateMap(const autoCenter: Boolean = false);
+procedure TStarMapForm.UpdateMap(const autoCenter: Boolean = false; const centerOnSelected: Boolean = false);
 var i,i2,i3,w,idx,si,margin,projectionX,projectionY,labOffsetX,labOffsetY,fontSize: Integer;
     sys: TStarSystem;
+    sysSpanList: TSystemList;
     r,r2,unir: TRect;
     pt,pt2: TPoint;
     proj: TMapPos;
     linkRects: array [0..100] of TRect;
     linkRectsCnt: Integer;
     maxSize,minPop,maxLinks,maxLinkCnt,curLinkCnt,maxDist: Integer;
-    PixelsPerLy,dist: Extended;
+    dt: TDateTime;
+    PixelsPerLy,dist,totDist,dDt: Extended;
     starSymbol,s,laneStyle: string;
     okf,isColonyf: Boolean;
     cnt1,cnt2,cnt3: Integer;
@@ -617,12 +902,33 @@ label
                 Copy(s,5,6) + Copy(s,30,100);
     end;
 
+    procedure CalcStarLane(sys1,sys2: TStarSystem; var r: TRect);
+    var proj: TMapPos;
+        fs: Integer;
+    begin
+      getSysPos_projected(sys1,proj);
+      fs := fontSize;
+      if sys1.Architect <> '' then fs := fs + 4;
+      r.Left := -FOrigin.X + Trunc(PixelsPerLy*(proj.X - FMapSpan.Left)) + fs div 2;
+      r.Top := -FOrigin.Y + Trunc(PixelsPerLy*(proj.Y - FMapSpan.Top)) + fs div 2 + 4;
+      if elevationf then
+        r.Top := r.Top - Trunc((sys1.StarPosY-midY)*PixelsPerLy/6);
+
+      getSysPos_projected(sys2,proj);
+      fs := fontSize;
+      if sys2.Architect <> '' then fs := fs + 4;
+      r.Right := -FOrigin.X + Trunc(PixelsPerLy*(proj.X - FMapSpan.Left)) + fs div 2;
+      r.Bottom := -FOrigin.Y + Trunc(PixelsPerLy*(proj.Y - FMapSpan.Top))+ fs div 2 + 4;
+      if elevationf then
+        r.Bottom := r.Bottom - Trunc((sys2.StarPosY-midY)*PixelsPerLy/6);
+    end;
+
 begin
   //todo (lots of optimization pending):
-  // - skip printing systems outside of 200% of view area
   // - move map info layer to UpdateItems
   // - move star lanes to UpdateItems
   // - turn off info layers for zoom < 25%
+  // - scroll bitmap (no redraw) on map panning ?
 
   SetLength(sysPosArr,0);
 //  ZeroMemory(@mostPops,sizeof(mostPops));
@@ -649,10 +955,15 @@ begin
   with FMap.Canvas do
   begin
 
+    sysSpanList := FColonies;
+    if FRouteName <> '' then
+      sysSpanList := FRoute;
+
     if elevationf then
-    for i := 0 to FColonies.Count - 1 do
+    for i := 0 to sysSpanList.Count - 1 do
     begin
-      sys := FColonies[i];
+      sys := sysSpanList[i];
+      if sys = nil then continue;
       setMin(minY,sys.StarPosY);
       setMax(maxY,sys.StarPosY);
     end;
@@ -660,9 +971,10 @@ begin
 
     if autoCenter then
     begin
-      for i := 0 to FColonies.Count - 1 do
+      for i := 0 to sysSpanList.Count - 1 do
       begin
-        sys := FColonies[i];
+        sys := sysSpanList[i];
+        if sys = nil then continue;
         getSysPos_projected(sys,proj);
         setMin(FMapSpan.Left,proj.X);
         setMax(FMapSpan.Right,proj.X);
@@ -694,14 +1006,24 @@ begin
     begin
       FOrigin.X := -(Width - Trunc(PixelsPerLy * FMapSpan.Width)) div 2;
       FOrigin.Y := -(Height - Trunc(PixelsPerLy * FMapSpan.Height)) div 2;
+
+      if centerOnSelected and (FSelectedSystem <> nil) then
+      begin
+        getSysPos_projected(FSelectedSystem,proj);
+        proj.X := proj.X - (FMapSpan.Left + FMapSpan.Width/2);
+        proj.Y := proj.Y - (FMapSpan.Top + FMapSpan.Height/2 );
+        FOrigin.X := FOrigin.X + Trunc(PixelsPerLy * proj.X);
+        FOrigin.Y := FOrigin.Y + Trunc(PixelsPerLy * proj.Y);
+      end;
     end;
 
-    fontSize := Max(6,Min(6 + Trunc(PixelsPerLy/3) {2 * FMapZoom div 50},24));
+
+    fontSize := Max(6,Min(6 + Trunc(PixelsPerLy/3) {2 * FMapZoom div 50},16));
     labOffsetX := fontSize + 4;
     labOffsetY := fontSize - 2;
 
     if FSelectedSystem <> nil then
-      if ElevFollowSelCheck.Checked then
+      if ElevFollowSelCheck.Checked or FShowNeighbours then
         midY := Trunc(FSelectedSystem.StarPosY);
 
     if FMapZoom >= 25 then
@@ -764,7 +1086,8 @@ begin
           if InfoLayer = 'AH' then
             if FColonies[i2].ClaimDate > FHistory.Strings[FHistoryEntry] then continue;
 
-
+          CalcStarLane(FColonies[i],FColonies[i2],r);
+          {
           getSysPos_projected(FColonies[i],proj);
           r.Left := -FOrigin.X + Trunc(PixelsPerLy*(proj.X - FMapSpan.Left)) + (fontSize+4) div 2;
           r.Top := -FOrigin.Y + Trunc(PixelsPerLy*(proj.Y - FMapSpan.Top)) + (fontSize+4) div 2 + 4;
@@ -775,8 +1098,8 @@ begin
           r.Right := -FOrigin.X + Trunc(PixelsPerLy*(proj.X - FMapSpan.Left)) + (fontSize+4) div 2;
           r.Bottom := -FOrigin.Y + Trunc(PixelsPerLy*(proj.Y - FMapSpan.Top))+ (fontSize+4) div 2 + 4;
           if elevationf then
-            r.Bottom := r.Bottom - Trunc((FColonies[i2].StarPosY-midY)*PixelsPerLy/6);
-
+            r.Bottom := r.Bottom - Trunc((FColonies[i].StarPosY-midY)*PixelsPerLy/6);
+          }
           r2 := fixRect(r);
           i3 := 0;
 
@@ -816,6 +1139,43 @@ begin
       end;
     end;
 
+    if FShowNeighbours and (FNeighbours.Count > 0) and (FSelectedSystem <> nil) then
+    begin
+      Pen.Style := psDot;
+      for i := 0 to FNeighbours.Count - 1 do
+      begin
+//        dist := FNeighbours[i2].DistanceTo(FConnectors[i]);
+//        if dist > 15 then continue;
+        CalcStarLane(FNeighbours[i],FSelectedSystem,r);
+        Pen.Color := $00C000;
+        Pen.Width := 1;
+        if (FNeighbours[i].Architect <> '') or (FNeighbours[i].Population > 0) then
+          Pen.Width := 2
+        else
+          if FNeighbours[i].Ignored then
+            Pen.Color := $404040
+          else
+            if (FNeighbours[i].LastUpdate = '') or
+               (FNeighbours[i].Comment = '') or
+               (FSelectedSystem.LastUpdate = '') then
+              Pen.Color := clYellow;
+
+        MoveTo(r.Left,r.Top);
+        LineTo(r.Right,r.Bottom);
+      end;
+
+      for i := 0 to FConnectors.Count - 1 do
+      begin
+        CalcStarLane(FConnectors[i],FConnectors[i].NearestColony,r);
+        Pen.Color := $00C000;
+        Pen.Width := 2;
+        MoveTo(r.Left,r.Top);
+        LineTo(r.Right,r.Bottom);
+      end;
+
+    end;
+
+
     s := MinPopCombo.Text;
     s := s.Replace(' ','');
     s := s.Replace(',','');
@@ -839,7 +1199,7 @@ begin
         sysPosArr[idx].sys := sys;
         sysPosArr[idx].overlaps := 0;
 
-
+        //reprint selected system on top of map
         if FStarSystems.Strings[i] = '$selected' then
         begin
           if selSysIdx = -1 then continue;
@@ -856,6 +1216,11 @@ begin
 
         if elevationf then
           pt.Y := pt.Y - Trunc((sys.StarPosY-midY)*PixelsPerLy/6);
+
+        if pt.X < -100 then continue;
+        if pt.Y < -20 then continue;
+        if pt.X > FMap.Width then continue;
+        if pt.Y > FMap.Height then continue;
 
         Brush.Style := bsClear;
         Font.Style := [];
@@ -898,16 +1263,27 @@ begin
         sysPosArr[idx].starRect := r;
         TextOut(pt.X,pt.Y,starSymbol);
 
+        if FRoute.Count > 1 then
+        begin
+          //Font.Color := clWhite;
+          Font.Size := fontSize + 2;
+          if sys = FRoute[0] then
+            TextOut(pt.X+4,pt.Y-fontSize-4,'🏳');
+          if sys = FRoute[FRoute.Count-1] then
+            TextOut(pt.X+4,pt.Y-fontSize-4,'🏁');
+        end;
+
         if elevationf then
-        if (sys.Architect <> '') or (sys.CurrentGoals <> '') then
+        if (sys.Architect <> '') or (sys.CurrentGoals <> '') or (sys.TaskGroup <> '') or
+         (FNeighbours.IndexOfObject(sys) >= 0) then
         begin
           Pen.Style := psSolid;
           Pen.Width := 1;
           Pen.Color := $00A000;
           if sys.StarPosY < midY then
             Pen.Color := $0000A0;
-          r.Left := r.Left + (fontSize+4) div 2;
-          r.Top := r.Top + (fontSize+4) div 2 + 4;
+          r.Left := r.Left + (Font.Size) div 2;
+          r.Top := r.Top + (Font.Size) div 2 + 4;
           MoveTo(r.Left,r.Top);
           r.Top := r.Top + Trunc((sys.StarPosY-midY)*PixelsPerLy/6);
           LineTo(r.Left,r.Top);
@@ -964,7 +1340,10 @@ LSkipLabelReposition:;
           Font.Color := clBlack;
         end;
 
-        TextOut(r.Left,r.Top,sys.StarSystem);
+        s := sys.StarSystem;
+        if sys.AlterName <> '' then
+          if Opts.Flags['ShowAlterNames'] then s := sys.AlterName;
+        TextOut(r.Left,r.Top,s);
 
         Pen.Color := $606060;
         s := '';
@@ -995,6 +1374,24 @@ LSkipLabelReposition:;
             Font.Color := $00A0FF;
           end;
 
+          if InfoLayer = 'SC' then
+          if (sys.Population > 0) or sys.PrimaryDone then
+          begin
+            cnt1 := sys.GetScore;
+            s := '🏆 ' + cnt1.ToString;
+            if cnt1 <= 5 then
+              Font.Color := $0000A0
+            else
+            if cnt1 <= 15 then
+              Font.Color := $00A0FF
+            else
+            if cnt1 <= 50 then
+              Font.Color := $00C0C0
+            else
+              Font.Color := $00A000;
+          end;
+
+        {
           if InfoLayer = 'MF' then
           if sys.Population > 0 then
           begin
@@ -1002,6 +1399,30 @@ LSkipLabelReposition:;
             Font.Color := $00C000;
             if Pos(';',s) > 0 then
               Font.Color := $00A0A0;
+          end;
+
+          if InfoLayer = 'LV' then
+          if (sys.Population > 0) or sys.PrimaryDone then
+          begin
+            try
+              dt := StrToDateTime(Copy(sys.LastUpdate,1,10));
+              dDt := Now - dt;
+              s := '⏳' + IntToStr(Trunc(dDt)) + 'd';
+              //Font.Color := $00C000;
+              if dDt <= 1  then
+                s := '';
+              if dDt > 28 then
+                Font.Color := $0000A0
+              else
+              if dDt > 14 then
+                Font.Color := $00A0FF
+              else
+              if dDt > 3 then
+                Font.Color := $00C0C0
+              else
+                Font.Color := $00A000;
+            except
+            end;
           end;
 
           if InfoLayer = 'LP' then
@@ -1028,7 +1449,7 @@ LSkipLabelReposition:;
             if cnt3 > 0  then s := s + '🏭' + cnt3.ToString + ' ';
             Font.Color := $00A000;
           end;
-
+}
           if InfoLayer = 'AH' then
           begin
             if FHistoryEntry > 0 then
@@ -1045,6 +1466,67 @@ LSkipLabelReposition:;
             end;
           end;
 
+        end;
+
+        if (sys.Architect <> '') or (sys.TaskGroup <> '') then
+        begin
+          if InfoLayer = 'MF' then
+          if sys.Population > 0 then
+          begin
+            s := '👥' + sys.GetFactions(true,true);
+            Font.Color := $00C000;
+            if Pos(';',s) > 0 then
+              Font.Color := $00A0A0;
+          end;
+
+          if InfoLayer = 'LV' then
+          if (sys.Population > 0) or sys.PrimaryDone then
+          begin
+            try
+              dt := StrToDateTime(Copy(sys.LastUpdate,1,10));
+              dDt := Now - dt;
+              s := '⏳' + IntToStr(Trunc(dDt)) + 'd';
+              //Font.Color := $00C000;
+              if dDt <= 1  then
+                s := '';
+              if dDt > 28 then
+                Font.Color := $0000A0
+              else
+              if dDt > 14 then
+                Font.Color := $00A0FF
+              else
+              if dDt > 3 then
+                Font.Color := $00C0C0
+              else
+                Font.Color := $00A000;
+            except
+            end;
+          end;
+
+          if InfoLayer = 'LP' then
+          begin
+            cnt1 := 0;
+            cnt2 := 0;
+            cnt3 := 0;
+            for i2 := 0 to sys.Stations.Count - 1 do
+            with TMarket(sys.Stations[i2]) do
+              if LPads > 0 then
+                if (Pos('Settl',StationType) <= 0) and (Pos('Carrier',StationType) <= 0) then
+                  if IsOrbital then
+                  begin
+                    if Pos('Asteroid',StationType) > 0 then
+                      Inc(cnt2)
+                    else
+                      Inc(cnt1);
+                  end
+                  else
+                    Inc(cnt3);
+            s := '';
+            if cnt1 > 0  then s := s + '⚪•' + cnt1.ToString + ' ';
+            if cnt2 > 0  then s := s + '🥔' + cnt2.ToString + ' ';
+            if cnt3 > 0  then s := s + '🏭' + cnt3.ToString + ' ';
+            Font.Color := $00A000;
+          end;
         end;
 
         if sys.Stations.Count > 0 then
@@ -1154,7 +1636,7 @@ LSkipLabelReposition:;
         end;
 
 
-        if (sys.Architect <> '') or (sys.CurrentGoals <> '') then
+        if (sys.Architect <> '') or (sys.CurrentGoals <> '') or (sys.TaskGroup <> '') then
         begin
           if InfoLayer = 'EW' then
           begin
@@ -1198,6 +1680,63 @@ LSkipLabelReposition:;
       end;
     end;
 
+    if FRoute.Count > 1 then
+    begin
+      totDist := 0;
+      Pen.Width := 1;
+      Font.Color := clWhite;
+      Font.Size := fontSize + 2;
+      for i := 0 to FRoute.Count - 2 do
+      begin
+        if FRoute[i] = nil then continue;
+        if FRoute[i+1] = nil then continue;
+        CalcStarLane(FRoute[i],FRoute[i+1],r);
+        Pen.Style := psDot;
+        Pen.Color := $0000A0;
+        Brush.Style := bsSolid;
+        Brush.Color := clGray;
+        MoveTo(r.Left,r.Top);
+        LineTo(r.Right,r.Bottom);
+
+        {
+        Pen.Style := psSolid;
+        Pen.Color := clWhite;
+        LineTo(r.Right,r.Bottom);
+        Pen.Style := psDot;
+        Pen.Color := $0000A0;
+        LineTo(r.Left,r.Top);
+        }
+
+        if not FHideDistances then
+        begin
+          r.Left := r.Left + (r.Right - r.Left) div 2;
+          r.Top := r.Top + (r.Bottom - r.Top) div 2;
+          dist := FRoute[i].DistanceTo(FRoute[i+1]);
+          totDist := totDist + dist;
+          s := '';
+          {if i = 0 then
+            s := s + '🏳 ';  }
+          s := s + FloatToStrF(dist,ffFixed,7,2);
+          if i > 0 then
+            s := s + ' (' + FloatToStrF(totDist,ffFixed,7,2) + ')';
+          {if i = FRoute.Count - 2 then
+            s := s + ' 🏁';}
+          r.Top := r.Top + TextHeight('Wq') div 2 + 1;
+          Brush.Style := bsSolid;
+          Brush.Color := clBlack;
+          TextOut(r.Left,r.Top,s);
+
+          r.Right := r.Left + TextWidth(s) + 1;
+          r.Left := r.Left - 1;
+          r.Bottom := r.Top + TextHeight(s) + 1;
+          Pen.Style := psSolid;
+          Pen.Color := $0000A0;
+          Brush.Style := bsClear;
+          Rectangle(r);
+        end;
+      end;
+    end;
+
     Brush.Assign(PaintBox.Canvas.Brush);
     Brush.Color := $A0A0A0;
     r := PaintBox.ClientRect;
@@ -1221,8 +1760,8 @@ LSkipLabelReposition:;
     TextOut(r.Left, r.Top , '✧'); Inc(r.Top,12);
     TextOut(r.Left, r.Top, '⛶'); Inc(r.Top,12);
     Font.Size := 9;
-    TextOut(r.Left, r.Top, '○ '); Inc(r.Top,12);
     TextOut(r.Left, r.Top, '● '); Inc(r.Top,12);
+    TextOut(r.Left, r.Top, '○ '); Inc(r.Top,12);
     TextOut(r.Left, r.Top, '---'); Inc(r.Top,12);
 
     s := '10 ly grid';
@@ -1240,31 +1779,50 @@ LSkipLabelReposition:;
     TextOut(r.Left, r.Top, 'Star Lanes'); Inc(r.Top,12);
 
     FPreviewRect := Default(TRect);
+
     if FSelectedSystem <> nil then
+    if Opts.Int['ShowSysPreview'] > 0 then
+    if (FRoute.Count = 0) or (Opts.Int['ShowSysPreview'] = 2) then
     begin
-      png := TPngImage.Create;
-      try
-        png.LoadFromFile(FSelectedSystem.ImagePath);
-        r := PaintBox.ClientRect;
-        w := r.Width div 3;
-        r.Left := 12;
-        r.Right := r.Left + w;
-        r.Bottom := r.Bottom - 12;
-        r.Top := r.Bottom - w * png.Height div png.Width;
-        GetBrushOrgEx(Handle,pt);
-        SetStretchBltMode(Handle,HALFTONE);
-        SetBrushOrgEx(Handle,pt.x,pt.y,@pt);
-        StretchBlt(Handle, r.Left, r.Top, r.Right - r.Left, r.Bottom - r.Top,
-          png.Canvas.Handle, 0, 0, png.Width, png.Height, CopyMode);
-        Pen.Width := 1;
-        Pen.Style := psSolid;
-        Pen.Color := clSilver;
-        Brush.Style := bsClear;
-        Rectangle(r);
-        FPreviewRect := r;
-      except
+      if not ColonModeCheck.Checked then
+      begin
+        png := TPngImage.Create;
+        try
+          png.LoadFromFile(FSelectedSystem.ImagePath);
+          r := PaintBox.ClientRect;
+          w := r.Width div 3;
+          r.Left := 12;
+          r.Right := r.Left + w;
+          r.Bottom := r.Bottom - 12;
+          r.Top := r.Bottom - w * png.Height div png.Width;
+          GetBrushOrgEx(Handle,pt);
+          SetStretchBltMode(Handle,HALFTONE);
+          SetBrushOrgEx(Handle,pt.x,pt.y,@pt);
+          StretchBlt(Handle, r.Left, r.Top, r.Right - r.Left, r.Bottom - r.Top,
+            png.Canvas.Handle, 0, 0, png.Width, png.Height, CopyMode);
+          Pen.Width := 1;
+          Pen.Style := psSolid;
+          Pen.Color := clSilver;
+          Brush.Style := bsClear;
+          Rectangle(r);
+          FPreviewRect := r;
+
+        except
+        end;
+        png.Free;
       end;
-      png.Free;
+
+      s := '';
+      if FSelectedSystem.Comment <> '' then s := s + FSelectedSystem.Comment + '  ';
+      if FSelectedSystem.CurrentGoals <> '' then s := s + FSelectedSystem.CurrentGoals + '  ';
+      if s <> '' then
+      begin
+        Font.Size := fontSize;
+        Font.Color := clSilver;
+        r.Left := 12;
+        r.bottom := PaintBox.ClientRect.bottom - 12 - TextHeight(s);
+        TextOut(r.Left+2,r.bottom-2,s);
+      end;
     end;
 
   end;
@@ -1277,11 +1835,98 @@ begin
   PaintBox.Canvas.Draw(0,0,FMap);
 end;
 
+procedure TStarMapForm.SetRouteMenuItemClick(Sender: TObject);
+var i: Integer;
+begin
+  if FRouteName = TMenuItem(Sender).Hint then
+  begin
+    FRouteName := '';
+    FRoute.Clear;
+  end
+  else
+  begin
+    FRouteName := TMenuItem(Sender).Hint;
+    FRoute.CommaText := DataSrc.Routes.Values[FRouteName];
+    for i := 0 to FRoute.Count - 1 do
+      FRoute.Objects[i] := DataSrc.StarSystems.SystemByName[FRoute.Strings[i]];
+    FMapZoom := 75;
+  end;
+  UpdateItems;
+  UpdateMap(true);
+  PaintBoxPaint(nil);
+end;
+
+procedure TStarMapForm.SaveRouteMenuItemClick(Sender: TObject);
+begin
+  if (TMenuItem(Sender).Tag = 1) or (FRouteName = '') then
+    FRouteName := Vcl.Dialogs.InputBox('Route', 'Name', FRouteName);
+  if FRouteName = '' then Exit;
+  DataSrc.SetRoute(FRouteName,FRoute.CommaText);
+end;
+
+procedure TStarMapForm.DeleteRouteMenuItemClick(Sender: TObject);
+begin
+  if FRouteName = '' then Exit;
+  if Vcl.Dialogs.MessageDlg('Delete current route?',
+    mtConfirmation, [mbYes, mbNo], 0, mbNo) = mrNo then Exit;
+  DataSrc.SetRoute(FRouteName,'');
+  FRouteName := '';
+  FRoute.Clear;
+  UpdateMap;
+  PaintBoxPaint(nil);
+end;
+
 procedure TStarMapForm.PopupMenuPopup(Sender: TObject);
+var i: Integer;
+    mitem: TMenuItem;
 begin
   SystemInfoMenuItem.Enabled := FSelectedSystem <> nil;
   CopySystemNameMenuItem.Enabled := FSelectedSystem <> nil;
   MapKeySubMenu.Enabled := FSelectedSystem <> nil;
+  ColonizationSubMenu.Enabled := FSelectedSystem <> nil;
+  StartRouteMenuItem.Enabled := FRoute.Count > 1;
+  StopRouteMenuItem.Enabled := (FRoute.Count > 1) or DataSrc.CurrentRoute.Active;
+  ClearRouteMenuItem.Enabled := FRoute.Count > 1;
+
+  for i := RouteSubMenu.Count - 1 downto 0 do
+  begin
+    if RouteSubMenu.Items[i].Caption = '-' then break;
+    RouteSubMenu.Delete(i);
+  end;
+
+  for i := 0 to DataSrc.Routes.Count - 1 do
+  begin
+    mitem := TMenuItem.Create(RouteSubMenu);
+    mitem.Caption := '🏳🏁 ' + DataSrc.Routes.Names[i];
+    mitem.Hint := DataSrc.Routes.Names[i];
+    mitem.OnClick := SetRouteMenuItemClick;
+    mitem.AutoCheck := true;
+    mitem.Checked := FRouteName = mitem.Hint;
+    RouteSubMenu.Add(mitem);
+  end;
+  if DataSrc.Routes.Count = 0 then
+  begin
+    mitem := TMenuItem.Create(RouteSubMenu);
+    mitem.Caption := '( no saved routes )';
+    mitem.Enabled := false;
+    RouteSubMenu.Add(mitem);
+  end;
+  mitem := TMenuItem.Create(RouteSubMenu);
+  mitem.Caption := 'Save';
+  mitem.OnClick := SaveRouteMenuItemClick;
+  mitem.Enabled := (FRoute.Count > 1) and (FRouteName <> '');
+  RouteSubMenu.Add(mitem);
+  mitem := TMenuItem.Create(RouteSubMenu);
+  mitem.Caption := 'Save As...';
+  mitem.OnClick := SaveRouteMenuItemClick;
+  mitem.Tag := 1;
+  mitem.Enabled := FRoute.Count > 1;
+  RouteSubMenu.Add(mitem);
+  mitem := TMenuItem.Create(RouteSubMenu);
+  mitem.Caption := 'Delete';
+  mitem.OnClick := DeleteRouteMenuItemClick;
+  mitem.Enabled := FRouteName <> '';
+  RouteSubMenu.Add(mitem);
 end;
 
 end.

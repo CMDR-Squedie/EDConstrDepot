@@ -52,7 +52,6 @@ object StarMapForm: TStarMapForm
     Color = clSilver
     ParentBackground = False
     TabOrder = 0
-    ExplicitWidth = 1184
     object InnerPanel1: TPanel
       Left = 0
       Top = 0
@@ -293,6 +292,9 @@ object StarMapForm: TStarMapForm
             #55357#56421' Maj. Factions                                                ' +
             '        MF'
           
+            #9203'  Last Visit                                                   ' +
+            '             LV'
+          
             #9898#8226'Large Ports                                                   ' +
             '        LP'
           
@@ -313,6 +315,9 @@ object StarMapForm: TStarMapForm
           
             #55356#57101' Earthlike/WW/Rings                                           ' +
             '  EW'
+          
+            #55356#57286' System Score                                                 ' +
+            '        SC'
           
             #55357#56658' Colonization History                                         ' +
             '        AH'
@@ -350,14 +355,23 @@ object StarMapForm: TStarMapForm
         OnClick = ElevationCheckClick
       end
       object ElevFollowSelCheck: TCheckBox
-        Left = 527
-        Top = 10
+        Left = 639
+        Top = 12
         Width = 90
         Height = 17
         Caption = '- follow sel.'
         TabOrder = 4
         Visible = False
         OnClick = ElevationCheckClick
+      end
+      object ColonModeCheck: TCheckBox
+        Left = 527
+        Top = 10
+        Width = 81
+        Height = 17
+        Caption = 'Colon.Mode'
+        TabOrder = 5
+        OnClick = ColonModeCheckClick
       end
     end
   end
@@ -408,6 +422,59 @@ object StarMapForm: TStarMapForm
         Caption = 'Clear'
         OnClick = MapKey1MenuItemClick
       end
+    end
+    object ColonizationSubMenu: TMenuItem
+      Caption = 'Colonization'
+      object ShowInListMenuItem: TMenuItem
+        Caption = 'List Neighbours'
+        OnClick = ShowInListMenuItemClick
+      end
+      object AddNeighboursEDSMMenuItem: TMenuItem
+        Caption = 'Add Neighbours (EDSM)'
+        OnClick = AddNeighboursEDSMMenuItemClick
+      end
+      object Add2HopSystemsEDSMMenuItem: TMenuItem
+        Caption = 'Add 2-Hop Systems (EDSM)'
+        OnClick = Add2HopSystemsEDSMMenuItemClick
+      end
+      object N3: TMenuItem
+        Caption = '-'
+      end
+      object AddToTargetsMenuItem: TMenuItem
+        Caption = 'Add To Targets'
+        OnClick = AddToTargetsMenuItemClick
+      end
+    end
+    object RouteSubMenu: TMenuItem
+      Caption = 'Route'
+      object StartRouteMenuItem: TMenuItem
+        Caption = 'Start'
+        OnClick = StartRouteMenuItemClick
+      end
+      object StopRouteMenuItem: TMenuItem
+        Caption = 'Stop'
+        OnClick = StopRouteMenuItemClick
+      end
+      object ClearRouteMenuItem: TMenuItem
+        Caption = 'Clear'
+        OnClick = ClearRouteMenuItemClick
+      end
+      object HideDistancesMenuItem: TMenuItem
+        AutoCheck = True
+        Caption = 'Hide Distances'
+        OnClick = HideDistancesMenuItemClick
+      end
+      object N4: TMenuItem
+        Caption = '-'
+      end
+    end
+    object FindSystemMenuItem: TMenuItem
+      Caption = 'Go To System...'
+      OnClick = FindSystemMenuItemClick
+    end
+    object FindBodiesMenuItem: TMenuItem
+      Caption = 'Find Bodies...'
+      OnClick = FindBodiesMenuItemClick
     end
     object N2: TMenuItem
       Caption = '-'

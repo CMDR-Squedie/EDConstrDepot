@@ -282,6 +282,7 @@ begin
       addSubItem(tostr(ct.WealthLev));
       addSubItem(tostr(ct.StdLivLev));
       addingStats := False;
+      addSubItem(tostr(ct.Score));
       addSubItem(tostr(ct.EstCargo));
       addSubItem(ctcnt.Values[ct.Id]);
 
@@ -293,6 +294,7 @@ begin
 
     if autoSizeCol then
     begin
+      colMaxTxt[5] := Copy(colMaxTxt[5],1,35); //layouts
       for i := 0 to ListView.Columns.Count - 1 do
         ListView.Column[i].Width := ListView.Canvas.TextWidth(colMaxTxt[i]) + 15; //margins
     end;
@@ -413,7 +415,7 @@ begin
   ClickedColumn := -1;
   w := 0;
   xm := x + GetScrollPos(ListView.Handle,SB_HORZ);
-  for i := 0 to ListView.Columns.Count -1  do
+  for i := 0 to ListView.Columns.Count - 1  do
   begin
     w := w + ListView.Column[i].Width;
     if w >= xm then

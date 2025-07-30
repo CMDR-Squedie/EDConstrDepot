@@ -53,6 +53,7 @@ type
     ConstructionInfoMenuItem: TMenuItem;
     InclPlannedCheck: TCheckBox;
     MarketHistoryMenuItem: TMenuItem;
+    ShowOnMapMenuItem: TMenuItem;
     procedure ListViewColumnClick(Sender: TObject; Column: TListColumn);
     procedure ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
@@ -113,7 +114,8 @@ var
 
 implementation
 
-uses Main,Clipbrd,Settings, MarketInfo, Splash, SystemInfo, StationInfo;
+uses Main,Clipbrd,Settings, MarketInfo, Splash, SystemInfo, StationInfo,
+  StarMap;
 
 {$R *.dfm}
 
@@ -123,6 +125,7 @@ const cMarketFavInd: array [miNormal..miLast] of string = ('','','','●','●�
 procedure TMarketsForm.OnEDDataUpdate;
 begin
   if Visible then
+  if ListView.Items.Count < 1000 then
   begin
     SaveSelection;
     UpdateItems;
@@ -245,6 +248,7 @@ begin
   end;
   EditCommentMenuItem.Enabled := m <> nil;
   SelectCurrentMenuItem.Enabled := mf or cdf;
+  ShowOnMapMenuItem.Enabled := mf or cdf;
 
   FleetCarrierSubMenu.Enabled := (m <> nil) and (m.StationType = 'FleetCarrier');
   MarketsSubMenu.Enabled := mf or snapf;
@@ -1161,6 +1165,15 @@ begin
       begin
         StationInfoForm.SetStation(bm);
         StationInfoForm.RestoreAndShow;
+      end;
+    end;
+  22:
+    begin
+      sys := bm.GetSys;
+      if sys <> nil then
+      begin
+        StarMapForm.SelectSystem(sys);
+        StarMapForm.RestoreAndShow;
       end;
     end;
   else

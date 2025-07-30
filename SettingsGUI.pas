@@ -48,7 +48,8 @@ implementation
 {$R *.dfm}
 
 uses Settings, Main, Markets, MarketInfo, DataSource, Splash, Colonies,
-  SystemInfo, StationInfo, ConstrTypes, MaterialList, Toolbar, ToolTip;
+  SystemInfo, StationInfo, ConstrTypes, MaterialList, Toolbar, ToolTip, StarMap,
+  Summary, Bodies;
 
 procedure TSettingsForm.BackupJournalLinkLinkClick(Sender: TObject;
   const Link: string; LinkType: TSysLinkType);
@@ -106,6 +107,7 @@ begin
   DefineFlag('ClickThrough','transparent to in-game clicks (Alt-Tab/Menu key to re-activate)');
   DefineFlag('ScanMenuKey','when in-game, press and hold Quick Menu key to activate the app');
   DefineOpt('AlwaysOnTop','0-not on top; 1-always on top; 2-on top of E:D window only',0,2,'');
+  DefineFlag('CrossHair','extra aiming mark at screen center - use .ini file to customize');
 
   DefineGroup('OVERLAY: DISPLAY');
   DefineOpt('FontName','',0,0,'font');
@@ -140,39 +142,10 @@ begin
   DefineOpt('FontName2','font name for secondary windows (markets, colonies etc.)',0,0,'font');
   DefineOpt('FontSize2','font size for secondary windows',1,255,'');
 
-{
-  DefineOpt('FontName','',0,0,'font');
-  DefineOpt('FontSize','',1,255,'');
-  DefineOpt('Color','hex color code for font color',0,0,'hex');
-  DefineFlag('DarkMode','changes color scheme to dark');
-  DefineOpt('FontGlow','0-255 transition between font color and background',0,255,'');
-  DefineOpt('Backdrop','0-transparent; 1-opaque; 2-shadowed',0,2,'');
-  DefineOpt('AlphaBlend','0-255 shadow intensity (if Backdrop=2)',0,255,'');
-  DefineFlag('AutoAlphaBlend','automatic shadow intensity (if Backdrop=2)');
-  DefineFlag('ClickThrough','transparent to in-game clicks (Alt-Tab/Menu key to re-activate)');
-  DefineFlag('ScanMenuKey','when in-game, press and hold Quick Menu key to activate the app');
-  DefineOpt('AlwaysOnTop','0-not on top; 1-always on top; 2-on top of E:D window only',0,2,'');
-  DefineOpt('AutoSort','0-alphabetical; 1-by market availability; 2-by category and availability',0,2,'');
-  DefineFlag('TrackMarkets','automatically track visited markets');
-  DefineFlag('AutoSnapshots','auto-create market history on economy change');
-  DefineFlag('IncludeFinished','allow finished constructions for menu selection');
-  DefineFlag('ShowUnderCapacity','');
-  DefineOpt('ShowProgress','0-no info; 1-beneath the list; 2-in the title bar',0,2,'');
-  DefineOpt('ShowFlightsLeft','0-no info; 1-beneath the list; 2-in the title bar',0,2,'');
-  DefineFlag('ShowStarSystem','star system abbrev. in title bar');
-  DefineFlag('HighlightGoals','highlight colonies with non-empty current goals');
-  DefineFlag('ShowDelTime','includes delivery time left, recent and average dock-to-dock time');
-  DefineFlag('ShowRecentMarket','');
-  DefineFlag('ShowBestMarket','');
-  DefineFlag('ShowDividers','');
-  DefineOpt('ShowIndicators','0-no indicators; 1-solid/hollow indicators; 2-hollow indicators only',0,2,'');
-  DefineFlag('ShowDistance','shows number of jumps there and back and exact Ly distance to markets');
-  DefineOpt('IncludeSupply','0-no supply hint; 1-full capacity supply; 2-full request supply',0,2,'');
-  DefineFlag('ShowCloseBox','');
-  DefineFlag('TransparentTitle','');
-  DefineOpt('FontName2','font name for secondary windows (markets, colonies etc.)',0,0,'font');
-  DefineOpt('FontSize2','font size for secondary windows',1,255,'');
-}
+  DefineGroup('COLONY MAP');
+  DefineFlag('ShowAlterNames','alternative system names on map');
+  DefineOpt('ShowSysPreview','sys. preview on map: 0-off; 1-on when not plotting route; 2-always on',0,2,'');
+
   for i := 0 to ListView.Columns.Count - 1 do
   begin
 //    ListView.Column[2].Width := -1;
@@ -287,6 +260,9 @@ begin
   MaterialListForm.ApplySettings;
   ToolbarForm.ApplySettings;
   TooltipForm.ApplySettings;
+  StarMapForm.OnChangeSettings;
+  SummaryForm.ApplySettings;
+  BodiesForm.ApplySettings;
 end;
 
 end.

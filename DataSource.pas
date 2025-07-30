@@ -101,6 +101,7 @@ type TConstructionType = class
   Economy: string;
   Influence: string;
   Requirements: string;
+  Score: Integer;
   CP2: Integer;
   CP3: Integer;
   MaxPad: string;
@@ -177,6 +178,8 @@ public
   Constructions: TList; //this is only populated on demand, eg. in System View;
   SurfLinkHub: TConstructionDepot;
   OrbLinkHub: TConstructionDepot;
+  Comment: string;
+  PrimaryLoc: Boolean;
   procedure UpdateEconomies;
   function Economies: TEconomyArray;
   function BaseEconomies: TEconomyArray;
@@ -193,6 +196,7 @@ private
   FAlterName: string;
   FBodies: TStringList;
   FResourceReserve: string;
+  FShared: Boolean;
   function GetFactions_short: string;
   function GetFactions_full: string;
   function GetArchitectName: string;
@@ -225,8 +229,9 @@ public
   SurfaceSlots: Integer;
   TaskGroup: string;
   MapKey: Integer;
-  Constructions: TList; //this is only populated on demand, eg. in Map View;
-  Stations: TList; //this is only populated on demand, eg. in Map View; 
+  Constructions: TList; //on demand, eg. in Map View;
+  Stations: TList; //on demand, eg. in Map View;
+  NearestColony: TStarSystem; //on demand, Map View only
   function ResourceReserve: string;
   function DistanceTo(s: TStarSystem): Double;
   function PopForTimeStamp(tms: string): Int64;
@@ -237,12 +242,14 @@ public
   function BodyByName(name: string): TSystemBody;
   function BodyById(id: string): TSystemBody;
   function GetFactions(abbrevf: Boolean; majorf: Boolean): string;
+  function GetScore: Integer;
   procedure UpdateBodies_EDSM;
   procedure UpdateFromScan_EDSM;
   procedure ResetEconomies;
   function ImagePath: string;
   procedure UpdateSave;
-  procedure Save;
+  procedure Save(const sharedf: Boolean = false);
+  procedure SaveToShared;
   constructor Create;
   destructor Destroy;
 published
@@ -366,9 +373,17 @@ public
   procedure UpdateBodyScan(js: string; j: TJSONObject);
   procedure UpdateBodySignals(js: string; j: TJSONObject);
   function AddFromName(name: string): Boolean;
-  function AddNeighbours_EDSM(origin: string): Integer;
+  function AddNeighbours_EDSM(origin: string): Integer; //15Ly
+  function AddNeighbours2_EDSM(originSys: TStarSystem): Integer; //two-hop max
   procedure RemoveFromName(name: string; const delf: Boolean = true);
   constructor Create;
+end;
+
+type TStarRoute = class (TStringList)
+public
+  Active: Boolean;
+  procedure StartRoute(sl: TStringList);
+  procedure StopRoute;
 end;
 
 type TConstructionList = class (THashedStringList)
@@ -433,7 +448,9 @@ type TEDDataSource = class (TDataModule)
     FEconomySets: TEconomySets;
     FEconomyList: THashedStringList;
     FPreventNotify: Boolean; //todo: change to counter!
-
+    FCurrentRoute: TStarRoute;
+    FRoutes: TStringList;
+    FDocked: Boolean;
     FProcessedEvents: THashedStringList;
 
     procedure SetDataChanged;
@@ -484,6 +501,9 @@ type TEDDataSource = class (TDataModule)
     property WorkingDir: string read FWorkingDir;
     property ConstructionTypes: TConstructionTypes read FConstructionTypes;
     property EconomySets: TEconomySets read FEconomySets;
+    property CurrentRoute: TStarRoute read FCurrentRoute;
+    property Routes: TStringList read FRoutes;
+    property Docked: Boolean read FDocked;
     procedure MarketToSimDepot(mID: string);
     procedure MarketToCargoExt(mID: string);
     procedure CreateMarketSnapshot(mID: string);
@@ -505,6 +525,7 @@ type TEDDataSource = class (TDataModule)
     procedure GetUniqueGroups(sl: TStringList);
     procedure ResetDockTimes;
     function EcoFromName(s: string): TEconomy;
+    procedure SetRoute(name,systems:string);
 //    property DataChanged: Boolean read FDataChanged;
     procedure Load;
     procedure BeginUpdate;
@@ -732,6 +753,7 @@ begin
         jarr[i].TryGetValue<string>('Requirements',ct.Requirements);
         jarr[i].TryGetValue<string>('MaxPad',ct.MaxPad);
         jarr[i].TryGetValue<string>('Influence',ct.Influence);
+        jarr[i].TryGetValue<Integer>('Score',ct.Score);
         jarr[i].TryGetValue<Integer>('CP2',ct.CP2);
         jarr[i].TryGetValue<Integer>('CP3',ct.CP3);
         jarr[i].TryGetValue<Integer>('InitPop',ct.InitPop);
@@ -1543,6 +1565,22 @@ begin
   PopHistory.AddPair(tms,IntToStr(pop));
 end;
 
+function TStarSystem.GetScore: Integer;
+var i: Integer;
+    ct: TConstructionType;
+begin
+  Result := 0;
+  if Constructions = nil then Exit;
+  for i := 0 to Constructions.Count - 1 do
+    with TConstructionDepot(Constructions[i]) do
+    if Finished then
+    begin
+      ct := GetConstrType;
+      if ct <> nil then
+         Result := Result+ ct.Score;
+    end;
+end;
+
 function TStarSystem.GetFactions(abbrevf: Boolean; majorf: Boolean): string;
 var j: TJSONObject;
     jarr: TJSONArray;
@@ -1939,9 +1977,9 @@ begin
   end;
 end;
 
-procedure TStarSystem.Save;
+procedure TStarSystem.Save(const sharedf: Boolean = false);
 var j: TJSONObject;
-    fn: string;
+    fn,fld: string;
     sarr: TJSONArray;
     st: TJSONObject;
     i: Integer;
@@ -1962,6 +2000,17 @@ begin
   j.AddPair(TJSONPair.Create('SurfaceSlots', SurfaceSlots));
   j.AddPair(TJSONPair.Create('TaskGroup', TaskGroup));
   j.AddPair(TJSONPair.Create('MapKey', MapKey));
+  j.AddPair(TJSONPair.Create('StarPosX', StarPosX));
+  j.AddPair(TJSONPair.Create('StarPosY', StarPosY));
+  j.AddPair(TJSONPair.Create('StarPosZ', StarPosZ));
+
+  j.AddPair(TJSONPair.Create('Population', Population));
+  j.AddPair(TJSONPair.Create('SystemSecurity', SystemSecurity));
+  j.AddPair(TJSONPair.Create('Factions', FFactions));
+  j.AddPair(TJSONPair.Create('LastUpdate', LastUpdate));
+
+  if sharedf then
+    j.AddPair(TJSONPair.Create('Shared', True));
 
   sarr := TJSONArray.Create;
   j.AddPair(TJSONPair.Create('Stations', sarr));
@@ -2002,6 +2051,8 @@ begin
         st.AddPair(TJSONPair.Create('BiologicalSignals', BiologicalSignals));
         st.AddPair(TJSONPair.Create('GeologicalSignals', GeologicalSignals));
         st.AddPair(TJSONPair.Create('ReserveLevel', ReserveLevel));
+        st.AddPair(TJSONPair.Create('Comment', Comment));
+        st.AddPair(TJSONPair.Create('PrimaryLoc', PrimaryLoc));
         sarr.Add(st);
       end;
 {
@@ -2021,14 +2072,40 @@ begin
       end;
 }
 
-  fn := DataSrc.FWorkingDir + 'colonies\' + StarSystem + '.json';
+  fld := 'colonies';
+  if sharedf then fld := 'shared\colonies';
+  
+  fn := DataSrc.FWorkingDir + fld + '\' + StarSystem + '.json';
   if SystemAddress <> '' then
   begin
     DeleteFile(PChar(fn));
-    fn := DataSrc.FWorkingDir + 'colonies\' + SystemAddress + '.json';
+    fn := DataSrc.FWorkingDir + fld + '\' + SystemAddress + '.json';
   end;
   TFile.WriteAllText(fn, j.Format());
   j.Free;
+end;
+
+procedure TStarSystem.SaveToShared;
+var i: Integer;
+begin
+  try
+    CreateDir(DataSrc.FWorkingDir + 'shared');
+    CreateDir(DataSrc.FWorkingDir + 'shared\colonies');
+    CreateDir(DataSrc.FWorkingDir + 'shared\markets');
+  except
+  end;
+  Save(true);
+  CopyFile(
+    PChar(DataSrc.FWorkingDir + 'colonies\' + StarSystem + '.png'),
+    PChar(DataSrc.FWorkingDir + 'shared\colonies\' + StarSystem + '.png'), false
+  );
+  for i := 0 to DataSrc.RecentMarkets.Count - 1 do
+    with TMarket(DataSrc.RecentMarkets.Objects[i]) do
+      if StarSystem = self.StarSystem then
+        CopyFile(
+          PChar(DataSrc.FWorkingDir + 'markets\' + MarketId + '.json'),
+          PChar(DataSrc.FWorkingDir + 'shared\markets\' + MarketId + '.json'), false
+        );
 end;
 
 procedure TStarSystem.Delete;
@@ -2188,6 +2265,7 @@ begin
     sys.SystemSecurity := j.GetValue<string>('SystemSecurity_Localised');
     try sys.SystemSecurity := SplitString(sys.SystemSecurity,' ')[0]; except end;
 
+    // ? if pop > 0 then //glitch in journals,sometime pop is zero for long colonized systems
     sys.Population := pop;
     sys.LastUpdate := tms;
     sys.LastCmdr := DataSrc.FCurrentCmdr;
@@ -2233,6 +2311,14 @@ begin
         j.TryGetValue<Integer>('SurfaceSlots',SurfaceSlots);
         j.TryGetValue<string>('TaskGroup',TaskGroup);
         j.TryGetValue<Integer>('MapKey',MapKey);
+        j.TryGetValue<double>('StarPosX',StarPosX);
+        j.TryGetValue<double>('StarPosY',StarPosY);
+        j.TryGetValue<double>('StarPosZ',StarPosZ);
+        j.TryGetValue<Int64>('Population',Population);
+        j.TryGetValue<string>('SystemSecurity',SystemSecurity);
+        j.TryGetValue<string>('Factions',FFactions);
+        j.TryGetValue<Boolean>('Shared',FShared);
+        j.TryGetValue<string>('LastUpdate',LastUpdate);
 
         if SystemScan_EDSM <> '' then
           UpdateFromScan_EDSM;
@@ -2295,6 +2381,8 @@ begin
               jarr[i].TryGetValue<Integer>('BiologicalSignals',b.BiologicalSignals);
               jarr[i].TryGetValue<Integer>('GeologicalSignals',b.GeologicalSignals);
               jarr[i].TryGetValue<string>('ReserveLevel',b.ReserveLevel);
+              jarr[i].TryGetValue<string>('Comment',b.Comment);
+              jarr[i].TryGetValue<Boolean>('PrimaryLoc',b.PrimaryLoc);
               FeaturesModified := True;
             end;
           end;
@@ -2317,14 +2405,16 @@ var req: TNetHTTPClient;
     i,bcnt: Integer;
     j: TJSONObject;
     jarr: TJSONArray;
-    s: string;
+    s,radius: string;
     sys: TStarSystem;
 begin
   Result := 0;
   req := TNetHTTPClient.Create(nil);
+  radius := '15';
   try
     s := origin.Replace(' ','%20');
-    res := req.Get('https://www.edsm.net/api-v1/sphere-systems?systemName=' + s + '&radius=15&showCoordinates=1');
+    res := req.Get('https://www.edsm.net/api-v1/sphere-systems?systemName=' + s +
+      '&radius=' + radius + '&showCoordinates=1');
     if res.StatusCode <> 200 then
       raise Exception.Create('EDSM response error: ' + IntToStr(res.StatusCode) + ' ' + res.StatusText);
     s := res.ContentAsString;
@@ -2332,6 +2422,7 @@ begin
       raise Exception.Create('EDSM response error: no data, try again later');
 
     jarr := TJSONObject.ParseJSONValue(s) as TJSONArray;
+    //DataSrc.BeginUpdate;
     try
 //      jarr := j.GetValue<TJSONArray>('');
       for i := 0 to jarr.Count - 1 do
@@ -2349,14 +2440,124 @@ begin
         sys.Comment := 'unvisited, bodies: ' + IntToStr(bcnt) + '; col. from ' + origin;
         sys.Save;
         AddObject(sys.StarSystem,sys);
+
         Result := Result + 1;
         if Result > 100 then Exit; //just in case things get really bad...
       end;
     finally
       jarr.Free;
+      //DataSrc.EndUpdate;
     end;
   finally
     req.Free;
+  end;
+end;
+
+
+function TSystemList.AddNeighbours2_EDSM(originSys: TStarSystem): Integer;
+var req: TNetHTTPClient;
+    res: IHTTPResponse;
+    i,i2,bcnt: Integer;
+    j: TJSONObject;
+    jarr: TJSONArray;
+    s,radius: string;
+    sys: TStarSystem;
+    nearl,farl: TSystemList;
+    newf,twohopf: Boolean;
+begin
+  Result := 0;
+  nearl := TSystemList.Create;
+  farl := TSystemList.Create;
+  req := TNetHTTPClient.Create(nil);
+  radius := '30';
+  try
+    s := originSys.StarSystem.Replace(' ','%20');
+    res := req.Get('https://www.edsm.net/api-v1/sphere-systems?systemName=' + s +
+      '&radius=' + radius + '&showCoordinates=1');
+    if res.StatusCode <> 200 then
+      raise Exception.Create('EDSM response error: ' + IntToStr(res.StatusCode) + ' ' + res.StatusText);
+    s := res.ContentAsString;
+    if Copy(s,1,1) <> '[' then
+      raise Exception.Create('EDSM response error: no data, try again later');
+
+    jarr := TJSONObject.ParseJSONValue(s) as TJSONArray;
+    try
+//      jarr := j.GetValue<TJSONArray>('');
+      for i := 0 to jarr.Count - 1 do
+      begin
+        s := '';
+        jarr[i].TryGetValue<string>('name',s);
+        newf := false;
+        sys := GetSystemByName(s);
+        if sys = nil then
+        begin
+          sys := TStarSystem.Create;
+          sys.StarSystem := s;
+          jarr[i].TryGetValue<double>('coords.x',sys.StarPosX);
+          jarr[i].TryGetValue<double>('coords.y',sys.StarPosY);
+          jarr[i].TryGetValue<double>('coords.z',sys.StarPosZ);
+          bcnt := 0;
+          jarr[i].TryGetValue<Integer>('bodyCount',bcnt);
+          sys.Comment := 'unvisited, bodies: ' + IntToStr(bcnt);
+          newf := true;
+        end;
+        if originSys.DistanceTo(sys) <= 15 then
+        begin
+          s := '';
+          if newf then
+          begin
+            sys.Comment := sys.Comment + '; col. from ' + originSys.StarSystem;
+            s := '$new';
+          end;
+          nearl.AddObject(s,sys);
+        end
+        else
+          if newf then
+            farl.AddObject('',sys);
+
+//        if Result > 100 then Exit; //just in case things get really bad...
+      end;
+    finally
+      jarr.Free;
+    end;
+    for i := farl.Count - 1 downto 0 do
+    begin
+      twohopf := false;
+      for i2 := 0 to nearl.Count - 1 do
+         if farl[i].DistanceTo(nearl[i2]) <= 15 then
+         begin
+           twohopf := true;
+           farl[i].Comment := farl[i].Comment + '; col. thru ' + nearl[i2].StarSystem;
+           break;
+         end;
+      if not twohopf then
+      begin
+        farl[i].Free;
+        farl.Delete(i);
+      end;
+    end;
+    //DataSrc.BeginUpdate;
+    try
+      for i := 0 to nearl.Count - 1 do
+        if nearl.Strings[i] = '$new' then
+        begin
+          nearl[i].Save;
+          self.AddObject(nearl[i].StarSystem,nearl[i]);
+          Result := Result + 1;
+        end;
+      for i := 0 to farl.Count - 1 do
+      begin
+        farl[i].Save;
+        self.AddObject(farl[i].StarSystem,farl[i]);
+        Result := Result + 1;
+      end;
+    finally
+      //DataSrc.EndUpdate;
+    end;
+  finally
+    req.Free;
+    nearl.Free;
+    farl.Free;
   end;
 end;
 
@@ -2444,6 +2645,26 @@ begin
   end;
 end;
 
+procedure TStarRoute.StartRoute(sl: TStringList);
+begin
+  if sl.Count < 2 then Exit;
+  self.Assign(sl);
+  if sl[0] = DataSrc.CurrentSystem.StarSystem then
+  begin
+    Clipboard.AsText := sl[1];
+    self.Delete(0);
+  end
+  else
+    Clipboard.AsText := sl[0];
+  Active := True;
+end;
+
+procedure TStarRoute.StopRoute;
+begin
+  Active := False;
+end;
+
+
 function TConstructionList.GetConstrByName(const Sys,Name: string): TConstructionDepot;
 var i: Integer;
     cd: TConstructionDepot;
@@ -2483,6 +2704,15 @@ begin
 
       if Body <> '' then
         if cd.Body <> body then continue;
+
+      if cd.GetSys <> nil then
+        if not cd.GetSys.PrimaryDone then
+        begin
+          Result := cd;
+          break;
+        end;
+
+
       ct := cd.GetConstrType;
       if ct <> nil then
       begin
@@ -2808,11 +3038,10 @@ procedure TEDDataSource.UpdateFromJournal(fn: string; jrnl: TStringList);
 var j: TJSONObject;
     jarr: TJSONArray;
     js,s,s2,tms,event,orgevent,mID,entryId: string;
-    i,i2,cpos,q: Integer;
+    i,i2,cpos,q,idx: Integer;
     cd,cd2: TConstructionDepot;
     m: TMarket;
     sys: TStarSystem;
-    docked: Boolean;
     newstationf: Boolean;
 label LUpdateTms;
 
@@ -2928,6 +3157,7 @@ begin
         end;
 
         j := TJSONObject.ParseJSONValue(jrnl[i]) as TJSONObject;
+
         tms := j.GetValue<string>('timestamp');
         //line index should be enough to track new events, tms is added to be 100% sure...
         entryId := tms + '.' + IntToStr(i).PadLeft(6);
@@ -2956,6 +3186,20 @@ begin
           FLastDropId := '';
           j.TryGetValue<string>('StarSystem',FCurrentSystem);
           StarSystems.UpdateFromFSDJump(js,j);
+
+          if FCurrentRoute.Active then
+          begin
+            idx := FCurrentRoute.IndexOf(FCurrentSystem);
+            if idx > - 1 then
+            begin
+              FCurrentRoute.Delete(idx);
+              if FCurrentRoute.Count > 0 then
+                Clipboard.AsText := FCurrentRoute[0];
+            end;
+            if FCurrentRoute.Count < 1 then
+              FCurrentRoute.Active := False;
+          end;
+
           goto LUpdateTms;
         end;
 
@@ -2965,12 +3209,12 @@ begin
           j.TryGetValue<string>('StarSystem',FCurrentSystem);
           try StarSystems.UpdateFromFSDJump(js,j); except end;
 
-          docked := false;
-          j.TryGetValue<Boolean>('Docked',docked);
-          if docked then
+          FDocked := false;
+          j.TryGetValue<Boolean>('Docked',FDocked);
+          if FDocked then
             event := 'Docked'
           else
-           goto LUpdateTms;
+            goto LUpdateTms;
         end;
 
 
@@ -3088,6 +3332,7 @@ begin
 
         if event = 'Undocked' then
         begin
+          FDocked := False;
           if mID = FLastDockDepotId then
             if FLastConstrDockTime <> '' then
               RemoveIdleDockTime(tms);
@@ -3095,6 +3340,7 @@ begin
 
         if event = 'Docked' then
         begin
+          FDocked := True;
           FLastDropId := '';
           s := j.GetValue<string>('StationType');
           if s = 'FleetCarrier' then FLastFC := mID;
@@ -3265,8 +3511,9 @@ begin
         if (event = 'MarketBuy') or (event = 'MarketSell') then
         begin
           m := MarketFromId(mID);
+          if m = nil then continue;
           if (event = 'MarketSell') and (m.StationType <> 'FleetCarrier') then continue;
-          if (m <> nil) and (m.LastUpdate < tms) then
+          if m.LastUpdate < tms then
           begin
             s := '';
             try s := j.GetValue<string>('Type_Localised'); except end;
@@ -3922,6 +4169,12 @@ begin
   if idx > -1 then Result := TEconomy(idx);
 end;
 
+procedure TEDDataSource.SetRoute(name,systems:string);
+begin
+  FRoutes.Values[name] := systems;
+  FRoutes.SaveToFile(FWorkingDir + 'routes.txt',TEncoding.UTF8);
+end;
+
 constructor TEDDataSource.Create(Owner: TComponent);
 var ei: TEconomy;
 begin
@@ -3992,6 +4245,8 @@ begin
   FLastJrnlTimeStamps := THashedStringList.Create;
   FConstructionTypes := TConstructionTypes.Create;
   FEconomySets := TEconomySets.Create;
+  FCurrentRoute := TStarRoute.Create;
+  FRoutes := TStringList.Create;
   FDataChanged := false;
 
   {
@@ -4034,6 +4289,7 @@ begin
   try FMarketComments.LoadFromFile(FWorkingDir + 'market_info.txt') except end;
   try FMarketLevels.LoadFromFile(FWorkingDir + 'market_level.txt') except end;
   try FMarketGroups.LoadFromFile(FWorkingDir + 'market_groups.txt') except end;
+  try FRoutes.LoadFromFile(FWorkingDir + 'routes.txt',TEncoding.UTF8) except end;
 
 
 //  UpdTimer.Enabled := True;

@@ -95,6 +95,10 @@ object ConstrTypesForm: TConstrTypesForm
       end
       item
         Alignment = taRightJustify
+        Caption = 'Score'
+      end
+      item
+        Alignment = taRightJustify
         Caption = 'Est.Haul'
       end
       item

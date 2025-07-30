@@ -65,8 +65,8 @@ object MarketInfoForm: TMarketInfoForm
     SortType = stText
     TabOrder = 0
     ViewStyle = vsReport
+    OnCompare = ListViewCompare
     OnDblClick = ListViewDblClick
-    ExplicitHeight = 468
   end
   object Panel1: TPanel
     Left = 0

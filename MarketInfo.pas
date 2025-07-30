@@ -40,8 +40,11 @@ type
     procedure ShowDifferences1MenuItemClick(Sender: TObject);
     procedure FormMouseWheel(Sender: TObject; Shift: TShiftState;
       WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
+    procedure ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
+      Data: Integer; var Compare: Integer);
   private
     { Private declarations }
+    SortColumn: Integer;
     FCurrentMarket: string;
     FCurrentCategory: string;
     FCompareSelected: Boolean;
@@ -99,6 +102,17 @@ procedure TMarketInfoForm.FormMouseWheel(Sender: TObject; Shift: TShiftState;
 begin
   if not self.Active then
     self.BringToFront;
+end;
+
+procedure TMarketInfoForm.ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
+  Data: Integer; var Compare: Integer);
+var s: string;
+begin
+  Compare := 0;
+  if SortColumn <= 0 then
+  begin
+    Compare := CompareText(Item1.Caption, Item2.Caption);
+  end;
 end;
 
 procedure TMarketInfoForm.ListViewDblClick(Sender: TObject);
@@ -446,7 +460,7 @@ begin
           addRow(groupid);
         end;
 
-      
+      ListView.SortType := stText;
     finally
       ListView.Items.EndUpdate;
       j.Free;

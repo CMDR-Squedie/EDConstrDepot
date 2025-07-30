@@ -114,7 +114,13 @@ object SystemInfoForm: TSystemInfoForm
     Align = alTop
     BevelOuter = bvNone
     Color = clGray
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -13
+    Font.Name = 'Bahnschrift SemiCondensed'
+    Font.Style = []
     ParentBackground = False
+    ParentFont = False
     TabOrder = 1
     object SystemNameLabel: TLabel
       Left = 8
@@ -132,6 +138,7 @@ object SystemInfoForm: TSystemInfoForm
       Height = 16
       AutoSize = False
       Caption = '----------------------'
+      OnDblClick = FactionsLabelDblClick
     end
     object LastUpdateLabel: TLabel
       Left = 217
@@ -215,6 +222,15 @@ object SystemInfoForm: TSystemInfoForm
       OnClick = EDSMScanLabelClick
       OnDblClick = SystemAddrLabelDblClick
     end
+    object IgnoredLabel: TLabel
+      Left = 489
+      Top = 30
+      Width = 50
+      Height = 16
+      AutoSize = False
+      Caption = 'Ignored'
+      OnClick = IgnoredLabelClick
+    end
     object EDSMScanButton: TButton
       Left = 1011
       Top = 42
@@ -268,6 +284,14 @@ object SystemInfoForm: TSystemInfoForm
       ParentColor = True
       TabOrder = 5
       OnChange = CommentEditChange
+    end
+    object IgnoredCheck: TCheckBox
+      Left = 467
+      Top = 30
+      Width = 19
+      Height = 17
+      TabOrder = 6
+      OnClick = IgnoredCheckClick
     end
   end
   object ScrollBox: TScrollBox
@@ -331,7 +355,7 @@ object SystemInfoForm: TSystemInfoForm
     ParentBackground = False
     TabOrder = 3
     object Label1: TLabel
-      Left = 6
+      Left = 125
       Top = 3
       Width = 38
       Height = 19
@@ -344,7 +368,7 @@ object SystemInfoForm: TSystemInfoForm
       ParentFont = False
     end
     object SecLabel: TLabel
-      Left = 50
+      Left = 169
       Top = 3
       Width = 68
       Height = 19
@@ -360,7 +384,7 @@ object SystemInfoForm: TSystemInfoForm
       ShowHint = True
     end
     object Label2: TLabel
-      Left = 132
+      Left = 242
       Top = 3
       Width = 37
       Height = 19
@@ -373,7 +397,7 @@ object SystemInfoForm: TSystemInfoForm
       ParentFont = False
     end
     object DevLabel: TLabel
-      Left = 175
+      Left = 285
       Top = 3
       Width = 68
       Height = 19
@@ -389,7 +413,7 @@ object SystemInfoForm: TSystemInfoForm
       ShowHint = True
     end
     object Label4: TLabel
-      Left = 257
+      Left = 358
       Top = 3
       Width = 31
       Height = 19
@@ -402,7 +426,7 @@ object SystemInfoForm: TSystemInfoForm
       ParentFont = False
     end
     object TechLabel: TLabel
-      Left = 294
+      Left = 395
       Top = 3
       Width = 68
       Height = 19
@@ -418,7 +442,7 @@ object SystemInfoForm: TSystemInfoForm
       ShowHint = True
     end
     object Label6: TLabel
-      Left = 376
+      Left = 468
       Top = 3
       Width = 42
       Height = 19
@@ -431,7 +455,7 @@ object SystemInfoForm: TSystemInfoForm
       ParentFont = False
     end
     object WealthLabel: TLabel
-      Left = 424
+      Left = 516
       Top = 3
       Width = 68
       Height = 19
@@ -447,7 +471,7 @@ object SystemInfoForm: TSystemInfoForm
       ShowHint = True
     end
     object Label8: TLabel
-      Left = 506
+      Left = 589
       Top = 3
       Width = 42
       Height = 19
@@ -460,7 +484,7 @@ object SystemInfoForm: TSystemInfoForm
       ParentFont = False
     end
     object LivLabel: TLabel
-      Left = 554
+      Left = 637
       Top = 3
       Width = 68
       Height = 19
@@ -493,12 +517,12 @@ object SystemInfoForm: TSystemInfoForm
       ShowHint = True
     end
     object Label11: TLabel
-      Left = 802
+      Left = 832
       Top = 3
-      Width = 56
+      Width = 44
       Height = 19
       Alignment = taRightJustify
-      Caption = ' CP:     T2'
+      Caption = ' CP:  T2'
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clSilver
       Font.Height = -16
@@ -507,7 +531,7 @@ object SystemInfoForm: TSystemInfoForm
       ParentFont = False
     end
     object CP2Label: TLabel
-      Left = 867
+      Left = 882
       Top = 3
       Width = 68
       Height = 19
@@ -525,7 +549,7 @@ object SystemInfoForm: TSystemInfoForm
       ShowHint = True
     end
     object T2Label: TLabel
-      Left = 955
+      Left = 959
       Top = 3
       Width = 14
       Height = 19
@@ -556,7 +580,7 @@ object SystemInfoForm: TSystemInfoForm
       ShowHint = True
     end
     object Label10: TLabel
-      Left = 6
+      Left = 4
       Top = 32
       Width = 120
       Height = 19
@@ -723,7 +747,7 @@ object SystemInfoForm: TSystemInfoForm
       OnDblClick = MiliLinksLabel1DblClick
     end
     object SlotsLabel: TLabel
-      Left = 634
+      Left = 711
       Top = 3
       Width = 109
       Height = 19
@@ -780,6 +804,42 @@ object SystemInfoForm: TSystemInfoForm
       Font.Style = []
       ParentFont = False
       OnClick = Label14Click
+    end
+    object Label0: TLabel
+      Left = 4
+      Top = 3
+      Width = 35
+      Height = 19
+      Hint = 'Free construction slots, click to change'
+      Caption = 'Score'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clSilver
+      Font.Height = -16
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentFont = False
+      ParentShowHint = False
+      ShowHint = True
+      OnClick = SlotsLabelClick
+    end
+    object ScoreLabel: TLabel
+      Left = 44
+      Top = 3
+      Width = 68
+      Height = 19
+      Hint = 'Current / incl. In Progress / incl. Planned'
+      Caption = '00 (00/00)'
+      Color = clGold
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clGold
+      Font.Height = -16
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentColor = False
+      ParentFont = False
+      ParentShowHint = False
+      ShowHint = True
+      OnClick = SlotsLabelClick
     end
     object EconomiesCheck: TCheckBox
       Left = 1141
@@ -1059,6 +1119,14 @@ object SystemInfoForm: TSystemInfoForm
         Caption = 'Clear'
         OnClick = PristineReserveMenuItemClick
       end
+    end
+    object BodyCommentMenuItem: TMenuItem
+      Caption = 'Comment...'
+      OnClick = BodyCommentMenuItemClick
+    end
+    object SetPrimaryLocationMenuItem: TMenuItem
+      Caption = 'Set Primary Location'
+      OnClick = SetPrimaryLocationMenuItemClick
     end
     object N3: TMenuItem
       Caption = '-'

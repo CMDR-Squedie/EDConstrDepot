@@ -114,6 +114,12 @@ type
     TaskGroupEdit: TEdit;
     EDSMScanLabel: TLabel;
     PopupMenu3: TPopupMenu;
+    IgnoredCheck: TCheckBox;
+    IgnoredLabel: TLabel;
+    Label0: TLabel;
+    ScoreLabel: TLabel;
+    BodyCommentMenuItem: TMenuItem;
+    SetPrimaryLocationMenuItem: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure EDSMScanButtonClick(Sender: TObject);
@@ -171,6 +177,11 @@ type
     procedure PopupMenu3Popup(Sender: TObject);
     procedure ArchitectLabelClick(Sender: TObject);
     procedure ChangeArchitectMenuItemClick(Sender: TObject);
+    procedure IgnoredLabelClick(Sender: TObject);
+    procedure IgnoredCheckClick(Sender: TObject);
+    procedure FactionsLabelDblClick(Sender: TObject);
+    procedure BodyCommentMenuItemClick(Sender: TObject);
+    procedure SetPrimaryLocationMenuItemClick(Sender: TObject);
   private
     { Private declarations }
     FCurrentSystem: TStarSystem;
@@ -201,7 +212,7 @@ type
     { Public declarations }
     procedure BeginFilterChange;
     procedure EndFilterChange;
-    procedure SetSystem(s: TStarSystem; const bm: TBaseMarket = nil; const stationsOnly: Boolean = false);
+    procedure SetSystem(s: TStarSystem; const selObj: TObject = nil; const stationsOnly: Boolean = false);
     procedure ApplySettings;
     procedure OnEDDataUpdate;
     procedure UpdateView(const keepSel: Boolean = true);
@@ -304,6 +315,24 @@ end;
 procedure TSystemInfoForm.BodiesCheckClick(Sender: TObject);
 begin
   UpdateView(false);
+end;
+
+procedure TSystemInfoForm.BodyCommentMenuItemClick(Sender: TObject);
+var s: string;
+begin
+  if ListView.Selected = nil then Exit;
+  if TObject(ListView.Selected.Data) is TSystemBody then
+    with TSystemBody(ListView.Selected.Data) do
+    begin
+      s := Vcl.Dialogs.InputBox('Body', 'Comment', Comment);
+      if s <> Comment then
+      begin
+        FeaturesModified := True;
+        Comment := s;
+        FCurrentSystem.Save;
+        self.UpdateView;
+      end;
+    end;
 end;
 
 procedure TSystemInfoForm.CommentEditChange(Sender: TObject);
@@ -460,6 +489,24 @@ begin
 
 end;
 
+procedure TSystemInfoForm.SetPrimaryLocationMenuItemClick(Sender: TObject);
+var i: Integer;
+begin
+  if ListView.Selected = nil then Exit;
+  if TObject(ListView.Selected.Data) is TSystemBody then
+    with TSystemBody(ListView.Selected.Data) do
+    begin
+      FeaturesModified := True;
+      PrimaryLoc := not PrimaryLoc;
+      if PrimaryLoc then
+        for i := 0 to FCurrentSystem.Bodies.Count - 1 do
+          if TSystemBody(FCurrentSystem.Bodies.Objects[i]).PrimaryLoc then
+            TSystemBody(FCurrentSystem.Bodies.Objects[i]).PrimaryLoc := False;
+      FCurrentSystem.Save;
+      self.UpdateView;
+    end;
+end;
+
 procedure TSystemInfoForm.SetStationTypeMenuItemClick(Sender: TObject);
 var cd: TConstructionDepot;
 begin
@@ -537,6 +584,9 @@ begin
   GroupAddRemoveMenuItem.Enabled := cdf;
   MarketInfoMenuItem.Enabled := mf;
   MarketHistoryMenuItem.Enabled := mf;
+
+  BodyCommentMenuItem.Visible := bf;
+  SetPrimaryLocationMenuItem.Visible := bf;
 
   sl := TStringList.Create;
   DataSrc.ConstructionTypes.PopulateList(sl);
@@ -620,6 +670,11 @@ begin
   mitem.Caption := '-';
   PopupMenu3.Items.Add(mitem);
   mitem := TMenuItem.Create(PopupMenu3);
+  mitem.Caption := 'Other...';
+  mitem.Hint := '?';
+  mitem.OnClick := ChangeArchitectMenuItemClick;
+  PopupMenu3.Items.Add(mitem);
+  mitem := TMenuItem.Create(PopupMenu3);
   mitem.Caption := 'Clear';
   mitem.Hint := '';
   mitem.OnClick := ChangeArchitectMenuItemClick;
@@ -627,8 +682,15 @@ begin
 end;
 
 procedure TSystemInfoForm.ChangeArchitectMenuItemClick(Sender: TObject);
+var s: string;
 begin
-  FCurrentSystem.ArchitectName := TMenuItem(Sender).Hint;
+  s := TMenuItem(Sender).Hint;
+  if s = '?' then
+  begin
+    s := Vcl.Dialogs.InputBox('Architect', 'Name', '');
+    if s = '' then Exit;
+  end;
+  FCurrentSystem.ArchitectName := s;
   FCurrentSystem.UpdateSave;
 end;
 
@@ -689,15 +751,23 @@ begin
   bmp.Free;
 end;
 
+procedure SetChecked(box: TCheckBox; checkedf: Boolean);
+var ev: TNotifyEvent;
+begin
+  ev := box.OnClick;
+  box.OnClick := nil;
+  box.Checked := checkedf;
+  box.OnClick := ev;
+end;
 
 procedure TSystemInfoForm.SaveData;
 begin
   if not FDataChanged then Exit;
-
   FCurrentSystem.Comment := CommentEdit.Text;
   FCurrentSystem.CurrentGoals := GoalsEdit.Text;
   FCurrentSystem.Objectives := ObjectivesEdit.Text;
   FCurrentSystem.TaskGroup := TaskGroupEdit.Text;
+  FCurrentSystem.Ignored := IgnoredCheck.Checked;
   FCurrentSystem.Save;
   FDataChanged := False;
 end;
@@ -744,6 +814,14 @@ begin
   FCurrentSystem.UpdateBodies_EDSM;
   FCurrentSystem.Save;
   UpdateView;
+end;
+
+procedure TSystemInfoForm.FactionsLabelDblClick(Sender: TObject);
+var s: string;
+begin
+  s := FCurrentSystem.Factions_full;
+  if s <> '' then
+    ShowMessage(s);
 end;
 
 procedure TSystemInfoForm.FilterEditChange(Sender: TObject);
@@ -929,6 +1007,9 @@ begin
   if ListView.Selected = nil then Exit;
   data := TObject(ListView.Selected.Data);
 
+  if FClickedColumn = 2 then
+    BodyCommentMenuItemClick(nil);
+
   if FClickedColumn = 3 then
     if TryOpenMarket then Exit;
 
@@ -998,6 +1079,22 @@ begin
     EDCDForm.AddDepotToGroup(TConstructionDepot(ListView.Selected.Data));
 end;
 
+procedure TSystemInfoForm.IgnoredCheckClick(Sender: TObject);
+begin
+  if not (GetKeyState(VK_SHIFT) < 0) then
+  begin
+    ShowMessage('Hold Shift to toggle this option.');
+    SetChecked(TCheckBox(Sender),not TCheckBox(Sender).Checked);
+    Exit;
+  end;
+  FDataChanged := True;
+end;
+
+procedure TSystemInfoForm.IgnoredLabelClick(Sender: TObject);
+begin
+  IgnoredCheck.Checked := not IgnoredCheck.Checked;
+end;
+
 procedure TSystemInfoForm.MarketHistoryMenuItemClick(Sender: TObject);
 var m: TMarket;
 begin
@@ -1031,7 +1128,7 @@ begin
   if Visible then UpdateView;
 end;
 
-procedure TSystemInfoForm.SetSystem(s: TStarSystem; const bm: TBaseMarket = nil;
+procedure TSystemInfoForm.SetSystem(s: TStarSystem; const selObj: TObject = nil;
   const stationsOnly: Boolean = false);
 var png: TPngImage;
 begin
@@ -1063,6 +1160,7 @@ begin
   GoalsEdit.Text := FCurrentSystem.CurrentGoals;
   ObjectivesEdit.Text := FCurrentSystem.Objectives;
   TaskGroupEdit.Text := FCurrentSystem.TaskGroup;
+  SetChecked(IgnoredCheck,FCurrentSystem.Ignored);
 
   FDataChanged := False;
   FImageChanged := False;
@@ -1080,9 +1178,9 @@ begin
 
 
   UpdateView;
-  if bm <> nil then
+  if selObj <> nil then
   begin
-    FSelectedObj := bm;
+    FSelectedObj := selObj;
     RestoreSelection;
   end;
 end;
@@ -1403,6 +1501,7 @@ var  i,i2,idx,cp2idx,cp3idx,curCol: Integer;
      filters: Boolean;
      fs: string;
 
+     score: array [0..2] of Integer;
      seclev: array [0..2] of Integer;
      devlev: array [0..2] of Integer;
      techlev: array [0..2] of Integer;
@@ -1633,6 +1732,7 @@ begin
           techlev[idx] := techlev[idx] + ct.TechLev;
           wealthlev[idx] := wealthlev[idx] + ct.WealthLev;
           livlev[idx] := livlev[idx] + ct.StdLivLev;
+          score[idx] := score[idx] + ct.Score;
 
           if ct.IsOrbital then
             orbSlotsTaken[idx] := orbSlotsTaken[idx] + 1
@@ -1704,6 +1804,7 @@ begin
       end;
     end;
 
+    dispStat(score,ScoreLabel);
     dispStat(seclev,SecLabel);
     dispStat(devlev,devLabel);
     dispStat(techlev,TechLabel);
@@ -1719,6 +1820,8 @@ begin
 
     for ei := Low(ei) to ecoTour do
       dispLinks(ei);
+
+
 
     SlotsLabel.Caption := 'Slots •⚪-- 🏭--';
     if FCurrentSystem.OrbitalSlots + FCurrentSystem.SurfaceSlots > 0 then
@@ -1757,10 +1860,12 @@ begin
         begin
           b := TSystemBody(FCurrentSystem.Bodies.Objects[i]);
 
-          addCaption(b.BodyName);
+          s := b.BodyName;
+          if b.PrimaryLoc then s := s + ' ⚑';
+          addCaption(s);
           addSubItem(b.BodyType);
           s := '';
-          s := s + b.ReserveLevel;
+          s := s + b.ReserveLevel + '  ' + b.Comment;
           addSubItem(s);
           s := '';
           if FShowEconomies then
@@ -1832,7 +1937,9 @@ begin
                   else
                     s := s + m.StationName;
                   //cl.Remove(m);
-                end;
+                end
+                else
+                  s := s + ' ' + bm.StationName;
               end
               else
                 s := s + ' ' + bm.StationName;
@@ -1924,6 +2031,7 @@ begin
               if Pos('shipyard',m.Services) > 0  then s := s + '🚀SY ';
               if Pos('outfitting',m.Services) > 0  then s := s + '⚒OF ';
               if Pos('exploration',m.Services) > 0  then s := s + '🌐UC ';
+              if Pos('facilitator',m.Services) > 0  then s := s + '⚖IF ';
             end;
             addSubItem(s);
 
@@ -2010,43 +2118,34 @@ var i,fs: Integer;
     fn: string;
     clr: TColor;
 begin
-  if not Opts.Flags['DarkMode'] then
+  with Panel1 do
   begin
-    Color := clSilver;
-    Font.Color := clBlack;
-  end
-  else
-  begin
-    clr := EDCDForm.TextColLabel.Font.Color;
-    Color := $4A4136 - $202020;
-    Font.Color := clr;
-  end;
-  Font.Name := Opts['FontName2'];
-
-
-  if not Opts.Flags['DarkMode'] then
-  begin
-    with ListView do
+    if not Opts.Flags['DarkMode'] then
     begin
-      Color := clSilver;
-      Font.Color := clBlack;
-//      GridLines := True;
-    end;
-  end
-  else
-  begin
-    clr := EDCDForm.TextColLabel.Font.Color;
-    with ListView do
+      Font.Color := clSilver;
+    end
+    else
     begin
-      Color := $6B5E4F; //$484848; $585140
+      clr := EDCDForm.TextColLabel.Font.Color;
       Font.Color := clr;
-//      GridLines := False;
     end;
   end;
+
   with ListView do
   begin
     Font.Name := Opts['FontName2'];
     Font.Size := Opts.Int['FontSize2'];
+    if not Opts.Flags['DarkMode'] then
+    begin
+      Color := clSilver;
+      Font.Color := clBlack;
+    end
+    else
+    begin
+      clr := EDCDForm.TextColLabel.Font.Color;
+      Color := $6B5E4F; //$484848; $585140
+      Font.Color := clr;
+    end;
   end;
 
   if Visible then UpdateView;

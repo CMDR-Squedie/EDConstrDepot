@@ -25,7 +25,7 @@
 { "Type":"Bonus","Condition":"Geologicals","Hightech":0.4,"Tourism":0.4 } ,
 { "Type":"Bonus","Condition":"Volcanism", "Extraction":0.4 } ,
 { "Type":"Bonus","Condition":"Earthlike","Hightech":0.4, "Agricultural":0.4, "Tourism":0.4 } ,
-{ "Type":"Bonus","Condition":"Water world","Exclude":"Terraformable","Agricultural":0.4, "Tourism":0.4 } ,
+{ "Type":"Bonus","Condition":"Water world","Exclude":"Terraformable","Agricultural":0.4, "Tourism":0.4, "Hightech":0.4, "Comment":"Hightech bonus added, counts as having Biologicals?" } ,
 { "Type":"Bonus","Condition":"Ammonia world","Hightech":0.4, "Tourism":0.4 } ,
 { "Type":"Bonus","Condition":"Terraformable","Agricultural":0.4 } ,
 { "Type":"Bonus","Condition":"Low Resource/Depleted Resource","Refinery":-0.4, "Industrial":-0.4, "Extraction":-0.4 } ,

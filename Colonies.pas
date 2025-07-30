@@ -50,6 +50,13 @@ type
     AddNeighboursMenuItem: TMenuItem;
     SystemInfoMenuItem: TMenuItem;
     MapButton: TButton;
+    AddTwoHopSystemsEDSMMenuItem: TMenuItem;
+    ShowOnMapMenuItem: TMenuItem;
+    RemoveTaskGroupMenuItem: TMenuItem;
+    ShareAllMenuItem: TMenuItem;
+    TotalsButton: TButton;
+    FindBodyMenuItem: TMenuItem;
+    FindBodyButton: TButton;
     procedure ListViewColumnClick(Sender: TObject; Column: TListColumn);
     procedure ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
@@ -80,8 +87,15 @@ type
     procedure ListViewCustomDrawItem(Sender: TCustomListView; Item: TListItem;
       State: TCustomDrawState; var DefaultDraw: Boolean);
     procedure MapButtonClick(Sender: TObject);
+    procedure AddTwoHopSystemsEDSMMenuItemClick(Sender: TObject);
+    procedure ShowOnMapMenuItemClick(Sender: TObject);
+    procedure RemoveTaskGroupMenuItemClick(Sender: TObject);
+    procedure ShareAllMenuItemClick(Sender: TObject);
+    procedure TotalsButtonClick(Sender: TObject);
+    procedure FindBodyMenuItemClick(Sender: TObject);
   private
     { Private declarations }
+    FHoldUpdate: Boolean;
     FHighlightColor: TColor;
     SortColumn: Integer;
     ClickedColumn: Integer;
@@ -91,13 +105,16 @@ type
     function IsSelected(item: TListItem): Boolean;
     procedure SaveSelection;
     procedure RestoreSelection;
-    procedure UpdateTaskGroups(s: string);
+    procedure UpdateTaskGroups(s: string; const delf: Boolean = false);
   public
     { Public declarations }
+    procedure BeginFilterChange;
+    procedure EndFilterChange;
     procedure OnEDDataUpdate;
     procedure ApplySettings;
     procedure UpdateItems(const _autoSizeCol: Boolean = false);
     procedure UpdateAndShow;
+    procedure SetReferenceSystem(sys: TStarSystem; const showallf: Boolean = false);
   end;
 
 var
@@ -105,14 +122,29 @@ var
 
 implementation
 
-uses Main,Clipbrd,Settings,Splash, Markets, SystemPict, SystemInfo, StarMap;
+uses Main,Clipbrd,Settings,Splash, Markets, SystemPict, SystemInfo, StarMap,
+  Summary, Bodies;
 
 {$R *.dfm}
+
+procedure TColoniesForm.BeginFilterChange;
+begin
+  FHoldUpdate := True;
+
+  //this is only needed because changing checkboxes immediately trigger their Clicked event
+  //not the case with edits
+end;
+
+procedure TColoniesForm.EndFilterChange;
+begin
+  FHoldUpdate := False;
+end;
 
 
 procedure TColoniesForm.OnEDDataUpdate;
 begin
   if Visible then
+  if ListView.Items.Count < 1000 then
   begin
     SaveSelection;
     UpdateItems;
@@ -132,24 +164,40 @@ begin
 end;
 
 
-procedure TColoniesForm.UpdateTaskGroups(s: string);
+procedure TColoniesForm.UpdateTaskGroups(s: string; const delf: Boolean = false);
 var i: Integer;
     sys: TStarSystem;
+    sl: TStringList;
 begin
+  sl := TStringList.Create;
+  sl.StrictDelimiter := True;
   DataSrc.BeginUpdate;
   try
     for i := 0 to ListView.Items.Count -1 do
       if IsSelected(ListView.Items[i]) then
       begin
         sys := TStarSystem(ListView.Items[i].Data);
-        if sys.TaskGroup = '' then
-          sys.TaskGroup := s
+        if delf then
+        begin
+          sl.CommaText := sys.TaskGroup;
+          if sl.IndexOf(s) > -1 then
+          begin
+            sl.Delete(sl.IndexOf(s));
+            sys.TaskGroup := sl.CommaText;
+          end;
+        end
         else
-          if Pos(s,sys.TaskGroup) <= 0 then
-            sys.TaskGroup := sys.TaskGroup + ',' + s;
+        begin
+          if (s = '') or (sys.TaskGroup = '') then
+            sys.TaskGroup := s
+          else
+            if Pos(s,sys.TaskGroup) <= 0 then
+              sys.TaskGroup := sys.TaskGroup + ',' + s;
+        end;
         sys.Save;
       end;
   finally
+    sl.Free;
     DataSrc.EndUpdate;
   end;
 end;
@@ -217,6 +265,7 @@ begin
   EditAlterNameMenuItem.Enabled := sys <> nil;
   CurrentGoalsMenuItem.Enabled := sys <> nil;
   LongTermObjectivesMenuItem.Enabled := sys <> nil;
+  ShowOnMapMenuItem.Enabled := sys <> nil;
   AddToTargetsMenuItem.Enabled := canf;
   RemoveSystemToScanMenuItem.Enabled := (sys <> nil) and not visitedf;
 {
@@ -279,6 +328,11 @@ begin
   UpdateItems;
 end;
 
+procedure TColoniesForm.TotalsButtonClick(Sender: TObject);
+begin
+  SummaryForm.RestoreAndShow;
+end;
+
 function TColoniesForm.IsSelected(item: TListItem): Boolean;
 begin
   if SelectModeCheck.Checked then
@@ -297,16 +351,6 @@ var s: string;
     i,j: Integer;
     selonlyf: Boolean;
 begin
-{
-  s := '';
-  if ListView.Selected = nil then Exit;
-  s := ListView.Columns[0].Caption + ': ' + ListView.Selected.Caption + Chr(13);
-  for i := 0 to ListView.Selected.SubItems.Count - 1 do
-    if i < ListView.Columns.Count - 1 then
-      s := s + ListView.Columns[i+1].Caption + ': ' +  ListView.Selected.SubItems[i] + Chr(13);
-  Clipboard.SetTextBuf(PChar(s));
-}
-
   selonlyf := (Sender = CopyMenuItem);
   s := '';
   for i := 0 to ListView.Columns.Count -1 do
@@ -345,6 +389,11 @@ begin
   EditTimer.Enabled := True;
 end;
 
+procedure TColoniesForm.FindBodyMenuItemClick(Sender: TObject);
+begin
+  BodiesForm.UpdateAndShow;
+end;
+
 procedure TColoniesForm.AddNeighboursMenuItemClick(Sender: TObject);
 var cnt: Integer;
 begin
@@ -356,7 +405,17 @@ end;
 procedure TColoniesForm.AddSystemToScanMenuItemClick(Sender: TObject);
 var s: string;
 begin
-  s := Vcl.Dialogs.InputBox('Add System To Scan', 'System Name', '');
+  s := '';
+{
+  try
+    if Clipboard.HasFormat(CF_TEXT) then
+    begin
+      s := Clipboard.AsText;
+      if Length(s) > 60 then s := '';
+  except
+  end;
+}
+  s := Vcl.Dialogs.InputBox('Add System To Scan', 'System Name', s);
   if s = '' then Exit;
   if not DataSrc.StarSystems.AddFromName(s) then
   begin
@@ -382,6 +441,14 @@ begin
   finally
     DataSrc.EndUpdate;
   end;
+end;
+
+procedure TColoniesForm.AddTwoHopSystemsEDSMMenuItemClick(Sender: TObject);
+var cnt: Integer;
+begin
+  cnt := DataSrc.StarSystems.AddNeighbours2_EDSM(TStarSystem(ListView.Selected.Data));
+  ShowMessage('EDSM query successful, ' + IntToStr(cnt) + ' systems added.');
+  if cnt > 0 then UpdateItems;
 end;
 
 procedure TColoniesForm.ApplySettings;
@@ -493,6 +560,13 @@ begin
   UpdateItems;
 end;
 
+procedure TColoniesForm.RemoveTaskGroupMenuItemClick(Sender: TObject);
+var s: string;
+begin
+  s := Vcl.Dialogs.InputBox('Task Group to Remove', 'Name', '');
+  UpdateTaskGroups(s,true);
+end;
+
 procedure TColoniesForm.RestoreSelection;
 var i: Integer;
 begin
@@ -583,6 +657,8 @@ var
   end;
 
 begin
+  if FHoldUpdate then Exit;
+
   autoSizeCol := _autoSizeCol;
   if ListView.Items.Count = 0 then autoSizeCol := True;
   //autoSizeCol := autoSizeCol and Opts.Flags['AutoSizeColumns'];
@@ -775,6 +851,49 @@ begin
       Sender.Canvas.Font.Color := ListView.Font.Color;
 end;
 
+procedure TColoniesForm.SetReferenceSystem(sys: TStarSystem; const showallf: Boolean = false);
+begin
+  if (sys.LastUpdate = '') and (sys.StarPosX = 0) then Exit; //no xyz
+  FReferenceSystem := sys;
+  DistFromLabel.Caption := 'Dist. from: ' + sys.StarSystem;
+  SortColumn := 3;
+  SortAscending := True;
+  if showallf then
+  begin
+    BeginFilterChange;
+    try
+      ColoniesCheck.Checked := true;
+      ColonTargetsCheck.Checked := true;
+      ColonCandidatesCheck.Checked := true;
+      OtherSystemsCheck.Checked := true;
+      InclIgnoredCheck.Checked := true;
+    finally
+      EndFilterChange;
+    end;
+  end;
+  UpdateItems;
+end;
+
+procedure TColoniesForm.ShareAllMenuItemClick(Sender: TObject);
+var i,cnt: Integer;
+begin
+  cnt := 0;
+  for i := 0 to ListView.Items.Count -1 do
+  begin
+    if not IsSelected(ListView.Items[i]) then continue;
+    TStarSystem(ListView.Items[i].Data).SaveToShared;
+    cnt := cnt + 1;
+  end;
+  ShowMessage(cnt.ToString + ' system(s) saved to "shared" folder.');
+end;
+
+procedure TColoniesForm.ShowOnMapMenuItemClick(Sender: TObject);
+begin
+  if ListView.Selected = nil then Exit;
+  StarMapForm.SelectSystem(TStarSystem(ListView.Selected.Data));
+  StarMapForm.RestoreAndShow;
+end;
+
 procedure TColoniesForm.ListViewAction(Sender: TObject);
 var sid: string;
     s,orgs: string;
@@ -796,7 +915,7 @@ begin
   case action of
   1:
     begin
-      if MarketsForm.Visible then MarketsForm.SetColony(sid);
+      //if MarketsForm.Visible then MarketsForm.SetColony(sid);
       SystemInfoForm.SetSystem(sys);
       SystemInfoForm.RestoreAndShow;
     end;
@@ -865,12 +984,7 @@ begin
       Clipboard.SetTextBuf(PChar(sys.StarSystem));
   16:
     begin
-      if (sys.LastUpdate = '') and (sys.StarPosX = 0) then Exit; //no xyz
-      FReferenceSystem := sys;
-      DistFromLabel.Caption := 'Dist. from: ' + sys.StarSystem;
-      SortColumn := 3;
-      SortAscending := True;
-      UpdateItems;
+      SetReferenceSystem(sys);
     end;
   17:
     begin
@@ -904,7 +1018,7 @@ end;
 
 procedure TColoniesForm.MapButtonClick(Sender: TObject);
 begin
-  StarMapForm.Show;
+  StarMapForm.RestoreAndShow;
 end;
 
 end.

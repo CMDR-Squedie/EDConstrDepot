@@ -202,6 +202,14 @@
             <Form>StarMapForm</Form>
             <FormType>dfm</FormType>
         </DCCReference>
+        <DCCReference Include="Summary.pas">
+            <Form>SummaryForm</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
+        <DCCReference Include="Bodies.pas">
+            <Form>BodiesForm</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

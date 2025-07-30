@@ -20,25 +20,28 @@ uses
   MaterialList in 'MaterialList.pas' {MaterialListForm},
   Toolbar in 'Toolbar.pas' {ToolbarForm},
   ToolTip in 'ToolTip.pas' {TooltipForm},
-  StarMap in 'StarMap.pas' {StarMapForm};
+  StarMap in 'StarMap.pas' {StarMapForm},
+  Summary in 'Summary.pas' {SummaryForm},
+  Bodies in 'Bodies.pas' {BodiesForm};
 
 {$R *.res}
 
-const gNiceVersion: string = 'Release 26, build 3';
+const gNiceVersion: string = 'Release 27, build 1';
 
 {
-  Build 4:
-   - optional system elevation (Y) marks (for colonies & targets only, measured against middle plane)
-   - colony map button in toolbar
-   - systems can now belong to multiple task groups (separated with comma)
-   - selected system label is always on top of map
-   - colonies filter now also supports '+' sign
-   - task group field added to System Info view
-   - Architect can be assigned directly in System Info view
-   - option to clear EDSM scan in System Info view
-   - holding Shift when using System Info button in toolbar opens current system
-   - new 'E' star lane type that favors short lanes
-   - Empty material list now only shows for actual depots
+  }
+
+{
+  future builds:
+ - Population Map layer
+ - set faction for non-dockable stations
+ - POIs
+ - force show system on map
+ - custom star lanes
+ - system bodies labelling (in picture)
+ - free slots per body
+ - biggest station name layer  +  show biggest station on select
+ - 'maximize colony big ports number' routine
 }
 
 begin
@@ -65,6 +68,8 @@ begin
   Application.CreateForm(TMaterialListForm, MaterialListForm);
   Application.CreateForm(TTooltipForm, TooltipForm);
   Application.CreateForm(TStarMapForm, StarMapForm);
+  Application.CreateForm(TSummaryForm, SummaryForm);
+  Application.CreateForm(TBodiesForm, BodiesForm);
   SettingsForm.VersionLabel.Caption := gNiceVersion;
 
   Application.OnActivate :=  EDCDForm.AppActivate;

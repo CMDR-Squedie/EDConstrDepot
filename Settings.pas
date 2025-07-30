@@ -1,4 +1,4 @@
-unit Settings;
+﻿unit Settings;
 
 interface
 
@@ -72,7 +72,7 @@ end;
 
 procedure TSettings.Load;
 begin
-  try LoadFromFile(FFileName); except end;
+  try LoadFromFile(FFileName, TEncoding.UTF8); except end;
   MaxIdleDockTime := Int['MaxIdleDockTime'];
   DockToUndockTime := Int['DockToUndockTime'];
   MaxColonyDist := Int['MaxColonyDist'];
@@ -121,7 +121,6 @@ begin
   FDefaults.Values['ShowDividers'] := '1';
   FDefaults.Values['ShowIndicators'] := '2';
   FDefaults.Values['ShowStarSystem'] := '0';
-  FDefaults.Values['IndicatorsPadding'] := '1';
   FDefaults.Values['IncludeSupply'] := '1';
   FDefaults.Values['ShowCloseBox'] := '0';
   FDefaults.Values['TransparentTitle'] := '0';
@@ -138,20 +137,30 @@ begin
   FDefaults.Values['KeepSelected'] := '1';
   FDefaults.Values['TrackMarkets'] := '1';
   FDefaults.Values['AutoSnapshots'] := '0';
-  FDefaults.Values['AllowMoreWindows'] := '0';
   FDefaults.Values['DarkMode'] := '1';
   FDefaults.Values['HighlightGoals'] := '0';
-  FDefaults.Values['AnyMarketAsDepot'] := '0'; //this enables using any market type as FC
-  FDefaults.Values['BaseWidthText'] := '00000';
   FDefaults.Values['FontGlow'] := '48';
-  FDefaults.Values['JournalStart'] := '2025-04-14';    //trailblazers journals start
   FDefaults.Values['MapProjX'] := 'X';
   FDefaults.Values['MapProjY'] := 'Z';
   FDefaults.Values['MapLanes'] := 'A';
-  FDefaults.Values['MaxIdleDockTime'] := '60';  //seconds
-  FDefaults.Values['DockToUndockTime'] := '15';
-  FDefaults.Values['MaxColonyDist'] := '1500';  //Ly in any direction from Sol
+  FDefaults.Values['CrossHair'] := '0';
+  FDefaults.Values['ShowAlterNames'] := '0';
+  FDefaults.Values['ShowSysPreview'] := '1';
 
+//.ini file only
+  FDefaults.Values['IndicatorsPadding'] := '1';
+  FDefaults.Values['BaseWidthText'] := '00000';
+  FDefaults.Values['AnyMarketAsDepot'] := '0'; //this enables using any market type as FC, future use
+  FDefaults.Values['JournalStart'] := '2025-04-14';    //trailblazers journals start
+  FDefaults.Values['AllowMoreWindows'] := '0';
+  FDefaults.Values['MaxIdleDockTime'] := '60';  //to eliminate AFK time when docked to depot, seconds
+  FDefaults.Values['DockToUndockTime'] := '15'; //
+  FDefaults.Values['MaxColonyDist'] := '1500';  //Ly in any direction from Sol (cube)
+  FDefaults.Values['MinHistHaul'] := '15000';
+
+  FDefaults.Values['CrossHairSize'] := '10';
+  FDefaults.Values['CrossHairSymbol'] := '1';
+  FDefaults.Values['CrossHairColor'] := 'C0C0C0';
 
   FFileName := fn;
   inherited Create;

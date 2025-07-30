@@ -60,6 +60,7 @@ type
     Wiki1: TMenuItem;
     ManageContructionsMenuItem: TMenuItem;
     StarMapMenuItem: TMenuItem;
+    SummaryMenuItem: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure UpdTimerTimer(Sender: TObject);
     procedure TextColLabelMouseMove(Sender: TObject; Shift: TShiftState; X,
@@ -115,6 +116,7 @@ type
     procedure SystemInfoCurrentMenuItemClick(Sender: TObject);
     procedure Wiki1Click(Sender: TObject);
     procedure StarMapMenuItemClick(Sender: TObject);
+    procedure SummaryMenuItemClick(Sender: TObject);
 private
     { Private declarations }
     FSelectedConstructions: TStringList;
@@ -135,7 +137,7 @@ private
     FItemsShown: Integer;
     FLastBkgColor: Integer;
     FLastClipbrdStr: string;
-    FLayer0: TForm;
+    FCrossHair: TForm;
     FLayer1: TForm;
     FIndicators: TStringList;
     procedure ResetAlwaysOnTop;
@@ -172,14 +174,14 @@ implementation
 {$R *.dfm}
 
 uses Splash, Markets, SettingsGUI, MarketInfo, Clipbrd, Colonies, StationInfo,
-  SystemInfo, ConstrTypes, Toolbar, StarMap;
+  SystemInfo, ConstrTypes, Toolbar, StarMap, Summary;
 
 const cDefaultCapacity: Integer = 784;
 
 procedure TEDCDForm.TextColLabelDblClick(Sender: TObject);
 var sl: TStringList;
     pt: TPoint;
-    idx,p,px: Integer;
+    idx,p,p2,px: Integer;
     s: string;
     r: TRect;
 begin
@@ -199,8 +201,9 @@ begin
 
          s := Trim(RightStr(s,100)); //full names hidden in padded string
          p := Pos('/',s);
+         p2 := Pos('⇨',s);
 
-         if (p > 0) and (pt.X > px) then
+         if ((p > 0) and (pt.X > px)) or (p2 > 0) then
          begin
            s := Copy(s,p+1,200);
            Clipboard.SetTextBuf(PChar(s));
@@ -555,6 +558,10 @@ begin
     if idx <> -1 then
       FSelectedConstructions.Delete(idx);
   end;
+
+  if FCrossHair <> nil then
+    with TLabel(FCrossHair.Components[0]) do
+      Caption := IfThen(DataSrc.Docked,'',Hint);
 
   if FCurrentDepot <> nil then
     if FCurrentDepot.ReplacedWith <> '' then
@@ -1100,9 +1107,21 @@ begin
 
 LSkipDepotSelection:;
 
+    if DataSrc.CurrentRoute.Active then
+    begin
+      if DataSrc.CurrentRoute.Count > 0 then
+      begin
+        l[colReq] := '🏳🏁';
+        l[colText] := '⇨ ' + DataSrc.CurrentRoute.Strings[0];
+        l[colStock] := '✧' + IntToStr(DataSrc.CurrentRoute.Count);
+        addline;
+      end;
+    end;
+
     if warning <> '' then
     begin
-      l[colText] := warning; addline;
+      l[colText] := warning;
+      addline;
     end;
 
     if a[colText] = '' then
@@ -1240,6 +1259,7 @@ begin
   FLastActiveWnd := wnd;
   if IsEliteActiveWnd then
   begin
+    if FCrossHair <> nil then FCrossHair.FormStyle := fsStayOnTop;
     if FLayer1 <> nil then FLayer1.FormStyle := fsStayOnTop;
     self.FormStyle := fsStayOnTop;
     ToggleTitleBar(false);
@@ -1248,6 +1268,7 @@ begin
   else
   begin
     ToggleTitleBar(Application.Active);
+    if FCrossHair <> nil then FCrossHair.FormStyle := fsNormal;
     if FLayer1 <> nil then FLayer1.FormStyle := fsNormal;
     self.FormStyle := fsNormal;
   end;
@@ -1299,7 +1320,9 @@ begin
   t := HWND_TOP;
   if self.FormStyle = fsStayOnTop then
     t := HWND_TOPMOST;
-  SetWindowPos(ToolbarForm.Handle, HWND_TOP, 0, 0 , 0, 0, SWP_NOACTIVATE or SWP_NOMOVE or SWP_NOSIZE);
+  //SetWindowPos(ToolbarForm.Handle, HWND_TOP, 0, 0 , 0, 0, SWP_NOACTIVATE or SWP_NOMOVE or SWP_NOSIZE);
+  if FCrossHair <> nil then
+    SetWindowPos(FCrossHair.Handle, t, 0, 0 , 0, 0, SWP_NOACTIVATE or SWP_NOMOVE or SWP_NOSIZE);
   SetWindowPos(FLayer1.Handle, t, 0, 0 , 0, 0, SWP_NOACTIVATE or SWP_NOMOVE or SWP_NOSIZE);
   SetWindowPos(self.Handle, t, 0, 0 , 0, 0, SWP_NOACTIVATE or SWP_NOMOVE or SWP_NOSIZE);
 
@@ -1413,6 +1436,7 @@ begin
       end;
 
     if Opts.Flags['ScanClipboard'] then
+      if not DataSrc.CurrentRoute.Active then
       if Clipboard.HasFormat(CF_TEXT) then
       if Clipboard.GetTextBuf(carr,High(carr)-1) > 0 then
       begin
@@ -1591,7 +1615,9 @@ begin
 end;
 
 procedure TEDCDForm.SetupLayers;
-var img: TImage;
+var lbl: TLabel;
+    w,h: Integer;
+    s: string;
 begin
 
   FLayer1 := TForm.Create(nil);
@@ -1601,15 +1627,35 @@ begin
   FLayer1.Color := clBlack;
   FLayer1.FormStyle := fsStayOnTop;
   FLayer1.PopupMenu := self.PopupMenu;
-
   //can't use Enabled=false here, which solved most of problems - I need the dblclicks
   FLayer1.OnClick := Layer1Click;
   //FLayer1.OnMouseActivate := ;
   FLayer1.OnMouseDown := Layer1MouseDown;
   FLayer1.OnDblClick := Layer1DblClick;
-
   FLayer1.Visible := False;
 
+  FCrossHair := nil;
+  if self = EDCDForm then
+  try
+    FCrossHair := TForm.Create(nil);
+    FCrossHair.Visible := False;
+    FCrossHair.BorderStyle := bsNone;
+    FCrossHair.FormStyle := fsStayOnTop;
+//    FCrossHair.AlphaBlend := True;
+//    FCrossHair.AlphaBlendValue := 240;
+    FCrossHair.TransparentColor := True;
+    FCrossHair.TransparentColorValue := $404040;
+    FCrossHair.Color := $404040;
+    lbl := TLabel.Create(FCrossHair);
+    lbl.Parent := FCrossHair;
+    lbl.ParentFont := True;
+    lbl.Left := 0;
+    lbl.Top := 0;
+    lbl.Visible := True;
+    SetWindowLong(FCrossHair.Handle,GWL_EXSTYLE ,
+      GetWindowLong(FCrossHair.Handle, GWL_EXSTYLE) or WS_EX_TRANSPARENT);
+  except
+  end;
 
   //  FLayer1.SetBounds(0,0,self.ClientWidth,self.ClientHeight);
 //  FLayer1.Show;
@@ -1622,7 +1668,7 @@ begin
 end;
 
 procedure TEDCDForm.ApplySettings;
-var i,fs,dh,basew: Integer;
+var i,fs,dh,basew,w,h: Integer;
     s: string;
     fn: TFontName;
     c: TColor;
@@ -1703,6 +1749,35 @@ begin
     FLayer1.Visible := Opts['Backdrop'] = '2';
   end;
 
+  if FCrossHair <> nil then
+  if Opts.Flags['CrossHair'] then
+  begin
+    try
+      FCrossHair.Font.Size :=  Opts.Int['CrossHairSize'];
+      FCrossHair.Font.Color :=  GetColorFromCode(Opts['CrossHairColor'],clSilver);
+      s := Copy('⛶+△◌○●',Opts.Int['CrossHairSymbol'],1);
+      if Opts['CrossHairText'] <> '' then s := Opts['CrossHairText'];
+      w := FCrossHair.Canvas.TextWidth(s);
+      h := FCrossHair.Canvas.TextHeight(s);
+      FCrossHair.Left := (Screen.Width - w) div 2;
+      FCrossHair.Top := (Screen.Height - h) div 2;
+      FCrossHair.Width := w + 1;
+      FCrossHair.Height := h + 1;
+      FCrossHair.Visible := True;
+      with TLabel(FCrossHair.Components[0]) do
+      begin
+        Width := w;
+        Height := h;
+        Hint := s;
+        Caption := s; //IfThen(DataSrc.Docked,'',Hint);
+      end;
+    except
+      __log_except('CrossHair','');
+    end;
+  end
+  else
+    FCrossHair.Visible := False;
+
   //this is not optimized right now
   if not Opts.Flags['AllowMoreWindows'] then
     NewWindowMenuItem.Visible := False;
@@ -1736,7 +1811,22 @@ end;
 
 procedure TEDCDForm.ManageColoniesMenuItemClick(Sender: TObject);
 begin
-  ColoniesForm.UpdateAndShow;
+  with ColoniesForm do
+  begin
+  {
+    BeginFilterChange;
+    try
+      ColoniesCheck.Checked := true;
+      ColonTargetsCheck.Checked := false;
+      ColonCandidatesCheck.Checked := false;
+      OtherSystemsCheck.Checked := false;
+      InclIgnoredCheck.Checked := false;
+    finally
+      EndFilterChange;
+    end;
+ }
+    UpdateAndShow;
+  end;
 end;
 
 procedure TEDCDForm.ManageMarketsMenuItemClick(Sender: TObject);
@@ -1910,6 +2000,11 @@ begin
   end;
 end;
 
+procedure TEDCDForm.SummaryMenuItemClick(Sender: TObject);
+begin
+  SummaryForm.RestoreAndShow;
+end;
+
 procedure TEDCDForm.SwitchFleetCarrierMenuItemClick(Sender: TObject);
 var m: TMarket;
     idx: Integer;
@@ -2012,7 +2107,7 @@ begin
     begin
       s := maxreq.Names[i];
       q := maxreq.Qty[s];
-      q := q + Ceil(q*0.05);
+      q := q + Ceil(q*0.05); //actually up to 25% more for prim.outpost, 30% for prim.coriolis
       maxreq.Qty[s] := q;
     end;
   FCurrentDepot.CustomRequest := maxreq.Text;
@@ -2394,6 +2489,11 @@ begin
     FLayer1.Free;
     FLayer1 := nil;
   end;
+  if FCrossHair <> nil then
+  begin
+    FCrossHair.Free;
+    FCrossHair := nil;
+  end;
 end;
 
 procedure TEDCDForm.FormCreate(Sender: TObject);
@@ -2482,7 +2582,8 @@ begin
       if (self = EDCDForm) and not ToolbarForm.Visible then
       begin
         ToolbarForm.Show;
-        //ToolbarForm.SendToBack;
+                                        //HWND_BOTTOM
+        SetWindowPos(ToolbarForm.Handle, self.Handle, 0, 0 , 0, 0, SWP_NOACTIVATE or SWP_NOMOVE or SWP_NOSIZE);
       end;
     end
     else
