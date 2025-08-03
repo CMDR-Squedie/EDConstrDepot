@@ -54,6 +54,8 @@ type
     InclPlannedCheck: TCheckBox;
     MarketHistoryMenuItem: TMenuItem;
     ShowOnMapMenuItem: TMenuItem;
+    ConstrTypesButton: TButton;
+    InclOtherColCheck: TCheckBox;
     procedure ListViewColumnClick(Sender: TObject; Column: TListColumn);
     procedure ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
@@ -83,6 +85,7 @@ type
     procedure ListViewCustomDrawItem(Sender: TCustomListView; Item: TListItem;
       State: TCustomDrawState; var DefaultDraw: Boolean);
     procedure MarketHistoryMenuItemClick(Sender: TObject);
+    procedure ConstrTypesButtonClick(Sender: TObject);
   private
     { Private declarations }
     FHighlightColor: Integer;
@@ -115,7 +118,7 @@ var
 implementation
 
 uses Main,Clipbrd,Settings, MarketInfo, Splash, SystemInfo, StationInfo,
-  StarMap;
+  StarMap, ConstrTypes;
 
 {$R *.dfm}
 
@@ -379,6 +382,11 @@ begin
   ml.Free;
 end;
 
+procedure TMarketsForm.ConstrTypesButtonClick(Sender: TObject);
+begin
+  ConstrTypesForm.Show;
+end;
+
 procedure TMarketsForm.MarketHistoryMenuItemClick(Sender: TObject);
 begin
   if ListView.Selected = nil then Exit;
@@ -619,7 +627,7 @@ var
   items: THashedStringList;
   row: TStringList;
   lev: TMarketLevel;
-  ignoredf,partialf,plannedf,findcmdtyf: Boolean;
+  ignoredf,partialf,plannedf,allsysf,findcmdtyf: Boolean;
   d: Extended;
   colSz: array [0..100] of Integer;
   colMaxLen: array [0..100] of Integer;
@@ -740,6 +748,7 @@ begin
     ignoredf := InclIgnoredCheck.Checked;
     partialf := InclPartialCheck.Checked;
     plannedf := InclPlannedCheck.Checked;
+    allsysf := InclOtherColCheck.Checked;
 
     ListView.Items.BeginUpdate;
 
@@ -774,6 +783,10 @@ begin
         if lev = miIgnore then continue;
       if not plannedf then
         if cd.Planned then continue; //docked but no market info
+      if not allsysf then
+        if cd.GetSys <> nil then
+          if not cd.GetSys.IsOwnColony then continue;
+
 
       s := cd.StationName_full;
       if cd.LinkedMarketId <> '' then
@@ -826,6 +839,10 @@ begin
       m := TMarket(DataSrc.RecentMarkets.Objects[i]);
       if m.Status = '' then
         if not partialf then continue; //docked but no market info
+      if not allsysf then
+        if m.GetSys <> nil then
+          if not m.GetSys.IsOwnColony then continue;
+
       lev := DataSrc.GetMarketLevel(m.MarketId);
       if not ignoredf then
         if lev = miIgnore then continue;
@@ -894,6 +911,9 @@ begin
     for i := 0 to DataSrc.MarketSnapshots.Count - 1 do
     begin
       m := TMarket(DataSrc.MarketSnapshots.Objects[i]);
+      if not allsysf then
+        if m.GetSys <> nil then
+          if not m.GetSys.IsOwnColony then continue;
       addCaption(m.StationName);
       addSubItem(m.StationType);
       addSubItem(m.StarSystem_nice);

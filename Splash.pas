@@ -16,6 +16,7 @@ type
     { Private declarations }
   public
     { Public declarations }
+    InfoTag: string;
     procedure ShowInfo(s: string; timer: Integer);
   end;
 
@@ -40,7 +41,7 @@ begin
   InfoLabel.Height := self.Canvas.TextHeight('Wq');
   InfoLabel.Width := self.Canvas.TextWidth(InfoLabel.Caption);
   self.Height := InfoLabel.Height + 4;
-  self.Width := InfoLabel.Width + 40;
+  self.Width := (InfoLabel.Width div 20) * 20 + 30;
 
   Show;
 //  ShowWindow(self.Handle, SW_SHOWNOACTIVATE);

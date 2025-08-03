@@ -15,6 +15,7 @@ type
     FilterEdit: TComboBox;
     ClearFilterButton: TButton;
     AddToSystemCheck: TCheckBox;
+    ServiceUnlocksButton: TButton;
     procedure ListViewColumnClick(Sender: TObject; Column: TListColumn);
     procedure ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
@@ -33,6 +34,7 @@ type
     procedure FormShow(Sender: TObject);
     procedure ClearFilterButtonClick(Sender: TObject);
     procedure FilterEditChange(Sender: TObject);
+    procedure ServiceUnlocksButtonClick(Sender: TObject);
   private
     { Private declarations }
     SortColumn: Integer;
@@ -50,7 +52,7 @@ var
 implementation
 
 uses Main,Clipbrd,Settings,Splash, Markets, SystemPict, SystemInfo,
-  MaterialList;
+  MaterialList, Memo;
 
 {$R *.dfm}
 
@@ -73,6 +75,12 @@ begin
     self.Top := self.Top + pt.Y - gLastCursorPos.Y;
     gLastCursorPos := pt;
   end;
+end;
+
+procedure TConstrTypesForm.ServiceUnlocksButtonClick(Sender: TObject);
+begin
+  MemoForm.Memo.Lines.LoadFromFile('station_services.txt',TEncoding.UTF8);
+  MemoForm.Show;
 end;
 
 procedure TConstrTypesForm.ApplySettings;

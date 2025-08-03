@@ -491,20 +491,24 @@ end;
 
 procedure TSystemInfoForm.SetPrimaryLocationMenuItemClick(Sender: TObject);
 var i: Integer;
+    b,b2: TSystemBody;
 begin
   if ListView.Selected = nil then Exit;
   if TObject(ListView.Selected.Data) is TSystemBody then
-    with TSystemBody(ListView.Selected.Data) do
+  begin
+    b := TSystemBody(ListView.Selected.Data);
+    b.FeaturesModified := True;
+    b.PrimaryLoc := not b.PrimaryLoc;
+    if b.PrimaryLoc then
+    for i := 0 to FCurrentSystem.Bodies.Count - 1 do
     begin
-      FeaturesModified := True;
-      PrimaryLoc := not PrimaryLoc;
-      if PrimaryLoc then
-        for i := 0 to FCurrentSystem.Bodies.Count - 1 do
-          if TSystemBody(FCurrentSystem.Bodies.Objects[i]).PrimaryLoc then
-            TSystemBody(FCurrentSystem.Bodies.Objects[i]).PrimaryLoc := False;
-      FCurrentSystem.Save;
-      self.UpdateView;
+      b2 := TSystemBody(FCurrentSystem.Bodies.Objects[i]);
+      if (b <> b2) and b2.PrimaryLoc then
+        b2.PrimaryLoc := False;
     end;
+    FCurrentSystem.Save;
+    self.UpdateView;
+  end;
 end;
 
 procedure TSystemInfoForm.SetStationTypeMenuItemClick(Sender: TObject);
@@ -515,6 +519,7 @@ begin
   begin
     cd := TConstructionDepot(ListView.Selected.Data);
     cd.ConstructionType := DataSrc.ConstructionTypes[TMenuItem(Sender).Tag];
+    cd.Modified := True;
     FCurrentSystem.Save;
     UpdateView;
   end;
@@ -1203,10 +1208,11 @@ begin
       if not Planned and (StarSystem = FCurrentSystem.StarSystem) then
       begin
         ct := GetConstrType;
-        if ct.IsOrbital then
-          Inc(orbTaken)
-        else
-          Inc(surfTaken);
+        if ct <> nil then
+          if ct.IsOrbital then
+            Inc(orbTaken)
+          else
+            Inc(surfTaken);
       end;
 
 
@@ -1423,7 +1429,9 @@ begin
   begin
     cd := TConstructionDepot(cl[i]);
     //ports that accept links (link hubs) do not generate weak links
-    //ports that are only linking to other ports work like facilities
+    //ports that are only linking to other ports work like facilities and generate weak links
+    //however, colony ports that are only linking to other ports
+    //do not generate weak links from planetary influence (not verified)
     if cd.LinkHub then continue;
     ct := cd.GetConstrType;
     if ct <> nil then
@@ -1450,7 +1458,7 @@ begin
   ClearEconomies(orbLinks);
   ClearEconomies(bwLinks);
 
-  //sum up body weak links
+  //sum up body stations weak links, to deduct them from system weak links
   for i := 0 to b.Constructions.Count - 1 do
   begin
     cd := TConstructionDepot(b.Constructions[i]);
@@ -1468,7 +1476,10 @@ begin
       ct := cd.GetConstrType;
       if ct <> nil then
       begin
-        cLink := DataSrc.EconomySets.GetLinkEconomies(cd,b);
+        if ct.Economy = 'Colony' then
+          cLink := DataSrc.EconomySets.GetUpLinkEconomies(cd,b)
+        else
+          cLink := DataSrc.EconomySets.GetLinkEconomies(cd,b);
 
         for ei := Low(TEconomy) to High(TEconomy) do
         begin
@@ -1861,6 +1872,7 @@ begin
           b := TSystemBody(FCurrentSystem.Bodies.Objects[i]);
 
           s := b.BodyName;
+          if b.IsMoon or b.IsRing then s := '  ' + s;
           if b.PrimaryLoc then s := s + ' ⚑';
           addCaption(s);
           addSubItem(b.BodyType);
@@ -1907,13 +1919,15 @@ begin
             if (bm.Body <> b.BodyName) and not bm.IsOrphan then continue;
 
             ct := DataSrc.ConstructionTypes.TypeById[bm.ConstructionType];
+            s := '';
             if FiltersCheck.Checked then
-              addCaption('  ' + bm.Body)
+              s := '  ' + bm.Body
             else
               if (bm.Body <> b.BodyName) and bm.IsOrphan then
-                addCaption('? '+ bm.Body)
-              else
-                addCaption('');
+                s := '? '+ bm.Body;
+            if s <> '' then
+              if b.IsMoon or b.IsRing then s := '  ' + s;
+            addCaption(s);
             //orphans attached to main star
             m := nil;
             if bm is TMarket then m := TMarket(bm);
@@ -1986,10 +2000,8 @@ begin
                   begin
                     AddEconomies(cEconomies,orbLinks);
 
-                    // currently only surface-to-orbit uplink has been tested by myself
-                    // not sure if same layer up-links even work... very unlikely
-                    if eb.SurfLinkHub <> nil then
-                      AddEconomies(cEconomies,DataSrc.EconomySets.GetUpLinkEconomies(eb.SurfLinkHub,eb));
+                    //if eb.SurfLinkHub <> nil then
+                    //  AddEconomies(cEconomies,DataSrc.EconomySets.GetUpLinkEconomies(eb.SurfLinkHub,eb));
                   end;
                 end;
                 AddEconomies(cEconomies,totWeakLinks);
@@ -2003,12 +2015,13 @@ begin
                 calcEco := '';
               end;
 
-              if (eb = nil) or (bm <> eb.orbLinkHub) then //no string links/uplinks from orbital link hub port
+              if (eb = nil) or (bm <> eb.orbLinkHub) then //no strong links/uplinks from orbital link hub port
               begin
                 s2 := DataSrc.EconomySets.GetLinkEconomies_nice(cd,b);
                 if s2 <> '' then s := s + '(🔗' + s2 + ') ';
 
-                if ShowUpLinksCheck.Checked and not bm.IsOrbital then
+                if ShowUpLinksCheck.Checked {and not bm.IsOrbital} then
+                if not cd.LinkHub or ((eb <> nil) and (bm = eb.surfLinkHub) and (eb.OrbLinkHub <> nil)) then
                 begin
                   s2 := FormatEconomies(DataSrc.EconomySets.GetUpLinkEconomies(cd,b));
                   if s2 <> '' then s := s + '( ⬆ ' + s2 + ') ';

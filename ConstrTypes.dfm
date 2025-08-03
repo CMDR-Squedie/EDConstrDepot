@@ -171,8 +171,8 @@ object ConstrTypesForm: TConstrTypesForm
       OnClick = ClearFilterButtonClick
     end
     object AddToSystemCheck: TCheckBox
-      Left = 360
-      Top = 8
+      Left = 272
+      Top = 9
       Width = 217
       Height = 17
       Caption = 'Add To Current System on Dbl.Click'
@@ -183,6 +183,15 @@ object ConstrTypesForm: TConstrTypesForm
       Font.Style = []
       ParentFont = False
       TabOrder = 2
+    end
+    object ServiceUnlocksButton: TButton
+      Left = 512
+      Top = 5
+      Width = 97
+      Height = 25
+      Caption = 'Service Unlocks'
+      TabOrder = 3
+      OnClick = ServiceUnlocksButtonClick
     end
   end
 end

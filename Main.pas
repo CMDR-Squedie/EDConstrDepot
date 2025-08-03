@@ -105,6 +105,7 @@ type
     procedure FlightHistoryMenuItemClick(Sender: TObject);
     procedure ReqQtyColLabelDblClick(Sender: TObject);
     procedure CopyReqQtyMenuItemClick(Sender: TObject);
+    procedure CopySystemNameMenuItemClick(Sender: TObject);
     procedure PasteReqQtyMenuItemClick(Sender: TObject);
     procedure ClearReqQtyMenuItemClick(Sender: TObject);
     procedure UseMaxReqQtyMenuItemClick(Sender: TObject);
@@ -668,7 +669,13 @@ begin
       cargo := 0;
       for i := 0 to DataSrc.Cargo.Count -1 do
       begin
-        l[colText] := DataSrc.ItemNames.Values[DataSrc.Cargo.Names[i]];
+        s := DataSrc.ItemNames.Values[DataSrc.Cargo.Names[i]];
+        if s = '' then
+        begin
+          s := DataSrc.Cargo.Names[i];
+          s := UpperCase(Copy(s,1,1)) + Copy(s,2,100);
+        end;
+        l[colText] := s;
         s := DataSrc.Cargo.ValueFromIndex[i];
         l[colStock] := s;
         addline;
@@ -2082,6 +2089,15 @@ begin
   end;
 end;
 
+procedure TEDCDForm.CopySystemNameMenuItemClick(Sender: TObject);
+begin
+  if FCurrentDepot <> nil then
+  begin
+    Clipboard.AsText := FCurrentDepot.StarSystem;
+    SplashForm.ShowInfo('System name copied...',1000);
+  end;
+end;
+
 procedure TEDCDForm.PasteReqQtyMenuItemClick(Sender: TObject);
 begin
   if FCurrentDepot = nil then Exit;
@@ -2247,14 +2263,22 @@ begin
   mitem.Enabled := False;
   SelectDepotSubMenu.Add(mitem);
 
-  mitem := TMenuItem.Create(SelectDepotSubMenu);
-  mitem.Caption := '-';
-  SelectDepotSubMenu.Add(mitem);
+  if (FCurrentDepot <> nil) then
+  begin
+    mitem := TMenuItem.Create(SelectDepotSubMenu);
+    mitem.Caption := '-';
+    SelectDepotSubMenu.Add(mitem);
 
-  mitem := TMenuItem.Create(SelectDepotSubMenu);
-  mitem.Caption := 'Copy Request';
-  mitem.OnClick := CopyReqQtyMenuItemClick;
-  SelectDepotSubMenu.Add(mitem);
+    mitem := TMenuItem.Create(SelectDepotSubMenu);
+    mitem.Caption := 'Copy Request';
+    mitem.OnClick := CopyReqQtyMenuItemClick;
+    SelectDepotSubMenu.Add(mitem);
+
+    mitem := TMenuItem.Create(SelectDepotSubMenu);
+    mitem.Caption := 'Copy System Name';
+    mitem.OnClick := CopySystemNameMenuItemClick;
+    SelectDepotSubMenu.Add(mitem);
+  end;
 
   custreqf := (FCurrentDepot <> nil) and (FCurrentDepot.Status = '');
   if custreqf then
@@ -2290,18 +2314,22 @@ begin
   SelectDepotSubMenu.Add(mitem);
 
   mitem := TMenuItem.Create(SelectDepotSubMenu);
-  mitem.Caption := 'Active Constructions';
+  mitem.Caption := '🚧 Active Constructions';
   mitem.OnClick := ActiveConstrMenuItemClick;
   SelectDepotSubMenu.Add(mitem);
 
   mitem := TMenuItem.Create(SelectDepotSubMenu);
-  mitem.Caption := 'Planned Constructions';
+  mitem.Caption := '✏ Planned Constructions';
   mitem.OnClick := ActiveConstrMenuItemClick;
   mitem.Tag := 1;
   SelectDepotSubMenu.Add(mitem);
 
   mitem := TMenuItem.Create(SelectDepotSubMenu);
-  mitem.Caption := 'Construction Types';
+  mitem.Caption := '-';
+  SelectDepotSubMenu.Add(mitem);
+
+  mitem := TMenuItem.Create(SelectDepotSubMenu);
+  mitem.Caption := '⚙️ Construction Types';
   mitem.OnClick := ConstructionTypesMenuItemClick;
   mitem.Tag := 1;
   SelectDepotSubMenu.Add(mitem);

@@ -18,6 +18,7 @@ type
     procedure CmdrComboBoxChange(Sender: TObject);
     procedure ListViewCustomDrawItem(Sender: TCustomListView; Item: TListItem;
       State: TCustomDrawState; var DefaultDraw: Boolean);
+    procedure ListViewDblClick(Sender: TObject);
   private
     { Private declarations }
     procedure UpdateItems;
@@ -34,7 +35,7 @@ implementation
 
 {$R *.dfm}
 
-uses DataSource, Main, Settings, Clipbrd;
+uses DataSource, Main, Settings, Clipbrd, Bodies;
 
 procedure TSummaryForm.CmdrComboBoxChange(Sender: TObject);
 begin
@@ -48,7 +49,9 @@ var i,i2: Integer;
     isColonyf: Boolean;
     totPop,totScore,totSystems,totHaul,totConstr,totT3,totT2,totT1surf,totT1orb: Integer;
     totSystems10,totSystems100,totShipyards: Integer;
-    totELWs,totWWs,totAWs,totLandRings: Integer;
+    totELW,totWW,totAW,totELW2,totWW2,totAW2,totELW3,totWW3,totAW3: Integer;
+    totLandRings,totG4,totG5,totGW,totGH,
+      totLandOxy,totLandHelium,totAbundLife,totLandAtmMoons: Integer;
     ct: TConstructionType;
     s: string;
 
@@ -59,13 +62,14 @@ var i,i2: Integer;
       item.SubItems.Add('');
     end;
 
-    procedure addStat(s: string; v: Integer; const inclzerof: Boolean = True);
+    procedure addStat(s: string; v: Integer; const inclzerof: Boolean = True; const fs: string = '');
     begin
       if v = 0 then
         if not inclzerof then Exit;
       item := ListView.Items.Add;
       item.Caption := '    ' + s;
       item.SubItems.Add(Format('%.0n', [double(v)]));
+      item.SubItems.Add(fs);
     end;
 
 begin
@@ -86,10 +90,24 @@ begin
   totT1surf := 0;
   totConstr := 0;
   totShipyards := 0;
-  totELWs := 0;
-  totWWs := 0;
-  totAWs := 0;
+  totELW := 0;
+  totWW := 0;
+  totAW := 0;
+  totELW2 := 0;
+  totWW2 := 0;
+  totAW2 := 0;
+  totELW3 := 0;
+  totWW3 := 0;
+  totAW3 := 0;
   totLandRings := 0;
+  totLandAtmMoons := 0;
+  totLandHelium := 0;
+  totLandOxy := 0;
+  totAbundLife := 0;
+  totG4 := 0;
+  totG5 := 0;
+  totGH := 0;
+  totGW := 0;
   for i := 0 to DataSrc.StarSystems.Count - 1 do
   begin
     sys := DataSrc.StarSystems[i];
@@ -102,6 +120,7 @@ begin
     else
       if sys.ArchitectName <> CmdrComboBox.Text then continue;
 
+    sys.UpdateMoons;
 
     totPop := totPop + sys.Population;
     totScore := totScore + sys.GetScore;
@@ -149,13 +168,47 @@ begin
 
     if sys.Bodies <> nil then
     for i2 := 0 to sys.Bodies.Count - 1 do
+      if sys.Bodies[i2] <> '?' then
       with TSystemBody(sys.Bodies.Objects[i2]) do
       begin
         s := LowerCase(BodyType);
-        if Pos('earth',s) > 0 then Inc(totELWs);
-        if Pos('water world',s) > 0 then Inc(totWWs);
-        if Pos('ammonia world',s) > 0 then Inc(totAWs);
-        if Landable and HasRings then Inc(totLandRings);
+        if Pos('earth',s) > 0 then
+        begin
+          Inc(totELW);
+          if HasRings then Inc(totELW2);
+          if HasMoons then Inc(totELW3);
+        end;
+
+        if Pos('water world',s) > 0 then
+        begin
+          Inc(totWW);
+          if HasRings then Inc(totWW2);
+          if HasMoons then Inc(totWW3);
+        end;
+        if Pos('ammonia world',s) > 0 then
+        begin
+          Inc(totAW);
+          if HasRings then Inc(totAW2);
+          if HasMoons then Inc(totAW3);
+        end;
+        if Landable then
+        begin
+          if HasRings then Inc(totLandRings);
+          if Pos('helium',LowerCase(Atmosphere)) > 0 then Inc(totLandHelium);
+          if Pos('oxygen',LowerCase(Atmosphere)) > 0 then Inc(totLandOxy);
+          if BiologicalSignals > 4 then Inc(totAbundLife);
+          if Atmosphere <> '' then
+            if IsMoon then
+              if HasMoons then Inc(totLandAtmMoons);
+
+        end;
+        if Pos('giant',s) > 0 then
+        begin
+          if Pos('class iv',s) > 0 then Inc(totG4);
+          if Pos('class v',s) > 0 then Inc(totG5);
+          if Pos('helium',s) > 0 then Inc(totGH);
+          if Pos('water giant',s) > 0 then Inc(totGW);
+        end;
       end;
 
 
@@ -182,10 +235,24 @@ begin
   addStat('Shipyards',totShipyards);
 
   addHeader('PLANETS OF INTEREST');
-  addStat('Earth-like worlds',totELWs,false);
-  addStat('Water worlds',totWWs,false);
-  addStat('Ammonia worlds',totAWs,false);
-  addStat('Landable w/Rings',totLandRings,false);
+  addStat('Earth-like worlds',totELW,false,'earth');
+  addStat('  - w/Rings',totELW2,false,'earth+rings');
+// addStat('  - w/Moons',totELW3,false);
+  addStat('Water worlds',totWW,false,'water world');
+  addStat('  - w/Rings',totWW2,false,'water world+rings');
+//  addStat('  - w/Moons',totWW3,false);
+  addStat('Ammonia worlds',totAW,false,'ammonia world');
+  addStat('  - w/Rings',totAW2,false,'ammonia world+rings');
+//  addStat('  - w/Moons',totAW3,false);
+  addStat('Class IV Giants',totG4,false,'class iv');
+  addStat('Class V Giants',totG5,false,'class v');
+  addStat('Helium Giants',totGH,false,'helium+giant');
+  addStat('Water Giants',totGW,false,'water giant');
+  addStat('Landable w/Rings',totLandRings,false,'land+rings');
+  addStat('Landable w/Oxygen',totLandOxy,false,'land+oxy');
+  addStat('Landable w/Helium',totLandHelium,false,'land+helium');
+  addStat('Landable w/Bio-diversity (min.5)',totAbundLife,false,'land+bio');
+  addStat('Landable Moon w/Atm. and Moons',totLandAtmMoons,false,'land+atmo+moons');
 
 end;
 
@@ -271,6 +338,24 @@ begin
       Sender.Canvas.Brush.Color := Sender.Canvas.Brush.Color - $202020;
   end;
 
+end;
+
+procedure TSummaryForm.ListViewDblClick(Sender: TObject);
+begin
+  if ListView.Selected = nil then Exit;
+  if ListView.Selected.SubItems[1] = '' then Exit;
+  BodiesForm.BeginFilterChange;
+  try
+    BodiesForm.ColoniesCheck.Checked := True;
+    BodiesForm.ColonTargetsCheck.Checked := False;
+    BodiesForm.ColonCandidatesCheck.Checked := False;
+    BodiesForm.OtherSystemsCheck.Checked := False;
+    BodiesForm.InclIgnoredCheck.Checked := True;
+    BodiesForm.FilterEdit.Text := ListView.Selected.SubItems[1];
+  finally
+    BodiesForm.EndFilterChange;
+  end;
+  BodiesForm.UpdateAndShow;
 end;
 
 end.

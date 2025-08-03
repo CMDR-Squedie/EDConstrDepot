@@ -1,0 +1,47 @@
+The requirements for station service activation
+
+    • Commodities Market:
+        ◦ All tier 2 and tier 3 Ports
+        ◦ All Settlements
+        ◦ Commercial, Industrial, Civilian Outposts
+        ◦ Criminal, Scientific, and Military Outposts plus one of the following:
+            ▪ Strong link to a Comms Installation or Relay Station
+            ▪ Tourist Installation or Bar Installation or Outpost Hub in the same system
+    • Shipyard (Note: always requires a minimum system tech level of 35)
+        ◦ Tier 2 or 3 port
+            ▪ Note: Tech level 35 is immediately granted when a Tier 2 or 3 port is built.
+        ◦ Tier 1 Planet Port plus one of the following:
+            ▪ Strong link to a High Tech Hub
+            ▪ Military Installation or Industrial Hub built in system
+    • Outfitting (Note: always requires a minimum system tech level of 35)
+        ◦ Tier 2 or 3 port
+            ▪ Note: Tech level 35 is immediately granted when a Tier 2 or 3 port is built.
+        ◦ Military Outpost
+        ◦ Tier 1 Industrial Planet Port
+        ◦ Non Military Outpost or Non Industrial Tier 1 Planet Port plus one of the following:
+            ▪ Strong link to an Industrial Hub
+            ▪ Military Installation or High Tech Hub built in system
+    • Universal Cartographics
+        ◦ Tier 3 Port
+        ◦ Scientific Outpost
+        ◦ Tier 1 or 2 Port plus one of the following:
+            ▪ Strong link to a Satellite Installation, Comms Installation or Relay Station
+            ▪ Scientific Installation or Exploration Hub built in system
+        ◦ Research Bio Settlements
+    • Vista Genomics
+        ◦ Tier 3 Port
+        ◦ Tier 1 or Tier 2 Port plus one of the following
+            ▪ Strong link to a Satellite Installation, Comms Installation or Relay Station
+            ▪ Medical Installation or Scientific Hub built in system
+    • Black Market
+        ◦ Pirate Outpost
+        ◦ Any port plus strong link to a Pirate Installation
+    • Crew Lounge
+        ◦ Tier 2 or 3 port
+        ◦ Criminal and Civilian Outposts
+        ◦ Tier 1 Civilian Planet Ports
+        ◦ Tier 1 Port of any other type plus Bar Installation built in the system
+    • Pioneer Supplies
+        ◦ Tier1, 2 or 3 port
+        ◦ Any Outpost
+        ◦ Tier 1 Planet Port

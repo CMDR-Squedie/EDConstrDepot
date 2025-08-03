@@ -22,7 +22,8 @@ uses
   ToolTip in 'ToolTip.pas' {TooltipForm},
   StarMap in 'StarMap.pas' {StarMapForm},
   Summary in 'Summary.pas' {SummaryForm},
-  Bodies in 'Bodies.pas' {BodiesForm};
+  Bodies in 'Bodies.pas' {BodiesForm},
+  Memo in 'Memo.pas' {MemoForm};
 
 {$R *.res}
 
@@ -33,15 +34,22 @@ const gNiceVersion: string = 'Release 27, build 1';
 
 {
   future builds:
+ - simple colony planning solver
+ - system bodies labelling (in picture)
+ - free slots per body
+ - set faction for non-dockable stations
+ - 'asteroid' slots
+ - find similar economy market
+ - economy commodity dependencies
+ - construction types dependencies and System Info alerts
+
+  tentative:
  - Population Map layer
  - set faction for non-dockable stations
  - POIs
  - force show system on map
  - custom star lanes
- - system bodies labelling (in picture)
- - free slots per body
  - biggest station name layer  +  show biggest station on select
- - 'maximize colony big ports number' routine
 }
 
 begin
@@ -70,6 +78,7 @@ begin
   Application.CreateForm(TStarMapForm, StarMapForm);
   Application.CreateForm(TSummaryForm, SummaryForm);
   Application.CreateForm(TBodiesForm, BodiesForm);
+  Application.CreateForm(TMemoForm, MemoForm);
   SettingsForm.VersionLabel.Caption := gNiceVersion;
 
   Application.OnActivate :=  EDCDForm.AppActivate;

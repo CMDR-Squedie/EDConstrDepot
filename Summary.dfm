@@ -41,6 +41,7 @@ object SummaryForm: TSummaryForm
     TabOrder = 0
     ViewStyle = vsReport
     OnCustomDrawItem = ListViewCustomDrawItem
+    OnDblClick = ListViewDblClick
   end
   object CmdrComboBox: TComboBox
     Left = 0
@@ -53,9 +54,6 @@ object SummaryForm: TSummaryForm
     OnChange = CmdrComboBoxChange
     Items.Strings = (
       '(all local commanders)')
-    ExplicitLeft = 112
-    ExplicitTop = 48
-    ExplicitWidth = 145
   end
   object PopupMenu: TPopupMenu
     Left = 264

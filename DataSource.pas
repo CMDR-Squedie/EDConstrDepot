@@ -156,6 +156,8 @@ public
   Landable: Boolean;
   IsRing: Boolean;
   HasRings: Boolean;
+  HasMoons: Boolean;  //updated only with TStarSystem.UpdateMoons;
+  IsMoon: Boolean;
   Atmosphere: string;
   AtmosphereType: string;
   Volcanism: string;
@@ -191,8 +193,10 @@ end;
 
 TStarSystem = class
 private
+  FBodiesUpdated: Integer;
   FFactions: string;
   FArchitect: string;
+  FArchitectName: string;
   FAlterName: string;
   FBodies: TStringList;
   FResourceReserve: string;
@@ -232,6 +236,7 @@ public
   Constructions: TList; //on demand, eg. in Map View;
   Stations: TList; //on demand, eg. in Map View;
   NearestColony: TStarSystem; //on demand, Map View only
+  function IsOwnColony: Boolean;
   function ResourceReserve: string;
   function DistanceTo(s: TStarSystem): Double;
   function PopForTimeStamp(tms: string): Int64;
@@ -246,6 +251,7 @@ public
   procedure UpdateBodies_EDSM;
   procedure UpdateFromScan_EDSM;
   procedure ResetEconomies;
+  procedure UpdateMoons;
   function ImagePath: string;
   procedure UpdateSave;
   procedure Save(const sharedf: Boolean = false);
@@ -362,16 +368,17 @@ type TSystemList = class (THashedStringList)
   function GetSystemByName(const Name: string): TStarSystem;
   function GetSystemByAddr(const Addr: string): TStarSystem;
   function GetSystemByIdx(const idx: Integer): TStarSystem;
+protected
+  procedure AddFromJSON(js: string);
+  procedure UpdateArchitect(cmdr: string; j: TJSONObject);
+  procedure UpdateBodyScan(js: string; j: TJSONObject);
+  procedure UpdateBodySignals(js: string; j: TJSONObject);
 public
   property SystemByName[const Name: string]: TStarSystem read GetSystemByName;
   property SystemByIdx[const idx: Integer]: TStarSystem read GetSystemByIdx; default;
   property SystemByAlterName[const Name: string]: TStarSystem read GetSystemByAlterName;
   property SystemByAddr[const Addr: string]: TStarSystem read GetSystemByAddr;
   procedure UpdateFromFSDJump(js: string; j: TJSONObject);
-  procedure AddFromJSON(js: string);
-  procedure UpdateArchitect(cmdr: string; j: TJSONObject);
-  procedure UpdateBodyScan(js: string; j: TJSONObject);
-  procedure UpdateBodySignals(js: string; j: TJSONObject);
   function AddFromName(name: string): Boolean;
   function AddNeighbours_EDSM(origin: string): Integer; //15Ly
   function AddNeighbours2_EDSM(originSys: TStarSystem): Integer; //two-hop max
@@ -546,7 +553,7 @@ implementation
 
 {$R *.dfm}
 
-uses Main,Clipbrd;
+uses Main,Clipbrd, Splash;
 
 
 procedure __log_except(fname: string;info: string);
@@ -1515,6 +1522,13 @@ begin
   Result := not Planned and not Finished;
 end;
 
+function TStarSystem.IsOwnColony;
+begin
+  Result := (Architect <> '') and (PrimaryDone or (Population > 0));
+  if Result then
+    if DataSrc.Commanders.Values[Architect] = '' then Result := False;
+end;
+
 function TStarSystem.ResourceReserve: string;
 var i: Integer;
 begin
@@ -1712,11 +1726,13 @@ var curId,curNm,s: string;
     i,idx: Integer;
     jarr: TJSONArray;
 begin
+
   curId := '';
   j.TryGetValue<string>('BodyID',curId);
   curNm := '';
   j.TryGetValue<string>('BodyName',curNm);
-  if Pos('Belt Cluster',curNm) > 0 then Exit;
+  if Pos('Belt Cluster',curNm) > 0 then Exit;   //rings info taken from parent scan
+  if Pos('Ring',curNm) > 0 then Exit;
 
   j.TryGetValue<string>('ScanType',s);
   if s = 'NavBeaconDetail' then NavBeaconScan := True;
@@ -1778,7 +1794,9 @@ begin
         for i := 0 to jarr.Count - 1 do
         begin
           jarr[i].TryGetValue<string>('Planet',Parent);
-          if Parent = '' then
+          if Parent <> '' then
+            IsMoon := True
+          else
             jarr[i].TryGetValue<string>('Star',Parent);
           if Parent <> '' then
           begin
@@ -1805,6 +1823,7 @@ begin
           jarr[i].TryGetValue<string>('RingClass',s);
           idx := Pos('_',s);
           s := Copy(s,idx+1,255);
+          if s = 'Metalic' then s := 'Metallic';
           BodyType := 'Ring - ' + s;
           IsRing := True;
           b.HasRings := True;
@@ -1838,14 +1857,45 @@ begin
   UpdateFromScan_EDSM;
 end;
 
+procedure TStarSystem.UpdateMoons;
+var i: Integer;
+    pb: TSystemBody;
+    s: string;
+begin
+  if FBodiesUpdated = FBodies.Count then Exit;
+
+  for i := 0 to FBodies.Count - 1 do
+    if FBodies[i] <> '?' then
+    with TSystemBody(FBodies.Objects[i]) do
+    begin
+      s := LowerCase(BodyType);
+      if Pos('ring',s) <= 0 then
+      if Pos('belt',s) <= 0 then
+      if Pos('star',s) <= 0 then
+      begin
+        pb := ParentBody;
+        if pb <> nil then
+        begin
+          //this is weak for planet test...
+          if (Length(pb.BodyName) > 1) or (StrToIntDef(pb.BodyName,0)>0) then
+          begin
+            IsMoon := True;
+            pb.HasMoons := True;
+          end;
+        end;
+      end;
+    end;
+
+  FBodiesUpdated := FBodies.Count;
+end;
+
 procedure TStarSystem.UpdateFromScan_EDSM;
 var jdata: TJSONObject;
-    jarr,jrings: TJSONArray;
+    jarr,jrings,jparents: TJSONArray;
     b,b2: TSystemBody;
     i,i2,idx: Integer;
     s,curId,curNm: string;
 begin
-
   try
     jdata := TJSONObject.ParseJSONValue(SystemScan_EDSM) as TJSONObject;
     try
@@ -1895,6 +1945,28 @@ begin
           jarr[i].TryGetValue<Extended>('axialTilt',AxialTilt);
           if ReserveLevel = '' then
             jarr[i].TryGetValue<string>('reserveLevel',ReserveLevel);
+
+          try
+            jparents := nil;
+            jarr[i].TryGetValue<TJSONArray>('parents',jparents);
+            if jparents <> nil then
+            begin
+              for i2 := 0 to jparents.Count - 1 do
+              begin
+                jparents[i2].TryGetValue<string>('Planet',Parent);
+                if Parent <> '' then
+                  IsMoon := True
+                else
+                  jparents[i2].TryGetValue<string>('Star',Parent);
+                if Parent <> '' then
+                begin
+                  Parent := Parent.PadLeft(6,'0');
+                  break;
+                end;
+              end;
+            end;
+          except
+          end;
 
           try
             try
@@ -2120,6 +2192,7 @@ end;
 function TStarSystem.GetArchitectName: string;
 begin
   Result := DataSrc.Commanders.Values[Architect];
+  if Result = '' then Result := FArchitectName;
   if Result = '' then Result := Architect;
 end;
 
@@ -2299,7 +2372,7 @@ begin
         StarSystem := j.GetValue<string>('StarSystem');
         SystemAddress := j.GetValue<string>('SystemAddress');
         try Architect := j.GetValue<string>('Architect'); except end;
-  //      try ArchitectName := j.GetValue<string>('ArchitectName'); except end;
+        try FArchitectName := j.GetValue<string>('ArchitectName'); except end;
         try AlterName := j.GetValue<string>('AlterName'); except end;
         try Comment := j.GetValue<string>('Comment'); except end;
         j.TryGetValue<string>('CurrentGoals',CurrentGoals);
@@ -3043,6 +3116,7 @@ var j: TJSONObject;
     m: TMarket;
     sys: TStarSystem;
     newstationf: Boolean;
+    tcnt: Int64;
 label LUpdateTms;
 
     function DepotForMarketId(mID: string): TConstructionDepot;
@@ -3150,6 +3224,7 @@ begin
         event := s;
         orgevent := event;
 
+
         if FDoingBackup then
         begin
           System.IOUtils.TFile.AppendAllText(FWorkingDir + FBackupFile,js+Chr(13),TEncoding.ASCII);
@@ -3162,6 +3237,16 @@ begin
         //line index should be enough to track new events, tms is added to be 100% sure...
         entryId := tms + '.' + IntToStr(i).PadLeft(6);
         if entryId <= FLastJrnlTimeStamps.Values[fn] then continue;
+
+        if FInitialLoad then
+        begin
+          s := Copy(tms,1,10);
+          if SplashForm.InfoTag <> s then
+          begin
+            SplashForm.ShowInfo('Reading journal files... (' + s + ')',0);
+            SplashForm.InfoTag := s;
+          end;
+        end;
 
 //        event := j.GetValue<string>('event');
         if event = 'Commander' then
@@ -3179,7 +3264,6 @@ begin
           CalcShipRanges(j);
           goto LUpdateTms;
         end;
-
 
         if event = 'FSDJump' then
         begin
@@ -3271,7 +3355,6 @@ begin
           end;
           goto LUpdateTms;
         end;
-
 
         mID := '';
         try mID := j.GetValue<string>('MarketID'); except end;
@@ -4191,8 +4274,9 @@ begin
   try CreateDir(FWorkingDir + 'markets'); except end;
   try CreateDir(FWorkingDir + 'colonies'); except end;
 
-  {
+{
   FProcessedEvents := THashedStringList.Create;
+
    FProcessedEvents.Add('Commander');
 //core events
    FProcessedEvents.Add('Loadout');

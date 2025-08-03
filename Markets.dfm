@@ -1,7 +1,7 @@
 object MarketsForm: TMarketsForm
   Left = 0
   Top = 0
-  Caption = 'Manage Markets'
+  Caption = 'Manage Markets & Constructions'
   ClientHeight = 462
   ClientWidth = 1264
   Color = clBackground
@@ -103,7 +103,6 @@ object MarketsForm: TMarketsForm
     OnCustomDrawItem = ListViewCustomDrawItem
     OnDblClick = ListViewAction
     OnMouseDown = ListViewMouseDown
-    ExplicitWidth = 1184
   end
   object Panel1: TPanel
     Left = 0
@@ -124,7 +123,6 @@ object MarketsForm: TMarketsForm
     TabOrder = 1
     OnMouseDown = Panel1MouseDown
     OnMouseMove = Panel1MouseMove
-    ExplicitWidth = 1184
     object Label1: TLabel
       Left = 8
       Top = 8
@@ -186,7 +184,10 @@ object MarketsForm: TMarketsForm
       Top = 8
       Width = 129
       Height = 17
+      Hint = 'Includes Markets with no detailed '#13#10'commodity data'
       Caption = 'Incl. Partial Info'
+      ParentShowHint = False
+      ShowHint = True
       TabOrder = 4
       OnClick = MarketsCheckClick
     end
@@ -209,7 +210,7 @@ object MarketsForm: TMarketsForm
       OnClick = MarketsCheckClick
     end
     object AltSelCheck: TCheckBox
-      Left = 987
+      Left = 1003
       Top = 8
       Width = 111
       Height = 17
@@ -224,6 +225,31 @@ object MarketsForm: TMarketsForm
       Height = 17
       Caption = 'Planned'
       TabOrder = 8
+      OnClick = MarketsCheckClick
+    end
+    object ConstrTypesButton: TButton
+      Left = 1158
+      Top = 4
+      Width = 101
+      Height = 25
+      Caption = #9881#65039'  Constr. Types'
+      TabOrder = 9
+      OnClick = ConstrTypesButtonClick
+    end
+    object InclOtherColCheck: TCheckBox
+      Left = 868
+      Top = 8
+      Width = 129
+      Height = 17
+      Hint = 
+        'Includes Previously Inhabited systems'#13#10'and other player'#39's coloni' +
+        'es'
+      Caption = 'Incl. Other Colonies'
+      Checked = True
+      ParentShowHint = False
+      ShowHint = True
+      State = cbChecked
+      TabOrder = 10
       OnClick = MarketsCheckClick
     end
   end

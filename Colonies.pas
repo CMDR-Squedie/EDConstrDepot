@@ -102,6 +102,7 @@ type
     SortAscending: Boolean;
     FSelectedItems: TStringList;
     FReferenceSystem: TStarSystem;
+    FColonies: TSystemList;
     function IsSelected(item: TListItem): Boolean;
     procedure SaveSelection;
     procedure RestoreSelection;
@@ -512,9 +513,10 @@ end;
 procedure TColoniesForm.FormCreate(Sender: TObject);
 var i: Integer;
 begin
-  SortColumn := 4; //last visit
-  SortAscending := False;
+  SortColumn := 10; //current goals
+  SortAscending := True;
   FSelectedItems := TStringList.Create;
+  FColonies := TSystemList.Create;
 
   DataSrc.AddListener(self);
   ApplySettings;
@@ -583,7 +585,7 @@ end;
 
 procedure TColoniesForm.UpdateItems(const _autoSizeCol: Boolean = false);
 var
-  i,j,curCol: Integer;
+  i,i2,j,curCol: Integer;
   sys: TStarSystem;
   s: string;
   row: TStringList;
@@ -697,6 +699,15 @@ begin
 //stress test
 //for j := 1 to 100 do
 
+{
+    FColonies.Clear;
+    for i := 0 to DataSrc.StarSystems.Count - 1 do
+    begin
+      sys := DataSrc.StarSystems[i];
+      if sys.IsOwnColony then FColonies.AddObject(sys.StarSystem,sys);
+    end;
+}
+
     for i := 0 to DataSrc.StarSystems.Count - 1 do
     begin
       sys := DataSrc.StarSystems[i];
@@ -734,7 +745,9 @@ begin
       addSubItem(niceTime(sys.LastUpdate));
       addSubItem(sys.AlterName);
       addSubItem(sys.SystemSecurity);
-      addSubItem(sys.Factions);
+      s := sys.Factions;
+      if s <> '' then s := '*' + s;
+      addSubItem(s);
       addSubItem(sys.Comment);
       s := '';
       if FileExists(sys.ImagePath) then
@@ -751,6 +764,20 @@ begin
       addSubItem(s);
       addSubItem(sys.TaskGroup);
 
+      s := '';
+      if candidf then
+      begin
+        for i2 := 0 to FColonies.Count - 1 do
+        begin
+          if FColonies[i2].DistanceTo(sys) <= 15 then
+          begin
+            s := FColonies[i2].StarSystem + ' @' + FColonies[i2].Factions;
+            break;
+          end;
+        end;
+      end;
+      addSubItem(s);
+
 
       if CheckFilter then
         addRow(sys);
@@ -758,10 +785,7 @@ begin
 
     if autoSizeCol then
     begin
-      //for i := 0 to ListView.Columns.Count - 2 do
-      //   ListView.Column[i].Width := -2;  //this is EXTREMELY slow!
-      //ListView.Column[ListView.Columns.Count - 1].Width := -1;  //this stays at -1
-
+      colMaxTxt[7] := Copy(colMaxTxt[7],1,30); //factions
       for i := 0 to ListView.Columns.Count - 1 do
         ListView.Column[i].Width := ListView.Canvas.TextWidth(colMaxTxt[i]) +
           15 + ListView.Font.Size div 6; //margins
@@ -791,7 +815,7 @@ end;
 
 procedure TColoniesForm.ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
   Data: Integer; var Compare: Integer);
-var s: string;
+var s,s2: string;
 begin
   Compare := 0;
   if SortColumn <= 0 then
@@ -807,6 +831,18 @@ begin
       Compare := CompareText(
         Item1.SubItems[SortColumn-1].PadLeft(10),
         Item2.SubItems[SortColumn-1].PadLeft(10))
+    else
+    if (SortColumn = 10) or (SortColumn = 11) then
+    begin
+      s := Item1.SubItems[SortColumn-1];
+      if s = '' then s := 'ZZZ';
+      s := s + '    ' + Item1.Caption; //TStarSystem(Item1.Data).LastUpdate;
+      s2 := Item2.SubItems[SortColumn-1];
+      if s2 = '' then s2 := 'ZZZ';
+      s2 := s2 + '    ' + Item2.Caption; //TStarSystem(Item2.Data).LastUpdate;
+
+      Compare := CompareText(s,s2);
+    end
     else
       Compare := CompareText(
         Item1.SubItems[SortColumn-1] + '    ' + Item1.Caption,
@@ -913,12 +949,6 @@ begin
   sys := TStarSystem(ListView.Selected.Data);
   sid := sys.StarSystem;
   case action of
-  1:
-    begin
-      //if MarketsForm.Visible then MarketsForm.SetColony(sid);
-      SystemInfoForm.SetSystem(sys);
-      SystemInfoForm.RestoreAndShow;
-    end;
   2:
     begin
       orgs := sys.ArchitectName;
@@ -990,6 +1020,12 @@ begin
     begin
       SystemPictForm.SetSystem(sid);
       SystemPictForm.Show;
+    end;
+  else
+    begin
+      //if MarketsForm.Visible then MarketsForm.SetColony(sid);
+      SystemInfoForm.SetSystem(sys);
+      SystemInfoForm.RestoreAndShow;
     end;
 
   end;

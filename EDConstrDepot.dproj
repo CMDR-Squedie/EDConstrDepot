@@ -210,6 +210,10 @@
             <Form>BodiesForm</Form>
             <FormType>dfm</FormType>
         </DCCReference>
+        <DCCReference Include="Memo.pas">
+            <Form>MemoForm</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

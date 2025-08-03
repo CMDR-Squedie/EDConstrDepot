@@ -30,6 +30,8 @@ type
     Label2: TLabel;
     N1: TMenuItem;
     N3: TMenuItem;
+    SetReferenceSystemMenuItem: TMenuItem;
+    RefSystemLabel: TLabel;
     procedure ListViewColumnClick(Sender: TObject; Column: TListColumn);
     procedure ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
@@ -51,6 +53,7 @@ type
     procedure ShowOnMapMenuItemClick(Sender: TObject);
   private
     { Private declarations }
+    FColonies: TSystemList;
     FHoldUpdate: Boolean;
     FHighlightColor: TColor;
     SortColumn: Integer;
@@ -61,6 +64,7 @@ type
     function IsSelected(item: TListItem): Boolean;
     procedure SaveSelection;
     procedure RestoreSelection;
+    procedure SetReferenceSystem(sys: TStarSystem);
   public
     { Public declarations }
     procedure BeginFilterChange;
@@ -69,7 +73,6 @@ type
     procedure ApplySettings;
     procedure UpdateItems(const _autoSizeCol: Boolean = false);
     procedure UpdateAndShow;
-//    procedure SetReferenceSystem(sys: TStarSystem; const showallf: Boolean = false);
   end;
 
 var
@@ -134,6 +137,7 @@ begin
     sys := b.SysData;
   end;
   ShowOnMapMenuItem.Enabled := sys <> nil;
+  SetReferenceSystemMenuItem.Enabled := sys <> nil;
 //  CopyMenuItem.Enabled := sys <> nil;
   CopySystemNameMenuItem.Enabled := sys <> nil;
 end;
@@ -266,6 +270,7 @@ begin
   SortColumn := 0;
   SortAscending := False;
   FSelectedItems := TStringList.Create;
+  FColonies := TSystemList.Create;
   DataSrc.AddListener(self);
   ApplySettings;
 
@@ -308,13 +313,13 @@ end;
 
 procedure TBodiesForm.UpdateItems(const _autoSizeCol: Boolean = false);
 var
-  i,j,curCol: Integer;
+  i,i2,j,curCol: Integer;
   b: TSystemBody;
   sys: TStarSystem;
   s: string;
   row: TStringList;
   hsysl: TList;
-  fs,orgfs,cs,sups: string;
+  fs,orgfs,cs,sups,dist: string;
   items: THashedStringList;
   coloniesf,targetf,candidf,otherf,okf,ignf: Boolean;
   d: Extended;
@@ -322,7 +327,6 @@ var
   colMaxTxt: array [0..100] of string;
   autoSizeCol: Boolean;
   fsarr: TStringDynArray;
-  i2: Integer;
 
   procedure addRow(data: TObject);
   var i,ln,idx: Integer;
@@ -437,6 +441,14 @@ begin
 
 //stress test
 //for j := 1 to 100 do
+{
+    FColonies.Clear;
+    for i := 0 to DataSrc.StarSystems.Count - 1 do
+    begin
+      sys := DataSrc.StarSystems[i];
+      if sys.IsOwnColony then FColonies.AddObject(sys.StarSystem,sys);
+    end;
+}
 
     for i := 0 to DataSrc.StarSystems.Count - 1 do
     begin
@@ -455,13 +467,28 @@ begin
         if (sys.Architect = '') and ((sys.Population > 0) or (sys.Factions <> '')) then okf := True;
       if not okf then continue;
 
+      sys.UpdateMoons;
+
+      dist := '';
+      if FReferenceSystem <> nil then
+        if (sys.LastUpdate = '') and (sys.StarPosX = 0) then
+          dist := '?'
+        else
+        begin
+          d := sys.DistanceTo(FReferenceSystem);
+          if d > 0 then
+            dist := FloatToStrF(d,ffFixed,7,2);
+        end;
+
       for i2 := 0 to sys.Bodies.Count -1 do
+      if sys.Bodies[i2] <> '?' then
       begin
         b := TSystemBody(sys.Bodies.Objects[i2]);
 
         addCaption(sys.StarSystem);
+        addSubItem(dist);
         s := b.BodyName;
-        if b.PrimaryLoc then s := s + ' ⚑';
+        if b.PrimaryLoc then s := s + ' ⚑ (prim.)';
         addSubItem(s);
         addSubItem(b.BodyType);
         s := '';
@@ -496,6 +523,7 @@ begin
         addSubItem(FloatToStrF(b.OrbitalPeriod,ffFixed,7,1));
         addSubItem(FloatToStrF(b.SemiMajorAxis,ffFixed,12,1));
         }
+        addSubItem(IfThen(b.HasMoons,'Yes',''),true);
         if CheckFilter then
           addRow(b);
       end;
@@ -538,24 +566,23 @@ begin
   end
   else
   begin
-    if SortColumn = 4 then
+    if SortColumn = 5 then
       Compare := CompareValue(TSystemBody(Item1.Data).DistanceFromArrivalLS,
         TSystemBody(Item2.Data).DistanceFromArrivalLS)
     else
-    if SortColumn = 10 then
+    if SortColumn = 11 then
       Compare := CompareValue(TSystemBody(Item1.Data).SurfaceGravity,
         TSystemBody(Item2.Data).SurfaceGravity)
     else
-    if SortColumn = 13 then
+    if SortColumn = 14 then
       Compare := CompareValue(TSystemBody(Item1.Data).OrbitalInclination,
         TSystemBody(Item2.Data).OrbitalInclination)
-    {
+
     else
-    if SortColumn = 3 then
+    if SortColumn = 1 then
       Compare := CompareText(
         Item1.SubItems[SortColumn-1].PadLeft(10),
         Item2.SubItems[SortColumn-1].PadLeft(10))
-    }
     else
       Compare := CompareText(
         Item1.SubItems[SortColumn-1] + '    ' + Item1.Caption,
@@ -580,30 +607,16 @@ begin
   end;
 end;
 
-{
-procedure TBodiesForm.SetReferenceSystem(sys: TStarSystem; const showallf: Boolean = false);
+procedure TBodiesForm.SetReferenceSystem(sys: TStarSystem);
 begin
   if (sys.LastUpdate = '') and (sys.StarPosX = 0) then Exit; //no xyz
   FReferenceSystem := sys;
-  DistFromLabel.Caption := 'Dist. from: ' + sys.StarSystem;
-  SortColumn := 3;
+  RefSystemLabel.Caption := 'Dist. from: ' + sys.StarSystem;
+  SortColumn := 1;
   SortAscending := True;
-  if showallf then
-  begin
-    BeginFilterChange;
-    try
-      ColoniesCheck.Checked := true;
-      ColonTargetsCheck.Checked := true;
-      ColonCandidatesCheck.Checked := true;
-      OtherSystemsCheck.Checked := true;
-      InclIgnoredCheck.Checked := true;
-    finally
-      EndFilterChange;
-    end;
-  end;
   UpdateItems;
 end;
-}
+
 
 procedure TBodiesForm.ShowOnMapMenuItemClick(Sender: TObject);
 begin
@@ -648,7 +661,7 @@ begin
       Clipboard.SetTextBuf(PChar(sys.StarSystem));
   16:
     begin
-//      SetReferenceSystem(sys);
+      SetReferenceSystem(sys);
     end;
   17:
     begin

@@ -2,8 +2,8 @@ object BodiesForm: TBodiesForm
   Left = 0
   Top = 0
   Caption = 'Bodies'
-  ClientHeight = 380
-  ClientWidth = 1187
+  ClientHeight = 461
+  ClientWidth = 1384
   Color = clBackground
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -18,8 +18,8 @@ object BodiesForm: TBodiesForm
   object ListView: TListView
     Left = 0
     Top = 34
-    Width = 1187
-    Height = 346
+    Width = 1384
+    Height = 427
     Align = alClient
     BevelEdges = []
     BevelInner = bvNone
@@ -29,6 +29,11 @@ object BodiesForm: TBodiesForm
       item
         Caption = 'System'
         Tag = 1
+      end
+      item
+        Alignment = taRightJustify
+        Caption = 'Dist (Ly)'
+        Tag = 16
       end
       item
         Caption = 'Body'
@@ -79,6 +84,10 @@ object BodiesForm: TBodiesForm
         Alignment = taRightJustify
         Caption = ' Orb.Incl.'
         Width = 70
+      end
+      item
+        Alignment = taCenter
+        Caption = 'Moons'
       end>
     Ctl3D = False
     Font.Charset = DEFAULT_CHARSET
@@ -100,12 +109,11 @@ object BodiesForm: TBodiesForm
     OnCustomDrawItem = ListViewCustomDrawItem
     OnDblClick = ListViewAction
     OnMouseDown = ListViewMouseDown
-    ExplicitWidth = 907
   end
   object Panel1: TPanel
     Left = 0
     Top = 0
-    Width = 1187
+    Width = 1384
     Height = 34
     Align = alTop
     BevelEdges = []
@@ -119,7 +127,6 @@ object BodiesForm: TBodiesForm
     ParentBackground = False
     ParentFont = False
     TabOrder = 1
-    ExplicitWidth = 907
     object Label1: TLabel
       Left = 8
       Top = 8
@@ -128,14 +135,29 @@ object BodiesForm: TBodiesForm
       Caption = 'Filter'
     end
     object Label2: TLabel
-      Left = 874
-      Top = 0
+      Left = 1026
+      Top = 1
       Width = 304
       Height = 33
       AutoSize = False
       Caption = 
         'Hint: You can use col. headers in filters, eg. "atmo+rings", use' +
         ' '#39'~'#39' sign to exclude text, '#39'+'#39' to join filters'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -13
+      Font.Name = 'Bahnschrift Light SemiCondensed'
+      Font.Style = [fsItalic]
+      ParentFont = False
+      WordWrap = True
+    end
+    object RefSystemLabel: TLabel
+      Left = 756
+      Top = 9
+      Width = 257
+      Height = 19
+      AutoSize = False
+      Caption = '( Set Reference System to see Distances )'
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clWindowText
       Font.Height = -13
@@ -173,8 +195,8 @@ object BodiesForm: TBodiesForm
       OnClick = ClearFilterButtonClick
     end
     object SelectModeCheck: TCheckBox
-      Left = 756
-      Top = 8
+      Left = 604
+      Top = 17
       Width = 111
       Height = 17
       Caption = 'Alt. Select Mode'
@@ -252,6 +274,11 @@ object BodiesForm: TBodiesForm
     object SystemInfoMenuItem: TMenuItem
       Tag = 1
       Caption = 'System Info'
+      OnClick = ListViewAction
+    end
+    object SetReferenceSystemMenuItem: TMenuItem
+      Tag = 16
+      Caption = 'Set Reference System'
       OnClick = ListViewAction
     end
     object ShowOnMapMenuItem: TMenuItem

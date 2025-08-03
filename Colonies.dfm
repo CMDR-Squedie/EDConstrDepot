@@ -84,6 +84,9 @@ object ColoniesForm: TColoniesForm
       end
       item
         Caption = 'Task Group'
+      end
+      item
+        Caption = ' '
       end>
     Ctl3D = False
     Font.Charset = DEFAULT_CHARSET
@@ -105,8 +108,6 @@ object ColoniesForm: TColoniesForm
     OnCustomDrawItem = ListViewCustomDrawItem
     OnDblClick = ListViewAction
     OnMouseDown = ListViewMouseDown
-    ExplicitTop = 40
-    ExplicitWidth = 1384
   end
   object Panel1: TPanel
     Left = 0
@@ -127,7 +128,6 @@ object ColoniesForm: TColoniesForm
     TabOrder = 1
     OnMouseDown = Panel1MouseDown
     OnMouseMove = Panel1MouseMove
-    ExplicitWidth = 1184
     object Label1: TLabel
       Left = 8
       Top = 8
@@ -271,7 +271,7 @@ object ColoniesForm: TColoniesForm
       Top = 5
       Width = 49
       Height = 23
-      Caption = 'Bodies..'
+      Caption = 'Bodies'
       TabOrder = 10
       OnClick = FindBodyMenuItemClick
     end
@@ -290,14 +290,14 @@ object ColoniesForm: TColoniesForm
       Caption = 'System Info'
       OnClick = ListViewAction
     end
+    object ShowOnMapMenuItem: TMenuItem
+      Caption = 'Show On Map'
+      OnClick = ShowOnMapMenuItemClick
+    end
     object DistancesFromMenuItem: TMenuItem
       Tag = 16
       Caption = 'Set As Reference System'
       OnClick = ListViewAction
-    end
-    object ShowOnMapMenuItem: TMenuItem
-      Caption = 'Show On Map'
-      OnClick = ShowOnMapMenuItemClick
     end
     object AddToTargetsMenuItem: TMenuItem
       Caption = 'Add To Targets'

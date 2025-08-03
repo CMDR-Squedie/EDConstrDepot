@@ -125,7 +125,7 @@ object SystemInfoForm: TSystemInfoForm
     object SystemNameLabel: TLabel
       Left = 8
       Top = 8
-      Width = 351
+      Width = 193
       Height = 16
       AutoSize = False
       Caption = '--------------------'
@@ -374,14 +374,17 @@ object SystemInfoForm: TSystemInfoForm
       Height = 19
       Hint = 'Current / incl. In Progress / incl. Planned'
       Caption = '00 (00/00)'
+      Color = clBlack
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clCrimson
       Font.Height = -16
       Font.Name = 'Bahnschrift SemiCondensed'
       Font.Style = []
+      ParentColor = False
       ParentFont = False
       ParentShowHint = False
       ShowHint = True
+      Transparent = True
     end
     object Label2: TLabel
       Left = 242
