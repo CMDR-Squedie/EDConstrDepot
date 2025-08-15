@@ -72,6 +72,7 @@ type
     HideDistancesMenuItem: TMenuItem;
     FindSystemMenuItem: TMenuItem;
     FindBodiesMenuItem: TMenuItem;
+    AddSystemsMenuItem: TMenuItem;
     procedure PaintBoxPaint(Sender: TObject);
     procedure PaintBoxDblClick(Sender: TObject);
     procedure ProjectionXComboChange(Sender: TObject);
@@ -111,6 +112,7 @@ type
     procedure HideDistancesMenuItemClick(Sender: TObject);
     procedure FindSystemMenuItemClick(Sender: TObject);
     procedure FindBodiesMenuItemClick(Sender: TObject);
+    procedure AddSystemsMenuItemClick(Sender: TObject);
   private
     { Private declarations }
     FShowNeighbours: Boolean;
@@ -351,6 +353,45 @@ begin
   end;
 end;
 
+procedure TStarMapForm.AddSystemsMenuItemClick(Sender: TObject);
+var sl: TStringList;
+    s: string;
+    i: Integer;
+begin
+  if Vcl.Dialogs.MessageDlg('Add all systems in clipboard?',
+    mtConfirmation, [mbYes, mbNo], 0, mbNo) = mrNo then Exit;
+
+  sl := TStringList.Create;
+  sl.Text := Clipboard.AsText;
+  for i := 0 to sl.Count - 1 do
+  begin
+    s := Trim(sl[i]);
+    if s <> '' then
+    begin
+      if DataSrc.StarSystems.AddSystem_EDSM(s) then Sleep(1000);
+    end;
+
+  end;
+  sl.Free;
+//  Exit;
+
+
+  for i := 0 to DataSrc.StarSystems.Count - 1 do
+    if DataSrc.StarSystems[i].SystemScan_EDSM = '' then
+    if not DataSrc.StarSystems[i].Ignored then
+//    if DataSrc.StarSystems[i].Comment <> '' then
+    if DataSrc.StarSystems[i].Architect = '' then
+//    if DataSrc.StarSystems[i].Population = 0 then
+    begin
+      //DataSrc.StarSystems[i].Architect := 'x';
+      //DataSrc.StarSystems[i].ArchitectName := 'x';
+      DataSrc.StarSystems[i].UpdateBodies_EDSM;
+      DataSrc.StarSystems[i].Save;
+      Sleep(1000);
+    end;
+
+end;
+
 procedure TStarMapForm.AddToTargetsMenuItemClick(Sender: TObject);
 begin
   if FSelectedSystem = nil then Exit;
@@ -441,6 +482,7 @@ end;
 
 procedure TStarMapForm.OnChangeSettings;
 begin
+  ShowInTaskBar := Opts.Flags['ShowInTaskbar'];
   if Visible then
   begin
     UpdateMap;
@@ -450,6 +492,7 @@ end;
 
 procedure TStarMapForm.FormCreate(Sender: TObject);
 begin
+  ShowInTaskBar := Opts.Flags['ShowInTaskbar'];
   DataSrc.AddListener(self);
 
   self.Width := StrToIntDef(Opts['Map.Width'],self.Width);
@@ -1514,6 +1557,7 @@ LSkipLabelReposition:;
                 if (Pos('Settl',StationType) <= 0) and (Pos('Carrier',StationType) <= 0) then
                   if IsOrbital then
                   begin
+                    //this is not perfect for asteroid bases, these are marked as SurfaceStation until weekly tick
                     if Pos('Asteroid',StationType) > 0 then
                       Inc(cnt2)
                     else
@@ -1887,6 +1931,8 @@ begin
   StartRouteMenuItem.Enabled := FRoute.Count > 1;
   StopRouteMenuItem.Enabled := (FRoute.Count > 1) or DataSrc.CurrentRoute.Active;
   ClearRouteMenuItem.Enabled := FRoute.Count > 1;
+
+  AddSystemsMenuItem.Visible := Opts.Flags['DevMode'];
 
   for i := RouteSubMenu.Count - 1 downto 0 do
   begin

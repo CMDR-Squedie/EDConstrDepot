@@ -475,6 +475,7 @@ var i,fs: Integer;
     clr: TColor;
     crec: System.UITypes.TColorRec;
 begin
+  ShowInTaskBar := Opts.Flags['ShowInTaskbar'];
   FHighlightColor := clBlack;
 
   if not Opts.Flags['DarkMode'] then

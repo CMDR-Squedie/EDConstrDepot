@@ -23,25 +23,22 @@ uses
   StarMap in 'StarMap.pas' {StarMapForm},
   Summary in 'Summary.pas' {SummaryForm},
   Bodies in 'Bodies.pas' {BodiesForm},
-  Memo in 'Memo.pas' {MemoForm};
+  Memo in 'Memo.pas' {MemoForm},
+  Solver in 'Solver.pas' {SolverForm};
 
 {$R *.res}
 
-const gNiceVersion: string = 'Release 27, build 1';
+const gNiceVersion: string = 'Release 28, build 1';
 
 {
-  }
+}
 
 {
   future builds:
- - simple colony planning solver
- - system bodies labelling (in picture)
+ - economy commodity dependencies
  - free slots per body
- - set faction for non-dockable stations
  - 'asteroid' slots
  - find similar economy market
- - economy commodity dependencies
- - construction types dependencies and System Info alerts
 
   tentative:
  - Population Map layer
@@ -79,6 +76,7 @@ begin
   Application.CreateForm(TSummaryForm, SummaryForm);
   Application.CreateForm(TBodiesForm, BodiesForm);
   Application.CreateForm(TMemoForm, MemoForm);
+  Application.CreateForm(TSolverForm, SolverForm);
   SettingsForm.VersionLabel.Caption := gNiceVersion;
 
   Application.OnActivate :=  EDCDForm.AppActivate;

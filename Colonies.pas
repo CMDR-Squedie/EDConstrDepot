@@ -93,6 +93,7 @@ type
     procedure ShareAllMenuItemClick(Sender: TObject);
     procedure TotalsButtonClick(Sender: TObject);
     procedure FindBodyMenuItemClick(Sender: TObject);
+    procedure EditArchitectMenuItemClick(Sender: TObject);
   private
     { Private declarations }
     FHoldUpdate: Boolean;
@@ -375,6 +376,27 @@ begin
   Clipboard.SetTextBuf(PChar(s));
 end;
 
+procedure TColoniesForm.EditArchitectMenuItemClick(Sender: TObject);
+var i: Integer;
+    sys: TStarSystem;
+    s,orgs: string;
+begin
+  s := Vcl.Dialogs.InputBox('Architect', 'Name', '');
+  DataSrc.BeginUpdate;
+  try
+    for i := 0 to ListView.Items.Count -1 do
+      if IsSelected(ListView.Items[i]) then
+      begin
+        sys := TStarSystem(ListView.Items[i].Data);
+        sys.ArchitectName := s;
+        sys.Save;
+      end;
+  finally
+    DataSrc.EndUpdate;
+  end;
+  //UpdateItems;
+end;
+
 procedure TColoniesForm.EditTimerTimer(Sender: TObject);
 begin
   try
@@ -458,6 +480,7 @@ var i,fs: Integer;
     clr: TColor;
     crec: System.UITypes.TColorRec;
 begin
+  ShowInTaskBar := Opts.Flags['ShowInTaskbar'];
   FHighlightColor := clBlack;
 
   if not Opts.Flags['DarkMode'] then

@@ -146,6 +146,7 @@ begin
   FDefaults.Values['CrossHair'] := '0';
   FDefaults.Values['ShowAlterNames'] := '0';
   FDefaults.Values['ShowSysPreview'] := '1';
+  FDefaults.Values['ShowInTaskbar'] := '0';
 
 //.ini file only
   FDefaults.Values['IndicatorsPadding'] := '1';

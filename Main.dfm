@@ -4,7 +4,7 @@ object EDCDForm: TEDCDForm
   BorderIcons = []
   BorderStyle = bsNone
   BorderWidth = 1
-  Caption = '9'
+  Caption = 'ED ConstrDepot'
   ClientHeight = 513
   ClientWidth = 231
   Color = 3158064

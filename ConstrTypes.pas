@@ -88,6 +88,7 @@ var i,fs: Integer;
     fn: string;
     clr: TColor;
 begin
+  ShowInTaskBar := Opts.Flags['ShowInTaskbar'];
   if not Opts.Flags['DarkMode'] then
   begin
     with ListView do

@@ -84,6 +84,8 @@ type
     ClearMatListMenuItem: TMenuItem;
     UseAvgRequestMenuItem: TMenuItem;
     UseMaxRequestMenuItem: TMenuItem;
+    Label18: TLabel;
+    FactionCombo: TComboBox;
     procedure FormCreate(Sender: TObject);
     procedure TypeComboChange(Sender: TObject);
     procedure OKButtonClick(Sender: TObject);
@@ -211,6 +213,7 @@ begin
 
 
       FCurrentStation.Body := Trim(LeftStr(BodyCombo.Text,20));
+      FCurrentStation.Faction := FactionCombo.Text;
       FCurrentStation.Layout := LayoutCombo.Text;
       if FCurrentStation.DistFromStar = 0 then
       begin
@@ -324,13 +327,20 @@ begin
   try BuildOrderUpDown.Position := FCurrentStation.BuildOrder; except end;
   BodyCombo.Text := FCurrentStation.Body;
   BodyCombo.Items.Clear;
+  FactionCombo.Items.Clear;
   if FCurrentStation.GetSys <> nil then
+  begin
+    FactionCombo.Items.StrictDelimiter := True;
+    FactionCombo.Items.CommaText := FCurrentStation.GetSys.GetFactionList;
+    FactionCombo.Text := FCurrentStation.Faction;
     for i := 0 to FCurrentStation.GetSys.Bodies.Count - 1 do
       with TSystemBody(FCurrentStation.GetSys.Bodies.Objects[i]) do
       begin
         BodyCombo.Items.AddObject(BodyName.PadRight(20,' ') + BodyType,FCurrentStation.GetSys.Bodies.Objects[i]);
       end;
+  end;
   LayoutCombo.Text := FCurrentStation.Layout;
+
 
   TypeCombo.ItemIndex := TypeCombo.Items.IndexOfObject(
     DataSrc.ConstructionTypes.TypeById[FCurrentStation.ConstructionType]);
@@ -577,6 +587,7 @@ var i,fs: Integer;
     fn: string;
     clr: TColor;
 begin
+  ShowInTaskBar := Opts.Flags['ShowInTaskbar'];
   if not Opts.Flags['DarkMode'] then
   begin
     Color := clSilver;

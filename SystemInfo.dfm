@@ -17,7 +17,7 @@ object SystemInfoForm: TSystemInfoForm
   TextHeight = 16
   object Splitter1: TSplitter
     Left = 0
-    Top = 473
+    Top = 500
     Width = 1384
     Height = 5
     Cursor = crVSplit
@@ -26,11 +26,28 @@ object SystemInfoForm: TSystemInfoForm
     ExplicitTop = 468
     ExplicitWidth = 1184
   end
+  object NextPictLabel: TLabel
+    Left = 0
+    Top = 81
+    Width = 1384
+    Height = 19
+    Align = alTop
+    Alignment = taCenter
+    Caption = '( next picture label )'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clSilver
+    Font.Height = -16
+    Font.Name = 'Bahnschrift SemiCondensed'
+    Font.Style = []
+    ParentFont = False
+    Visible = False
+    ExplicitWidth = 129
+  end
   object ListView: TListView
     Left = 0
-    Top = 570
+    Top = 597
     Width = 1384
-    Height = 291
+    Height = 264
     Align = alClient
     BevelInner = bvNone
     BevelOuter = bvNone
@@ -110,13 +127,13 @@ object SystemInfoForm: TSystemInfoForm
     Left = 0
     Top = 0
     Width = 1384
-    Height = 73
+    Height = 81
     Align = alTop
     BevelOuter = bvNone
     Color = clGray
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
-    Font.Height = -13
+    Font.Height = -15
     Font.Name = 'Bahnschrift SemiCondensed'
     Font.Style = []
     ParentBackground = False
@@ -126,33 +143,33 @@ object SystemInfoForm: TSystemInfoForm
       Left = 8
       Top = 8
       Width = 193
-      Height = 16
+      Height = 20
       AutoSize = False
       Caption = '--------------------'
       OnClick = SystemNameLabelClick
     end
     object FactionsLabel: TLabel
       Left = 217
-      Top = 52
+      Top = 58
       Width = 347
-      Height = 16
+      Height = 20
       AutoSize = False
       Caption = '----------------------'
       OnDblClick = FactionsLabelDblClick
     end
     object LastUpdateLabel: TLabel
       Left = 217
-      Top = 30
-      Width = 168
-      Height = 16
+      Top = 33
+      Width = 195
+      Height = 20
       AutoSize = False
       Caption = '-----------------------'
     end
     object SystemAddrLabel: TLabel
-      Left = 1247
-      Top = 45
-      Width = 137
-      Height = 16
+      Left = 1230
+      Top = 48
+      Width = 154
+      Height = 20
       AutoSize = False
       Caption = '-------------------'
       OnDblClick = SystemAddrLabelDblClick
@@ -161,62 +178,65 @@ object SystemInfoForm: TSystemInfoForm
       Left = 217
       Top = 8
       Width = 185
-      Height = 16
+      Height = 20
       AutoSize = False
       Caption = '--------------------'
       OnClick = ArchitectLabelClick
     end
     object PopulationLabel: TLabel
       Left = 8
-      Top = 30
+      Top = 33
       Width = 161
-      Height = 16
+      Height = 20
       AutoSize = False
       Caption = '--------------------'
     end
     object SecurityLabel: TLabel
       Left = 8
-      Top = 51
+      Top = 57
       Width = 161
-      Height = 16
+      Height = 20
       AutoSize = False
       Caption = '------------------------'
     end
     object Label3: TLabel
-      Left = 584
+      Left = 602
       Top = 8
-      Width = 49
-      Height = 16
+      Width = 55
+      Height = 18
+      Alignment = taRightJustify
       Caption = 'Comment'
     end
     object Label5: TLabel
-      Left = 584
-      Top = 30
-      Width = 70
-      Height = 16
+      Left = 575
+      Top = 34
+      Width = 82
+      Height = 18
+      Alignment = taRightJustify
       Caption = 'Current Goals'
     end
     object Label7: TLabel
-      Left = 584
-      Top = 51
-      Width = 53
-      Height = 16
+      Left = 596
+      Top = 57
+      Width = 61
+      Height = 18
+      Alignment = taRightJustify
       Caption = 'Objectives'
     end
     object Label15: TLabel
-      Left = 427
-      Top = 8
+      Left = 826
+      Top = 57
       Width = 35
-      Height = 16
+      Height = 21
       AutoSize = False
-      Caption = 'Group'
+      Caption = 'Groups'
       OnDblClick = SystemAddrLabelDblClick
     end
     object EDSMScanLabel: TLabel
-      Left = 1118
-      Top = 45
-      Width = 98
-      Height = 16
+      Left = 1104
+      Top = 48
+      Width = 129
+      Height = 20
       AutoSize = False
       Caption = '[ Clear EDSM Scan ]'
       OnClick = EDSMScanLabelClick
@@ -224,16 +244,16 @@ object SystemInfoForm: TSystemInfoForm
     end
     object IgnoredLabel: TLabel
       Left = 489
-      Top = 30
+      Top = 8
       Width = 50
-      Height = 16
+      Height = 20
       AutoSize = False
       Caption = 'Ignored'
       OnClick = IgnoredLabelClick
     end
     object EDSMScanButton: TButton
       Left = 1011
-      Top = 42
+      Top = 46
       Width = 75
       Height = 25
       Caption = 'EDSM Scan'
@@ -244,14 +264,14 @@ object SystemInfoForm: TSystemInfoForm
       Left = 660
       Top = 5
       Width = 325
-      Height = 24
+      Height = 26
       ParentColor = True
       TabOrder = 1
       OnChange = CommentEditChange
     end
     object SaveDataButton: TButton
       Left = 1011
-      Top = 11
+      Top = 15
       Width = 75
       Height = 25
       Caption = 'Save'
@@ -260,34 +280,34 @@ object SystemInfoForm: TSystemInfoForm
     end
     object GoalsEdit: TEdit
       Left = 660
-      Top = 26
+      Top = 30
       Width = 325
-      Height = 24
+      Height = 26
       ParentColor = True
       TabOrder = 3
       OnChange = CommentEditChange
     end
     object ObjectivesEdit: TEdit
       Left = 660
-      Top = 49
-      Width = 325
-      Height = 24
+      Top = 55
+      Width = 149
+      Height = 26
       ParentColor = True
       TabOrder = 4
       OnChange = CommentEditChange
     end
     object TaskGroupEdit: TEdit
-      Left = 468
-      Top = 5
-      Width = 96
-      Height = 24
+      Left = 867
+      Top = 55
+      Width = 118
+      Height = 26
       ParentColor = True
       TabOrder = 5
       OnChange = CommentEditChange
     end
     object IgnoredCheck: TCheckBox
       Left = 467
-      Top = 30
+      Top = 9
       Width = 19
       Height = 17
       TabOrder = 6
@@ -296,7 +316,7 @@ object SystemInfoForm: TSystemInfoForm
   end
   object ScrollBox: TScrollBox
     Left = 0
-    Top = 73
+    Top = 100
     Width = 1384
     Height = 400
     HorzScrollBar.Smooth = True
@@ -343,10 +363,133 @@ object SystemInfoForm: TSystemInfoForm
       OnMouseMove = SysImageMouseMove
       OnMouseUp = SysImageMouseUp
     end
+    object BodyInfoLabel: TLabel
+      Left = 679
+      Top = 160
+      Width = 60
+      Height = 13
+      Caption = 'BodyInfoLabel'
+      Color = clBlack
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clSilver
+      Font.Height = -11
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentColor = False
+      ParentFont = False
+      Transparent = False
+    end
+    object BodyInfoFrame: TShape
+      Left = 608
+      Top = 160
+      Width = 65
+      Height = 65
+      Brush.Color = clBlack
+      Pen.Color = clSilver
+      Visible = False
+    end
+    object BodySlotsPanel: TPanel
+      Left = 608
+      Top = 231
+      Width = 145
+      Height = 22
+      BevelOuter = bvNone
+      Color = clBlack
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clSilver
+      Font.Height = -15
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentBackground = False
+      ParentFont = False
+      TabOrder = 0
+      Visible = False
+      object Label16: TLabel
+        Left = 124
+        Top = 0
+        Width = 14
+        Height = 22
+        Align = alLeft
+        Caption = ' + '
+        ExplicitHeight = 18
+      end
+      object Label17: TLabel
+        Left = 77
+        Top = 0
+        Width = 26
+        Height = 22
+        Align = alLeft
+        Caption = ' '#55356#57325' '
+        ExplicitHeight = 18
+      end
+      object Label18: TLabel
+        Left = 103
+        Top = 0
+        Width = 14
+        Height = 22
+        Align = alLeft
+        Caption = ' - '
+        ExplicitHeight = 18
+      end
+      object Label19: TLabel
+        Left = 51
+        Top = 0
+        Width = 14
+        Height = 22
+        Align = alLeft
+        Caption = ' + '
+        ExplicitHeight = 18
+      end
+      object Label20: TLabel
+        Left = 0
+        Top = 0
+        Width = 30
+        Height = 22
+        Align = alLeft
+        Caption = ' '#9898#8226' '
+        ExplicitHeight = 18
+      end
+      object Label21: TLabel
+        Left = 30
+        Top = 0
+        Width = 14
+        Height = 22
+        Align = alLeft
+        Caption = ' - '
+        ExplicitHeight = 18
+      end
+      object Label22: TLabel
+        Left = 65
+        Top = 0
+        Width = 12
+        Height = 22
+        Align = alLeft
+        Caption = '   '
+        ExplicitHeight = 18
+      end
+      object Label23: TLabel
+        Left = 44
+        Top = 0
+        Width = 7
+        Height = 22
+        Align = alLeft
+        Caption = '0'
+        ExplicitHeight = 18
+      end
+      object Label24: TLabel
+        Left = 117
+        Top = 0
+        Width = 7
+        Height = 22
+        Align = alLeft
+        Caption = '0'
+        ExplicitHeight = 18
+      end
+    end
   end
   object InfoPanel2: TPanel
     Left = 0
-    Top = 478
+    Top = 505
     Width = 1384
     Height = 59
     Align = alTop
@@ -873,7 +1016,7 @@ object SystemInfoForm: TSystemInfoForm
   end
   object FiltersPanel: TPanel
     Left = 0
-    Top = 537
+    Top = 564
     Width = 1384
     Height = 33
     Align = alTop
@@ -1022,6 +1165,24 @@ object SystemInfoForm: TSystemInfoForm
       Caption = 'Refresh'
       OnClick = ReloadPictureMenuItemClick
     end
+    object LabelsSubMenu: TMenuItem
+      Caption = 'Body Labels'
+      object AddLabelsMenuItem: TMenuItem
+        Caption = 'Edit Mode'
+        OnClick = AddLabelsMenuItemClick
+      end
+      object UndoBodyLabelMenuItem: TMenuItem
+        Caption = 'Undo (Shift+Click)'
+        OnClick = UndoBodyLabelMenuItemClick
+      end
+      object N8: TMenuItem
+        Caption = '-'
+      end
+      object ClearAllLabelsMenuItem: TMenuItem
+        Caption = 'Clear All'
+        OnClick = ClearAllLabelsMenuItemClick
+      end
+    end
     object N1: TMenuItem
       Caption = '-'
     end
@@ -1069,6 +1230,17 @@ object SystemInfoForm: TSystemInfoForm
     object DeleteConstructionMenuItem: TMenuItem
       Caption = 'Delete Construction'
       OnClick = DeleteConstructionMenuItemClick
+    end
+    object N9: TMenuItem
+      Caption = '-'
+    end
+    object ConstructionTypesMenuItem: TMenuItem
+      Caption = 'Construction Types'
+      OnClick = ConstructionTypesMenuItemClick
+    end
+    object SolverMenuItem: TMenuItem
+      Caption = 'Colony Planner...'
+      OnClick = SolverMenuItemClick
     end
     object N4: TMenuItem
       Caption = '-'

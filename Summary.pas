@@ -47,11 +47,12 @@ var i,i2: Integer;
     item: TListItem;
     sys: TStarSystem;
     isColonyf: Boolean;
-    totPop,totScore,totSystems,totHaul,totConstr,totT3,totT2,totT1surf,totT1orb: Integer;
+    totPop: Int64;
+    totHaul,totScore,totSystems,totConstr,totT3,totT2,totT1surf,totT1orb: Integer;
     totSystems10,totSystems100,totShipyards: Integer;
     totELW,totWW,totAW,totELW2,totWW2,totAW2,totELW3,totWW3,totAW3: Integer;
     totLandRings,totG4,totG5,totGW,totGH,
-      totLandOxy,totLandHelium,totAbundLife,totLandAtmMoons: Integer;
+      totLandOxy,totLandHelium,totAbundLife,totLandAtmMoons,totMetalRings: Integer;
     ct: TConstructionType;
     s: string;
 
@@ -62,7 +63,7 @@ var i,i2: Integer;
       item.SubItems.Add('');
     end;
 
-    procedure addStat(s: string; v: Integer; const inclzerof: Boolean = True; const fs: string = '');
+    procedure addStat(s: string; v: Int64; const inclzerof: Boolean = True; const fs: string = '');
     begin
       if v = 0 then
         if not inclzerof then Exit;
@@ -108,6 +109,7 @@ begin
   totG5 := 0;
   totGH := 0;
   totGW := 0;
+  totMetalRings := 0;
   for i := 0 to DataSrc.StarSystems.Count - 1 do
   begin
     sys := DataSrc.StarSystems[i];
@@ -171,7 +173,7 @@ begin
       if sys.Bodies[i2] <> '?' then
       with TSystemBody(sys.Bodies.Objects[i2]) do
       begin
-        s := LowerCase(BodyType);
+        s := LowerCase(BodyName) + LowerCase(BodyType);
         if Pos('earth',s) > 0 then
         begin
           Inc(totELW);
@@ -209,6 +211,11 @@ begin
           if Pos('helium',s) > 0 then Inc(totGH);
           if Pos('water giant',s) > 0 then Inc(totGW);
         end;
+
+        if IsRing then
+          if Pos('metallic',s) > 0 then
+            if Pos('belt',s) <= 0 then
+              Inc(totMetalRings);
       end;
 
 
@@ -253,6 +260,7 @@ begin
   addStat('Landable w/Helium',totLandHelium,false,'land+helium');
   addStat('Landable w/Bio-diversity (min.5)',totAbundLife,false,'land+bio');
   addStat('Landable Moon w/Atm. and Moons',totLandAtmMoons,false,'land+atmo+moons');
+  addStat('Planetary Rings - Metallic',totMetalRings,false, 'metallic+ring+~belt+~magma');
 
 end;
 
@@ -267,6 +275,7 @@ var i,fs: Integer;
     fn: string;
     clr: TColor;
 begin
+  ShowInTaskBar := Opts.Flags['ShowInTaskbar'];
   if not Opts.Flags['DarkMode'] then
   begin
     with ListView do

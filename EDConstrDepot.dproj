@@ -214,6 +214,10 @@
             <Form>MemoForm</Form>
             <FormType>dfm</FormType>
         </DCCReference>
+        <DCCReference Include="Solver.pas">
+            <Form>SolverForm</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

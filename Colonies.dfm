@@ -307,9 +307,8 @@ object ColoniesForm: TColoniesForm
       Caption = '-'
     end
     object EditArchitectMenuItem: TMenuItem
-      Tag = 2
       Caption = 'Architect...'
-      OnClick = ListViewAction
+      OnClick = EditArchitectMenuItemClick
     end
     object EditAlterNameMenuItem: TMenuItem
       Tag = 7

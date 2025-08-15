@@ -86,8 +86,15 @@ object BodiesForm: TBodiesForm
         Width = 70
       end
       item
+        Alignment = taRightJustify
+        Caption = 'S.Axis'
+      end
+      item
         Alignment = taCenter
         Caption = 'Moons'
+      end
+      item
+        Caption = ' '
       end>
     Ctl3D = False
     Font.Charset = DEFAULT_CHARSET
@@ -292,6 +299,11 @@ object BodiesForm: TBodiesForm
     end
     object N1: TMenuItem
       Caption = '-'
+    end
+    object ShowSpecialsMenuItem: TMenuItem
+      AutoCheck = True
+      Caption = 'Show Specials'
+      OnClick = ShowSpecialsMenuItemClick
     end
     object CopyAllMenuItem: TMenuItem
       Caption = 'Copy All'

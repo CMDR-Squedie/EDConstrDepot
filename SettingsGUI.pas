@@ -107,6 +107,7 @@ begin
   DefineFlag('ClickThrough','transparent to in-game clicks (Alt-Tab/Menu key to re-activate)');
   DefineFlag('ScanMenuKey','when in-game, press and hold Quick Menu key to activate the app');
   DefineOpt('AlwaysOnTop','0-not on top; 1-always on top; 2-on top of E:D window only',0,2,'');
+  DefineFlag('ShowInTaskbar','show all secondary windows in taskbar');
   DefineFlag('CrossHair','extra aiming mark at screen center - use .ini file to customize');
 
   DefineGroup('OVERLAY: DISPLAY');

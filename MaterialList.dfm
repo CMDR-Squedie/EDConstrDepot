@@ -129,7 +129,5 @@ object MaterialListForm: TMaterialListForm
     ViewStyle = vsReport
     OnDblClick = ListViewDblClick
     OnKeyUp = ListViewKeyUp
-    ExplicitTop = 57
-    ExplicitHeight = 531
   end
 end

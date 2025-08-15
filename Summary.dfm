@@ -2,7 +2,7 @@ object SummaryForm: TSummaryForm
   Left = 0
   Top = 0
   Caption = 'Summary'
-  ClientHeight = 628
+  ClientHeight = 661
   ClientWidth = 394
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -18,7 +18,7 @@ object SummaryForm: TSummaryForm
     Left = 0
     Top = 24
     Width = 394
-    Height = 604
+    Height = 637
     Align = alClient
     BevelInner = bvNone
     BevelOuter = bvNone

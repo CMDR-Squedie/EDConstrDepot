@@ -120,6 +120,27 @@ type
     ScoreLabel: TLabel;
     BodyCommentMenuItem: TMenuItem;
     SetPrimaryLocationMenuItem: TMenuItem;
+    SolverMenuItem: TMenuItem;
+    ConstructionTypesMenuItem: TMenuItem;
+    LabelsSubMenu: TMenuItem;
+    N8: TMenuItem;
+    ClearAllLabelsMenuItem: TMenuItem;
+    UndoBodyLabelMenuItem: TMenuItem;
+    AddLabelsMenuItem: TMenuItem;
+    NextPictLabel: TLabel;
+    BodyInfoLabel: TLabel;
+    N9: TMenuItem;
+    BodyInfoFrame: TShape;
+    BodySlotsPanel: TPanel;
+    Label16: TLabel;
+    Label17: TLabel;
+    Label18: TLabel;
+    Label19: TLabel;
+    Label20: TLabel;
+    Label21: TLabel;
+    Label22: TLabel;
+    Label23: TLabel;
+    Label24: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure EDSMScanButtonClick(Sender: TObject);
@@ -182,8 +203,15 @@ type
     procedure FactionsLabelDblClick(Sender: TObject);
     procedure BodyCommentMenuItemClick(Sender: TObject);
     procedure SetPrimaryLocationMenuItemClick(Sender: TObject);
+    procedure SolverMenuItemClick(Sender: TObject);
+    procedure ConstructionTypesMenuItemClick(Sender: TObject);
+    procedure AddLabelsMenuItemClick(Sender: TObject);
+    procedure ClearAllLabelsMenuItemClick(Sender: TObject);
+    procedure BodyLabelClick(Sender: TObject);
+    procedure UndoBodyLabelMenuItemClick(Sender: TObject);
   private
     { Private declarations }
+    FCP2,FCP3: Integer;
     FCurrentSystem: TStarSystem;
     FStartPos,FScrollPos: TPoint;
     FImageChanged: Boolean;
@@ -195,6 +223,11 @@ type
     FSortAscending: Boolean;
     FShowEconomies: Boolean;
     FHoldUpdate: Boolean;
+    FBodyLabelNr: Integer;
+    FLabelMode: Boolean;
+    FMouseScroll: Boolean;
+    FBodyLabels: TList;
+    FSelBodyLabel: TLabel;
     procedure TryPasteImage;
     procedure SavePicture;
     procedure SaveData;
@@ -208,6 +241,11 @@ type
     procedure ResolveBodyLinks(b: TSystemBody; var surfLinks,orbLinks,bwLinks: TEconomyArray);
     procedure ResetFilters;
     function SelectedMarket: TMarket;
+    procedure AddPictureLabels;
+    procedure UpdateNextBodyLabel;
+    procedure ClearBodyLabels;
+    procedure AddBodyLabel(x,y: Integer; bodyNr: Integer);
+    procedure SelectNearestBody;
   public
     { Public declarations }
     procedure BeginFilterChange;
@@ -229,7 +267,7 @@ implementation
 {$R *.dfm}
 
 uses Markets, Main, Settings, SystemPict, Colonies, Clipbrd, StationInfo,
-  MarketInfo, Splash;
+  MarketInfo, Splash, Solver, ConstrTypes;
 
 procedure TSystemInfoForm.BeginFilterChange;
 begin
@@ -290,6 +328,49 @@ begin
   end;
 end;
 
+procedure TSystemInfoForm.UndoBodyLabelMenuItemClick(Sender: TObject);
+begin
+  if FBodyLabelNr = 0 then Exit;
+  FBodyLabelNr := FBodyLabelNr - 1;
+  TLabel(FBodyLabels[FBodyLabelNr]).Free;
+  FBodyLabels.Delete(FBodyLabelNr);
+  FDataChanged := True;
+  BodyInfoLabel.Visible := False;
+  BodyInfoFrame.Visible := False;
+  UpdateNextBodyLabel;
+end;
+
+procedure TSystemInfoForm.UpdateNextBodyLabel;
+begin
+  if not FLabelMode then Exit;
+  if FBodyLabelNr < FCurrentSystem.Bodies.Count then
+    NextPictLabel.Caption :=
+      'Next Body: ' +
+        TSystemBody(FCurrentSystem.Bodies.Objects[FBodyLabelNr]).BodyName  + '   ' +
+        TSystemBody(FCurrentSystem.Bodies.Objects[FBodyLabelNr]).BodyType
+  else
+    NextPictLabel.Caption := '( no more bodies )';
+end;
+
+
+procedure TSystemInfoForm.ClearAllLabelsMenuItemClick(Sender: TObject);
+begin
+  ClearBodyLabels;
+  BodyInfoLabel.Visible := False;
+  BodyInfoFrame.Visible := False;
+  FDataChanged := True;
+end;
+
+procedure TSystemInfoForm.ClearBodyLabels;
+var i: Integer;
+begin
+  for i := 0 to FBodyLabels.Count - 1 do
+    TLabel(FBodyLabels[i]).Free;
+  FBodyLabels.Clear;
+  FBodyLabelNr := 0;
+  FSelBodyLabel := nil;
+  UpdateNextBodyLabel;
+end;
 
 procedure TSystemInfoForm.ClearFilterButtonClick(Sender: TObject);
 begin
@@ -340,6 +421,11 @@ begin
   FDataChanged := True;
 end;
 
+procedure TSystemInfoForm.ConstructionTypesMenuItemClick(Sender: TObject);
+begin
+  ConstrTypesForm.Show;
+end;
+
 procedure TSystemInfoForm.CopyAllMenuItemClick(Sender: TObject);
 var s: string;
     i,j: Integer;
@@ -381,6 +467,9 @@ begin
     if StationInfoForm.CurrentStation = cd then StationInfoForm.Close;
     DataSrc.RemoveConstruction(cd);
     FCurrentSystem.Save;
+    if SolverForm.Visible then
+      if SolverForm.CurrentSystem = FCurrentSystem then
+        SolverForm.SetSystem(FCurrentSystem,FCP2,FCP3);
   end;
 end;
 
@@ -589,6 +678,7 @@ begin
   GroupAddRemoveMenuItem.Enabled := cdf;
   MarketInfoMenuItem.Enabled := mf;
   MarketHistoryMenuItem.Enabled := mf;
+  //SolverMenuItem.Visible := Opts.Flags['DevMode'];
 
   BodyCommentMenuItem.Visible := bf;
   SetPrimaryLocationMenuItem.Visible := bf;
@@ -715,6 +805,10 @@ begin
   SavePictureMenuItem.Enabled := picf;
   EditPictureMenuItem.Enabled := picf;
   FullPictureMenuItem.Enabled := picf;
+  //LabelsSubMenu.Visible := Opts.Flags['DevMode'];
+  AddLabelsMenuItem.Checked := FLabelMode;
+  UndoBodyLabelMenuItem.Enabled := FLabelMode;
+//  ClearAllLabelsMenuItem.Enabled := FLabelMode;
 end;
 
 procedure TSystemInfoForm.PristineReserveMenuItemClick(Sender: TObject);
@@ -731,7 +825,7 @@ begin
         3: ReserveLevel := 'Depleted';
         -1:
           begin
-            ReserveLevel := '';
+            ReserveLevel := ''; //common
           end;
       end;
       FCurrentSystem.ResetEconomies;
@@ -766,6 +860,8 @@ begin
 end;
 
 procedure TSystemInfoForm.SaveData;
+var i: Integer;
+    b: TSystemBody;
 begin
   if not FDataChanged then Exit;
   FCurrentSystem.Comment := CommentEdit.Text;
@@ -773,6 +869,24 @@ begin
   FCurrentSystem.Objectives := ObjectivesEdit.Text;
   FCurrentSystem.TaskGroup := TaskGroupEdit.Text;
   FCurrentSystem.Ignored := IgnoredCheck.Checked;
+
+  for i := 0 to FCurrentSystem.Bodies.Count - 1 do
+    with TSystemBody(FCurrentSystem.Bodies.Objects[i]) do
+    begin
+      LabelPos.X := 0;
+      LabelPos.Y := 0;
+    end;
+
+  for i := 0 to FBodyLabels.Count - 1 do
+  begin
+    b := FCurrentSystem.BodyByName(TLabel(FBodyLabels[i]).Hint);
+    if b <> nil then
+    begin
+      b.LabelPos.X := Scrollbox.HorzScrollBar.Position + TLabel(FBodyLabels[i]).Left;
+      b.LabelPos.Y := Scrollbox.VertScrollBar.Position + TLabel(FBodyLabels[i]).Top;
+    end;
+  end;
+
   FCurrentSystem.Save;
   FDataChanged := False;
 end;
@@ -876,6 +990,8 @@ begin
     AlphaBlend := True;
   end;
 
+  FBodyLabels := TList.Create;
+
 end;
 
 
@@ -964,7 +1080,7 @@ procedure TSystemInfoForm.ListViewCustomDrawItem(Sender: TCustomListView;
 var r: TRect;
     i,x: Integer;
 begin
-  if cdsSelected in State then
+  if (cdsSelected in State) or (cdsFocused in State) then
   begin
     Sender.Canvas.Brush.Color := clHighLight;
   end
@@ -975,6 +1091,9 @@ begin
       Sender.Canvas.Brush.Color := Sender.Canvas.Brush.Color - $202020;
   end;
 
+  if (cdsSelected in State) or (cdsFocused in State) then
+    Sender.Canvas.Font.Color := clWhite
+  else
   if TObject(Item.Data) is TBaseMarket then
   begin
     if ListView.Font.Color = clBlack then
@@ -986,6 +1105,7 @@ begin
   begin
     Sender.Canvas.Font.Color := ListView.Font.Color;
   end;
+
 {
   r := Item.DisplayRect(drBounds);
   Sender.Canvas.FillRect(r);
@@ -1133,6 +1253,19 @@ begin
   if Visible then UpdateView;
 end;
 
+procedure TSystemInfoForm.AddPictureLabels;
+var i: Integer;
+begin
+  FBodyLabelNr := 0;
+  for i := 0 to FCurrentSystem.Bodies.Count - 1 do
+    with TSystemBody(FCurrentSystem.Bodies.Objects[i]) do
+    if LabelPos.X > 0 then
+    begin
+      AddBodyLabel(LabelPos.X,LabelPos.Y,i);
+      FBodyLabelNr := i + 1;
+    end;
+end;
+
 procedure TSystemInfoForm.SetSystem(s: TStarSystem; const selObj: TObject = nil;
   const stationsOnly: Boolean = false);
 var png: TPngImage;
@@ -1152,14 +1285,22 @@ begin
   ListView.Scroll(0,0);
   FSelectedObj := nil;
 
+  ClearBodyLabels;
   png := TPngImage.Create;
   try
     png.LoadFromFile(FCurrentSystem.ImagePath);
     SysImage.Picture.Assign(png);
+    AddPictureLabels;
     NoPictureLabel.Visible := False;
   except
   end;
   png.Free;
+
+  FLabelMode := False;
+  NextPictLabel.Visible := False;
+  BodyInfoLabel.Visible := False;
+  BodyInfoFrame.Visible := False;
+
 
   CommentEdit.Text := FCurrentSystem.Comment;
   GoalsEdit.Text := FCurrentSystem.CurrentGoals;
@@ -1234,32 +1375,189 @@ begin
   end;
 end;
 
-var _bodyNr: Integer;
-
-procedure TSystemInfoForm.SysImageClick(Sender: TObject);
-var bmp: TBitmap;
-    pt: TPoint;
+procedure TSystemInfoForm.SolverMenuItemClick(Sender: TObject);
+var sf: TSolverForm;
 begin
-{
-  bmp := TBitmap.Create;
-  bmp.Assign(SysImage.Picture.Graphic);
+  if GetKeyState(VK_SHIFT) < 0 then
+  begin
+    sf := TSolverForm.Create(Application);
+    sf.SetSystem(FCurrentSystem,FCP2,FCP3,true);
+    sf.Show;
+    Exit;
+  end;
 
+  if not SolverForm.Visible or (SolverForm.CurrentSystem <> FCurrentSystem) then
+    SolverForm.SetSystem(FCurrentSystem,FCP2,FCP3,true);
+  SolverForm.Show;
+end;
+
+procedure TSystemInfoForm.BodyLabelClick(Sender: TObject);
+var b: TSystemBody;
+    s,bodyInfo: string;
+
+    procedure addLine(title,txt: string);
+    var s: string;
+    begin
+      if txt = '' then Exit;
+      if title <> '' then s := s + title + ': ';
+      s := s + txt;
+      bodyInfo := bodyInfo + s + Chr(13);
+    end;
+
+begin
+  if Sender = FSelBodyLabel then
+  begin
+    FSelBodyLabel := nil;
+    BodyInfoFrame.Visible := False;
+    BodyInfoLabel.Visible := False;
+    Exit;
+  end;
+
+  b := FCurrentSystem.BodyByName(TLabel(Sender).Hint);
+  if b <> nil then
+  begin
+    FSelectedObj := b;
+    RestoreSelection;
+  end;
+
+  BodyInfoLabel.Left := TLabel(Sender).Left;
+  BodyInfoLabel.Top := TLabel(Sender).Top + TLabel(Sender).Height + 2;
+  BodyInfoLabel.Visible := true;
+  bodyInfo := '';
+  addLine('',b.BodyType);
+  addLine('',b.Comment);
+  addLine('Econ.',b.Economies_nice);
+  addLine('Dist.',FloatToStrF(b.DistanceFromArrivalLS,ffFixed,7,1));
+  if b.BiologicalSignals > 0 then s := s + 'Bio: ' + IntToStr(b.BiologicalSignals) + '; ';
+  if b.GeologicalSignals > 0 then s := s + 'Geo: ' + IntToStr(b.GeologicalSignals) + '; ';
+  if b.HumanSignals > 0 then s := s + 'Hum: ' + IntToStr(b.HumanSignals) + '; ';
+  if b.OtherSignals > 0 then s := s + 'Oth: ' + IntToStr(b.OtherSignals) + '; ';
+  addLine('Signals',s);
+  addLine('Volcanism',IfThen(b.Volcanism <> '','Yes',''));
+  if b.SurfaceGravity > 0 then
+    addLine('Gravity',FloatToStrF(b.SurfaceGravity,ffFixed,7,2));
+  addLine('Tidal Lock',IfThen(b.TidalLock,'Yes',''));
+  addLine('Terraform.',IfThen(b.Terraformable,'Yes',''));
+  if b.IsMoon and (Abs(b.OrbitalInclination) > 0.1) then
+    addLine('Orb. Incl.',FloatToStrF(b.OrbitalInclination,ffFixed,7,1));
+
+  if FLabelMode then
+    bodyInfo := bodyInfo + '(Click at new position to move this label)';
+  bodyInfo := Trim(bodyInfo);
+  BodyInfoLabel.Caption := bodyInfo;
+
+  BodyInfoFrame.Left := BodyInfoLabel.Left - 2;
+  BodyInfoFrame.Top := BodyInfoLabel.Top - 2;
+  BodyInfoFrame.Width := BodyInfoLabel.Width + 4;
+  BodyInfoFrame.Height := BodyInfoLabel.Height + 4;
+  BodyInfoFrame.Visible := true;
+
+  BodyInfoFrame.BringToFront;
+  BodyInfoLabel.BringToFront;
+
+  FSelBodyLabel := TLabel(Sender);
+end;
+
+procedure TSystemInfoForm.SelectNearestBody;
+var b: TSystemBody;
+    lbl: TLabel;
+    pt: TPoint;
+    d,mind: Extended;
+    i: Integer;
+begin
+  lbl := nil;
   pt := Mouse.CursorPos;
   pt := SysImage.ScreenToClient(pt);
-  with bmp.Canvas do
+  mind := 1000000;
+
+  for i := 0 to FBodyLabels.Count - 1 do
+  with TLabel(FBodyLabels[i]) do
   begin
-    Brush.Color := clBlack;
-    Font := self.Font;
-    TextOut(pt.X,pt.Y,'A ' + _bodyNr.ToString);
+    d := Sqrt(Sqr(Left-pt.X) + Sqr(Top-pt.Y));
+    if d < mind then
+    begin
+      lbl := TLabel(FBodyLabels[i]);
+      mind := d;
+    end;
   end;
-  _bodyNr := _bodyNr + 1;
-  SysImage.Picture.Bitmap.Assign(bmp);
-  bmp.Free;
-  }
+  if lbl = nil then Exit;
+  
+
+  b := FCurrentSystem.BodyByName(lbl.Hint);
+  if b <> nil then
+  begin
+    FSelectedObj := b;
+    RestoreSelection;
+  end;
+end;
+
+procedure TSystemInfoForm.AddBodyLabel(x,y: Integer; bodyNr: Integer);
+var lbl: TLabel;
+begin
+  lbl := TLabel.Create(ScrollBox);
+  lbl.Parent := ScrollBox;
+  lbl.ParentFont := True;
+  lbl.Font.Color := clSilver;
+  lbl.Font.Size := Opts.Int['FontSize2'] - 1;
+  lbl.Transparent := False;
+  lbl.Color := $202020; //clBlack;
+  lbl.Left := x;
+  lbl.Top := y;
+  lbl.Visible := True;
+  lbl.Hint := TSystemBody(FCurrentSystem.Bodies.Objects[bodyNr]).BodyName;
+  if lbl.Hint = '' then
+    lbl.Caption := '( Primary )'
+  else
+    lbl.Caption := ' ' + lbl.Hint + ' ';
+  lbl.OnClick := BodyLabelClick;
+  lbl.BringToFront;
+  FBodyLabels.Add(lbl);
+end;
+
+procedure TSystemInfoForm.SysImageClick(Sender: TObject);
+var pt: TPoint;
+    lbl: TLabel;
+begin
+  BodyInfoLabel.Visible := False;
+  BodyInfoFrame.Visible := False;
+
+  if not FLabelMode then Exit;
+
+  pt := Mouse.CursorPos;
+  pt := ScrollBox.ScreenToClient(pt);
+  pt.X := (pt.X div 10) * 10;
+  pt.Y := (pt.Y div 10) * 10;
+
+  if GetKeyState(VK_SHIFT) < 0 then
+  begin
+    UndoBodyLabelMenuItemClick(nil);
+    Exit;
+  end;
+
+
+  if FSelBodyLabel <> nil then
+  begin
+    FSelBodyLabel.Left := pt.X;
+    FSelBodyLabel.Top := pt.Y;
+    FSelBodyLabel := nil;
+    FDataChanged := True;
+    Exit;
+  end;
+
+  if FBodyLabelNr >= FCurrentSystem.Bodies.Count then Exit;
+
+  AddBodyLabel(pt.X,pt.Y,FBodyLabelNr);
+  FDataChanged := True;
+
+  Inc(FBodyLabelNr);
+  UpdateNextBodyLabel;
+
 end;
 
 procedure TSystemInfoForm.SysImageDblClick(Sender: TObject);
 begin
+  if FLabelMode then Exit;
+  
   SystemPictForm.SetSystem(FCurrentSystem.StarSystem);
   SystemPictForm.Show;
 end;
@@ -1269,6 +1567,7 @@ procedure TSystemInfoForm.SysImageMouseDown(Sender: TObject;
 begin
   FStartPos := Mouse.CursorPos;
   FScrollPos := TPoint.Create(Scrollbox.HorzScrollBar.Position,Scrollbox.VertScrollBar.Position);
+  FMouseScroll := False;
 end;
 
 procedure TSystemInfoForm.SysImageMouseMove(Sender: TObject; Shift: TShiftState;
@@ -1282,6 +1581,7 @@ begin
     begin
       Scrollbox.HorzScrollBar.Position := FScrollPos.X - (pt.X - FStartPos.X);
       Scrollbox.VertScrollBar.Position := FScrollPos.Y - (pt.Y - FStartPos.Y);
+      FMouseScroll := True;
     end;
   end;
 end;
@@ -1290,6 +1590,9 @@ procedure TSystemInfoForm.SysImageMouseUp(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
 begin
   FStartPos.X := -1;
+  if not FMouseScroll then
+    SelectNearestBody;
+  FMouseScroll := False;
 end;
 
 procedure TSystemInfoForm.SystemAddrLabelDblClick(Sender: TObject);
@@ -1652,6 +1955,9 @@ begin
   if FHoldUpdate then Exit;
   if FCurrentSystem = nil then Exit;
 
+  FCP2 := 0;
+  FCP3 := 0;
+
   SaveSelection;
 
   for i := 0 to ListView.Columns.Count - 1 do
@@ -1770,25 +2076,24 @@ begin
             cp3[cp3idx] := cp3[cp3idx] + ct.CP3;
           end;
 
-          if ct.Tier >= '2' then
-            if (ct.Category = 'Starport') or (ct.Category = 'Planetary Port') then
-            begin
-              techlev[idx] := techlev[idx] + techBonus;
-              techBonus := 0;
+          if ct.IsT23Port then
+          begin
+            techlev[idx] := techlev[idx] + techBonus;
+            techBonus := 0;
 
-              if MarketId <> FCurrentSystem.PrimaryPortId then
-              begin
-                s := 'B';
-                if Status = '' then s := 'A'; //builds before Updated 2 come first?
-                if not Finished then s := 'Y';
-                if Planned then s := 'Z';
-                s := s + IntToStr(BuildOrder).PadLeft(6,'0');
-                s := s + FirstUpdate;
-                t23sl.AddObject(s,cl[i]);
-              end
-              else
-                PrimaryLabel.Hint := PrimaryLabel.Hint + StationName + ' (primary)' + Chr(13);
-            end;
+            if MarketId <> FCurrentSystem.PrimaryPortId then
+            begin
+              s := 'B';
+              if Status = '' then s := 'A'; //builds before Updated 2 come first?
+              if not Finished then s := 'Y';
+              if Planned then s := 'Z';
+              s := s + IntToStr(BuildOrder).PadLeft(6,'0');
+              s := s + FirstUpdate;
+              t23sl.AddObject(s,cl[i]);
+            end
+            else
+              PrimaryLabel.Hint := PrimaryLabel.Hint + StationName + ' (primary)' + Chr(13);
+          end;
         end;
      end;
 
@@ -1824,6 +2129,9 @@ begin
 
     dispStat(cp2,CP2Label);
     dispStat(cp3,CP3Label);
+
+    FCP2 := cp2[0] + cp2[1];
+    FCP3 := cp3[0] + cp3[1];
 
 
     ResolveConstructions(cl);
@@ -1930,6 +2238,7 @@ begin
             addCaption(s);
             //orphans attached to main star
             m := nil;
+            cd := nil;
             if bm is TMarket then m := TMarket(bm);
             if bm is TConstructionDepot then
             begin
@@ -2036,6 +2345,7 @@ begin
             addSubItem(comment);
             addSubItem('');
             s := '';
+            if cd <> nil then s := cd.Faction_short;
             if m <> nil then s := m.Faction_short;
             addSubItem(s);
             s := '';
@@ -2060,6 +2370,14 @@ begin
                 addRow(bm);
                 calcEco := '';
               end;
+              if cd <> nil then
+                if not cd.CheckDependencies(cl) then
+                begin
+                  addCaption('');
+                  addSubItem('');
+                  addSubItem('    --- missing: ' + cd.GetConstrType.Requirements);
+                  addRow(bm);
+                end;
             end;
           end;
 
@@ -2126,11 +2444,20 @@ begin
   end;
 end;
 
+procedure TSystemInfoForm.AddLabelsMenuItemClick(Sender: TObject);
+begin
+  FLabelMode := not FLabelMode;
+  NextPictLabel.Visible := FLabelMode;
+  if FLabelMode then
+    UpdateNextBodyLabel;
+end;
+
 procedure TSystemInfoForm.ApplySettings;
 var i,fs: Integer;
     fn: string;
     clr: TColor;
 begin
+  ShowInTaskBar := Opts.Flags['ShowInTaskbar'];
   with Panel1 do
   begin
     if not Opts.Flags['DarkMode'] then
@@ -2160,6 +2487,8 @@ begin
       Font.Color := clr;
     end;
   end;
+
+  BodyInfoLabel.Font.Size := Opts.Int['FontSize2'] - 1;
 
   if Visible then UpdateView;
 end;

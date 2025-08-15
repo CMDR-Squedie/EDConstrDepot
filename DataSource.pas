@@ -91,6 +91,9 @@ type TEconomySet = class
 end;
 
 type TConstructionType = class
+private
+  FFirstDepend: TConstructionType;
+public
   Id: string;
   Tier: string;
   Location: string;
@@ -100,7 +103,8 @@ type TConstructionType = class
   Layouts: string;
   Economy: string;
   Influence: string;
-  Requirements: string;
+  Dependencies: string; //list of stations that unlock this facility
+  Requirements: string; //same as Dependencies, but generalized in text
   Score: Integer;
   CP2: Integer;
   CP3: Integer;
@@ -121,6 +125,10 @@ type TConstructionType = class
   function StationType_abbrev: string;
   function IsOrbital: Boolean;
   function IsPort: Boolean; //a 'port' in economy meaning, ie. accepts weak links and uplinks
+  function IsT23Port: Boolean; //a 'port' for CP penalty calculation
+  function CheckDependencies(const constrList: TList = nil): Boolean;
+  function GetFirstDependency: string;
+  function GetFirstDependType: TConstructionType;
   constructor Create;
 end;
 
@@ -182,6 +190,7 @@ public
   OrbLinkHub: TConstructionDepot;
   Comment: string;
   PrimaryLoc: Boolean;
+  LabelPos: TPoint;
   procedure UpdateEconomies;
   function Economies: TEconomyArray;
   function BaseEconomies: TEconomyArray;
@@ -190,6 +199,33 @@ public
   function ParentBody: TSystemBody;
   constructor Create;
 end;
+
+TColonyPlanner = record
+  Modified: Boolean;
+  AsterSlots: Integer;
+  GoalT3Surf: Integer;
+  GoalT1Surf: Integer;
+  GoalT3Orb: Integer;
+  GoalT2Orb: Integer;
+  GoalT1Orb: Integer;
+  GoalIndex: Integer;
+  BalStats: Boolean;
+  ReqDev: Integer;
+  ReqTech: Integer;
+  ReqSec: Integer;
+  ReqWealth: Integer;
+  ReqStdLiv: Integer;
+  AllowOutposts: Boolean;
+  AllowHubs: Boolean;
+  AllowPorts: Boolean;
+  DependIndex: Integer;
+  SlotsIndex: Integer;
+  EcoInfl: Boolean;
+  EcoInflList: string;
+  LimInflList: string;
+  LimInflCnt: Integer;
+end;
+
 
 TStarSystem = class
 private
@@ -236,6 +272,7 @@ public
   Constructions: TList; //on demand, eg. in Map View;
   Stations: TList; //on demand, eg. in Map View;
   NearestColony: TStarSystem; //on demand, Map View only
+  ColonyPlanner: TColonyPlanner;
   function IsOwnColony: Boolean;
   function ResourceReserve: string;
   function DistanceTo(s: TStarSystem): Double;
@@ -247,6 +284,7 @@ public
   function BodyByName(name: string): TSystemBody;
   function BodyById(id: string): TSystemBody;
   function GetFactions(abbrevf: Boolean; majorf: Boolean): string;
+  function GetFactionList: string;
   function GetScore: Integer;
   procedure UpdateBodies_EDSM;
   procedure UpdateFromScan_EDSM;
@@ -339,6 +377,7 @@ TConstructionDepot = class (TBaseMarket)
   procedure UpdateHaul;
   procedure PasteRequest;
   function InProgress: Boolean;
+  function CheckDependencies(const constrList: TList = nil): Boolean;
 end;
 
 type TEconomySets = class
@@ -380,6 +419,7 @@ public
   property SystemByAddr[const Addr: string]: TStarSystem read GetSystemByAddr;
   procedure UpdateFromFSDJump(js: string; j: TJSONObject);
   function AddFromName(name: string): Boolean;
+  function AddSystem_EDSM(sysname: string): Boolean;
   function AddNeighbours_EDSM(origin: string): Integer; //15Ly
   function AddNeighbours2_EDSM(originSys: TStarSystem): Integer; //two-hop max
   procedure RemoveFromName(name: string; const delf: Boolean = true);
@@ -696,6 +736,57 @@ begin
            (Category = 'Starport');
 end;
 
+function TConstructionType.IsT23Port: Boolean;
+begin
+  Result :=  (Tier >= '2') and
+             ((Category = 'Starport') or (Category = 'Planetary Port'));
+end;
+
+function TConstructionType.CheckDependencies(const constrList: TList = nil): Boolean;
+var i: Integer;
+    ct: TConstructionType;
+    dep: string;
+    cl: TList;
+begin
+  Result := True;
+  if Dependencies = '' then Exit;
+
+  Result := False;
+  if constrList = nil then Exit;
+  for i := 0 to constrList.Count - 1 do
+  begin
+    ct := nil;
+    if TObject(constrList[i]) is TConstructionDepot then
+      ct := TConstructionDepot(constrList[i]).GetConstrType
+    else
+      if TObject(constrList[i]) is TConstructionType then
+        ct := TConstructionType(constrList[i]);
+    if ct <> nil then
+      if Pos(ct.Id,Dependencies) > 0 then //todo: check actual list
+      begin
+        Result := True;
+        Exit;
+      end;
+  end;
+end;
+
+function TConstructionType.GetFirstDependency: string;
+var sarr: TStringDynArray;
+begin
+  Result := '';
+  if Dependencies = '' then Exit;
+  sarr := SplitString(Dependencies,',');
+  Result := sarr[0];
+end;
+
+function TConstructionType.GetFirstDependType: TConstructionType;
+begin
+  Result := nil;
+  if Dependencies = '' then Exit;
+  if FFirstDepend = nil then
+    FFirstDepend := DataSrc.ConstructionTypes.GetTypeById(GetFirstDependency);
+  Result := FFirstDepend;
+end;
 
 function TConstructionTypes.GetTypeById(const Id: string): TConstructionType;
 var idx: Integer;
@@ -757,6 +848,7 @@ begin
         jarr[i].TryGetValue<string>('Layouts',ct.Layouts);
         jarr[i].TryGetValue<string>('Economy',ct.Economy);
         jarr[i].TryGetValue<string>('Influence',ct.Influence);
+        jarr[i].TryGetValue<string>('Dependencies',ct.Dependencies);
         jarr[i].TryGetValue<string>('Requirements',ct.Requirements);
         jarr[i].TryGetValue<string>('MaxPad',ct.MaxPad);
         jarr[i].TryGetValue<string>('Influence',ct.Influence);
@@ -1522,6 +1614,22 @@ begin
   Result := not Planned and not Finished;
 end;
 
+function TConstructionDepot.CheckDependencies(const constrList: TList = nil): Boolean;
+var cl: TList;
+begin
+  Result := True;
+  if not Planned then Exit;
+  if GetConstrType = nil then Exit;
+  if GetConstrType.Dependencies = '' then Exit;
+  if (constrList = nil) and (GetSys = nil) then Exit;
+
+  Result := False;
+  cl := constrList;
+  if cl = nil then cl := GetSys.Constructions;
+  if cl = nil then Exit;
+  Result := GetConstrType.CheckDependencies(cl);
+end;
+
 function TStarSystem.IsOwnColony;
 begin
   Result := (Architect <> '') and (PrimaryDone or (Population > 0));
@@ -1564,7 +1672,7 @@ begin
   begin
     if PopHistory.Names[i] <= tms then
     begin
-      Result := StrToInt64(PopHistory.ValueFromIndex[i]);
+      Result := StrToInt64Def(PopHistory.ValueFromIndex[i],0);
       break;
     end;
   end;
@@ -1575,7 +1683,7 @@ var i: Integer;
 begin
   if tms = '' then Exit;
   if PopHistory.Count > 0 then
-    if pop = StrToInt64(PopHistory.ValueFromIndex[PopHistory.Count-1]) then Exit;
+    if pop = StrToInt64Def(PopHistory.ValueFromIndex[PopHistory.Count-1],0) then Exit;
   PopHistory.AddPair(tms,IntToStr(pop));
 end;
 
@@ -1666,6 +1774,28 @@ end;
 function TStarSystem.GetFactions_full: string;
 begin
   Result := GetFactions(false,false);
+end;
+
+function TStarSystem.GetFactionList: string;
+var j: TJSONObject;
+    jarr: TJSONArray;
+    i: Integer;
+begin
+  Result := '';
+  try
+    j := TJSONObject.ParseJSONValue(Status) as TJSONObject;
+    try
+      jarr := j.GetValue<TJSONArray>('Factions');
+      for i := 0 to jarr.Count - 1 do
+      begin
+        if Result <> '' then  Result := Result + ',';
+        Result := Result + jarr.Items[i].GetValue<string>('Name');
+      end;
+    except
+    end;
+  finally
+    j.Free;
+  end;
 end;
 
 function TStarSystem.TryAddBodyFromId(orgBodyId: string): TSystemBody;
@@ -1991,7 +2121,7 @@ begin
                 b.Rings.Add(b2);
                 b2.FParentBody := b;
                 jrings[i2].TryGetValue<Extended>('outerRadius',SemiMajorAxis);
-                SemiMajorAxis := SemiMajorAxis / 1000000;
+                SemiMajorAxis := SemiMajorAxis / 1000; //000;
               end;
             end;
           except
@@ -2050,7 +2180,7 @@ begin
 end;
 
 procedure TStarSystem.Save(const sharedf: Boolean = false);
-var j: TJSONObject;
+var j,j2: TJSONObject;
     fn,fld: string;
     sarr: TJSONArray;
     st: TJSONObject;
@@ -2107,6 +2237,7 @@ begin
         st.AddPair(TJSONPair.Create('Layout', Layout));
         st.AddPair(TJSONPair.Create('NameModified', NameModified));
         st.AddPair(TJSONPair.Create('CustomRequest', CustomRequest));
+        st.AddPair(TJSONPair.Create('Faction', Faction));
         sarr.Add(st);
       end;
 
@@ -2115,18 +2246,56 @@ begin
   for i := 0 to FBodies.Count - 1 do
     if FBodies[i] <> '?' then
     with TSystemBody(FBodies.Objects[i]) do
-      if FeaturesModified then
+      if FeaturesModified or (LabelPos.X > 0) then
       begin
         st := TJSONObject.Create;
         st.AddPair(TJSONPair.Create('BodyID', BodyID));
-        st.AddPair(TJSONPair.Create('BodyName', BodyName));
-        st.AddPair(TJSONPair.Create('BiologicalSignals', BiologicalSignals));
-        st.AddPair(TJSONPair.Create('GeologicalSignals', GeologicalSignals));
-        st.AddPair(TJSONPair.Create('ReserveLevel', ReserveLevel));
-        st.AddPair(TJSONPair.Create('Comment', Comment));
-        st.AddPair(TJSONPair.Create('PrimaryLoc', PrimaryLoc));
+        if FeaturesModified then
+        begin
+          st.AddPair(TJSONPair.Create('BodyName', BodyName));
+          st.AddPair(TJSONPair.Create('BiologicalSignals', BiologicalSignals));
+          st.AddPair(TJSONPair.Create('GeologicalSignals', GeologicalSignals));
+          st.AddPair(TJSONPair.Create('ReserveLevel', ReserveLevel));
+          st.AddPair(TJSONPair.Create('Comment', Comment));
+          st.AddPair(TJSONPair.Create('PrimaryLoc', PrimaryLoc));
+        end;
+        if LabelPos.X > 0 then
+        begin
+          st.AddPair(TJSONPair.Create('LabelPosX', LabelPos.X));
+          st.AddPair(TJSONPair.Create('LabelPosY', LabelPos.Y));
+        end;
         sarr.Add(st);
       end;
+
+   if ColonyPlanner.Modified then
+   with ColonyPlanner do
+   begin
+     j2 := TJSONObject.Create;
+     j2.AddPair(TJSONPair.Create('AsterSlots', AsterSlots));
+     j2.AddPair(TJSONPair.Create('GoalT3Surf', GoalT3Surf));
+     j2.AddPair(TJSONPair.Create('GoalT1Surf', GoalT1Surf));
+     j2.AddPair(TJSONPair.Create('GoalT3Orb', GoalT3Orb));
+     j2.AddPair(TJSONPair.Create('GoalT2Orb', GoalT2Orb));
+     j2.AddPair(TJSONPair.Create('GoalT1Orb', GoalT1Orb));
+     j2.AddPair(TJSONPair.Create('GoalIndex', GoalIndex));
+     j2.AddPair(TJSONPair.Create('BalStats', BalStats));
+     j2.AddPair(TJSONPair.Create('ReqDev', ReqDev));
+     j2.AddPair(TJSONPair.Create('ReqTech', ReqTech));
+     j2.AddPair(TJSONPair.Create('ReqSec', ReqSec));
+     j2.AddPair(TJSONPair.Create('ReqWealth', ReqWealth));
+     j2.AddPair(TJSONPair.Create('ReqStdLiv', ReqStdLiv));
+     j2.AddPair(TJSONPair.Create('AllowOutposts', AllowOutposts));
+     j2.AddPair(TJSONPair.Create('AllowHubs', AllowHubs));
+     j2.AddPair(TJSONPair.Create('AllowPorts', AllowPorts));
+     j2.AddPair(TJSONPair.Create('DependIndex', DependIndex));
+     j2.AddPair(TJSONPair.Create('SlotsIndex', SlotsIndex));
+     j2.AddPair(TJSONPair.Create('EcoInfl', EcoInfl));
+     j2.AddPair(TJSONPair.Create('EcoInflList', EcoInflList));
+     j2.AddPair(TJSONPair.Create('LimInflList', LimInflList));
+     j2.AddPair(TJSONPair.Create('LimInflCnt', LimInflCnt));
+     j.AddPair(TJSONPair.Create('ColonyPlanner', j2));
+   end;
+
 {
   for i := 0 to DataSrc.RecentMarkets.Count - 1 do
     with TMarket(DataSrc.RecentMarkets.Objects[i]) do
@@ -2207,6 +2376,7 @@ procedure TStarSystem.SetArchitectByName(s: string);
 var i: Integer;
 begin
   FArchitect := s;
+  FArchitectName := s;
   for i := 0 to DataSrc.Commanders.Count - 1 do
     if DataSrc.Commanders.ValueFromIndex[i] = s then
     begin
@@ -2351,7 +2521,7 @@ begin
 end;
 
 procedure TSystemList.AddFromJSON(js: string);
-var j: TJSONObject;
+var j,j2: TJSONObject;
     jarr: TJSONArray;
     s, tms, mtyp, bodyId: string;
     sys: TStarSystem;
@@ -2429,6 +2599,7 @@ begin
               jarr[i].TryGetValue<Boolean>('Finished',TConstructionDepot(bm).Finished);
               jarr[i].TryGetValue<Boolean>('Planned',TConstructionDepot(bm).Planned);
               jarr[i].TryGetValue<string>('CustomRequest',TConstructionDepot(bm).CustomRequest);
+              jarr[i].TryGetValue<string>('Faction',TConstructionDepot(bm).Faction);
               DataSrc.FConstructions.AddObject(bm.MarketId,bm);
             end;
             if mtyp = 'market' then
@@ -2456,10 +2627,42 @@ begin
               jarr[i].TryGetValue<string>('ReserveLevel',b.ReserveLevel);
               jarr[i].TryGetValue<string>('Comment',b.Comment);
               jarr[i].TryGetValue<Boolean>('PrimaryLoc',b.PrimaryLoc);
+              jarr[i].TryGetValue<Integer>('LabelPosX',b.LabelPos.X);
+              jarr[i].TryGetValue<Integer>('LabelPosY',b.LabelPos.Y);
               FeaturesModified := True;
             end;
           end;
         end;
+
+        j.TryGetValue<TJSONObject>('ColonyPlanner',j2);
+        if j2 <> nil then
+        with ColonyPlanner do
+        begin
+          Modified := True;
+          j2.TryGetValue<Integer>('AsterSlots',AsterSlots);
+          j2.TryGetValue<Integer>('GoalT3Surf',GoalT3Surf);
+          j2.TryGetValue<Integer>('GoalT1Surf',GoalT1Surf);
+          j2.TryGetValue<Integer>('GoalT3Orb',GoalT3Orb);
+          j2.TryGetValue<Integer>('GoalT2Orb',GoalT2Orb);
+          j2.TryGetValue<Integer>('GoalT1Orb',GoalT1Orb);
+          j2.TryGetValue<Integer>('GoalIndex',GoalIndex);
+          j2.TryGetValue<Boolean>('BalStats',BalStats);
+          j2.TryGetValue<Integer>('ReqDev',ReqDev);
+          j2.TryGetValue<Integer>('ReqTech',ReqTech);
+          j2.TryGetValue<Integer>('ReqSec',ReqSec);
+          j2.TryGetValue<Integer>('ReqWealth',ReqWealth);
+          j2.TryGetValue<Integer>('ReqStdLiv',ReqStdLiv);
+          j2.TryGetValue<Boolean>('AllowOutposts',AllowOutposts);
+          j2.TryGetValue<Boolean>('AllowHubs',AllowHubs);
+          j2.TryGetValue<Boolean>('AllowPorts',AllowPorts);
+          j2.TryGetValue<Integer>('DependIndex',DependIndex);
+          j2.TryGetValue<Integer>('SlotsIndex',SlotsIndex);
+          j2.TryGetValue<Boolean>('EcoInfl',EcoInfl);
+          j2.TryGetValue<string>('EcoInflList',EcoInflList);
+          j2.TryGetValue<string>('LimInflList',LimInflList);
+          j2.TryGetValue<Integer>('LimInflCnt',LimInflCnt);
+        end;
+
      end;
 
       AddObject(sys.StarSystem,sys);
@@ -2469,6 +2672,50 @@ begin
       j.Free;
     end;
   except
+  end;
+end;
+
+function TSystemList.AddSystem_EDSM(sysname: string): Boolean;
+var req: TNetHTTPClient;
+    res: IHTTPResponse;
+    i,bcnt: Integer;
+    j: TJSONObject;
+    jarr: TJSONArray;
+    s: string;
+    sys: TStarSystem;
+begin
+  Result := False;
+  if GetSystemByName(sysname) <> nil then Exit;
+
+  req := TNetHTTPClient.Create(nil);
+  try
+    s := sysname.Replace(' ','%20');
+    res := req.Get('https://www.edsm.net/api-v1/system?systemName=' + s +
+      '&showId=1&showCoordinates=1&showInformation=1');
+    if res.StatusCode <> 200 then
+      raise Exception.Create(sysname + ': EDSM response error: ' + IntToStr(res.StatusCode) + ' ' + res.StatusText);
+    s := res.ContentAsString;
+    if Length(s) < 10 then
+      raise Exception.Create(sysname + ': EDSM response error: no data, try again later');
+
+    j := TJSONObject.ParseJSONValue(s) as TJSONObject;
+    //DataSrc.BeginUpdate;
+    try
+      sys := TStarSystem.Create;
+      j.TryGetValue<string>('id64',sys.SystemAddress);;
+      j.TryGetValue<string>('name',sys.StarSystem);;
+      j.TryGetValue<double>('coords.x',sys.StarPosX);
+      j.TryGetValue<double>('coords.y',sys.StarPosY);
+      j.TryGetValue<double>('coords.z',sys.StarPosZ);
+      j.TryGetValue<Int64>('information.population',sys.Population);
+      sys.Save;
+      AddObject(sys.StarSystem,sys);
+      Result := True;
+    finally
+      j.Free;
+    end;
+  finally
+    req.Free;
   end;
 end;
 
@@ -2866,7 +3113,7 @@ begin
   try
     j := TJSONObject.ParseJSONValue(sl.Text) as TJSONObject;
     try
-      FCargo.ShipTotal := StrToInt(j.GetValue<string>('Count'));
+      FCargo.ShipTotal := StrToIntDef(j.GetValue<string>('Count'),0);
       jarr := j.GetValue<TJSONArray>('Inventory');
       for i := 0 to jarr.Count - 1 do
       begin
@@ -3185,8 +3432,16 @@ begin
 
 //        if FProcessedEvents.IndexOf(s) < 0  then continue; //no significant speed improvement...
 
-        if (s<>'Commander') and
+        //temp, crosshair checks need to include active ED window
+        if s = 'Shutdown' then
+        begin
+          FDocked := True;
+          SetDataChanged;
+          continue;
+        end;
 
+        if (s<>'Commander') and
+           (s<>'Shutdown') and
 //core events
            (s<>'Loadout') and
            (s<>'Docked') and
@@ -3480,7 +3735,7 @@ begin
                   if s = '' then s := j.GetValue<string>('StationName');
                   if not m.NameModified then
                     m.StationName := s;
-                  //some planetary ports have no LandingPands info!
+                  //some planetary ports have no LandingPads info!
                   if m.StationType.StartsWith('Crater') then
                     if m.LPads = -1 then m.LPads := 1;
                 end;
@@ -3603,7 +3858,7 @@ begin
             if s = '' then
               s := j.GetValue<string>('Type');
             s := LowerCase(s);
-            q := StrToInt(j.GetValue<string>('Count'));
+            q := StrToIntDef(j.GetValue<string>('Count'),0);
             if event = 'MarketBuy' then
               m.Stock.Qty[s] := m.Stock.Qty[s] - q
             else
@@ -3648,12 +3903,12 @@ begin
             else
             begin
               try
-                q := StrToInt(j.GetValue<string>('SaleOrder'));
+                q := StrToIntDef(j.GetValue<string>('SaleOrder'),0);
                 m.Stock.Qty[s] := q;
               except
               end;
               try
-                q := StrToInt(j.GetValue<string>('PurchaseOrder'));
+                q := StrToIntDef(j.GetValue<string>('PurchaseOrder'),0);
                 m.Stock.Qty['$' + s] := q;
               except
               end;
@@ -3677,7 +3932,7 @@ begin
                 s := jarr.Items[i2].GetValue<string>('Type');
               s := LowerCase(s);
               try
-                q := StrToInt(jarr.Items[i2].GetValue<string>('Count'));
+                q := StrToIntDef(jarr.Items[i2].GetValue<string>('Count'),0);
                 if jarr.Items[i2].GetValue<string>('Direction') = 'toship' then
                   q := -q;
                 m.Stock.Qty[s] := m.Stock.Qty[s] + q;

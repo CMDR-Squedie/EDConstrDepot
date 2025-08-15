@@ -889,7 +889,7 @@ begin
     begin
       validCargo := 0;
       if DataSrc.CargoExt <> nil then
-        useExtCargo := StrToInt(Opts['UseExtCargo']);
+        useExtCargo := StrToIntDef(Opts['UseExtCargo'],-1);
       for i := 0 to sl.Count - 1 do
       begin
         itemName := Copy(sl.Names[i],1+sortPrefixLen,200);
@@ -1278,6 +1278,7 @@ begin
     if FCrossHair <> nil then FCrossHair.FormStyle := fsNormal;
     if FLayer1 <> nil then FLayer1.FormStyle := fsNormal;
     self.FormStyle := fsNormal;
+    SetWindowPos(ToolbarForm.Handle, self.Handle, 0, 0 , 0, 0, SWP_NOACTIVATE or SWP_NOMOVE or SWP_NOSIZE);
   end;
 end;
 
@@ -1487,6 +1488,9 @@ begin
     FSelectedConstructions.Clear;
     FCurrentDepot := nil;
     FUseEmptyDepot := not FUseEmptyDepot;
+
+    if MarketsForm.Visible and MarketsForm.MarketsCheck.Checked then
+      MarketsForm.UpdateItems;  //update distances to markets
   end
   else
   begin

@@ -476,6 +476,10 @@ object StarMapForm: TStarMapForm
       Caption = 'Find Bodies...'
       OnClick = FindBodiesMenuItemClick
     end
+    object AddSystemsMenuItem: TMenuItem
+      Caption = 'Add Systems...'
+      OnClick = AddSystemsMenuItemClick
+    end
     object N2: TMenuItem
       Caption = '-'
     end

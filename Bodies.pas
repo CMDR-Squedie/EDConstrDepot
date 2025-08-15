@@ -32,6 +32,7 @@ type
     N3: TMenuItem;
     SetReferenceSystemMenuItem: TMenuItem;
     RefSystemLabel: TLabel;
+    ShowSpecialsMenuItem: TMenuItem;
     procedure ListViewColumnClick(Sender: TObject; Column: TListColumn);
     procedure ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
@@ -51,6 +52,7 @@ type
     procedure ListViewCustomDrawItem(Sender: TCustomListView; Item: TListItem;
       State: TCustomDrawState; var DefaultDraw: Boolean);
     procedure ShowOnMapMenuItemClick(Sender: TObject);
+    procedure ShowSpecialsMenuItemClick(Sender: TObject);
   private
     { Private declarations }
     FColonies: TSystemList;
@@ -71,7 +73,7 @@ type
     procedure EndFilterChange;
     procedure OnEDDataUpdate;
     procedure ApplySettings;
-    procedure UpdateItems(const _autoSizeCol: Boolean = false);
+    procedure UpdateItems(const _autoSizeCol: Boolean = true);
     procedure UpdateAndShow;
   end;
 
@@ -140,6 +142,7 @@ begin
   SetReferenceSystemMenuItem.Enabled := sys <> nil;
 //  CopyMenuItem.Enabled := sys <> nil;
   CopySystemNameMenuItem.Enabled := sys <> nil;
+  ShowSpecialsMenuItem.Visible := Opts.Flags['DevMode'];
 end;
 
 procedure TBodiesForm.ClearFilterButtonClick(Sender: TObject);
@@ -164,7 +167,7 @@ end;
 
 procedure TBodiesForm.ColoniesCheckClick(Sender: TObject);
 begin
-  UpdateItems(true);
+  UpdateItems;
 end;
 
 procedure TBodiesForm.CopyMenuItemClick(Sender: TObject);
@@ -217,6 +220,7 @@ var i,fs: Integer;
     clr: TColor;
     crec: System.UITypes.TColorRec;
 begin
+  ShowInTaskBar := Opts.Flags['ShowInTaskbar'];
   FHighlightColor := clBlack;
 
   if not Opts.Flags['DarkMode'] then
@@ -256,7 +260,7 @@ begin
     end;
   end;
 
-  if Visible then UpdateItems(true);
+  if Visible then UpdateItems;
 end;
 
 procedure TBodiesForm.FormClose(Sender: TObject; var Action: TCloseAction);
@@ -284,7 +288,7 @@ end;
 procedure TBodiesForm.FormShow(Sender: TObject);
 var i: Integer;
 begin
-  UpdateItems(true);
+  UpdateItems;
   FilterEdit.SetFocus;
 end;
 
@@ -311,7 +315,7 @@ begin
   end;
 end;
 
-procedure TBodiesForm.UpdateItems(const _autoSizeCol: Boolean = false);
+procedure TBodiesForm.UpdateItems(const _autoSizeCol: Boolean = true);
 var
   i,i2,j,curCol: Integer;
   b: TSystemBody;
@@ -321,7 +325,7 @@ var
   hsysl: TList;
   fs,orgfs,cs,sups,dist: string;
   items: THashedStringList;
-  coloniesf,targetf,candidf,otherf,okf,ignf: Boolean;
+  coloniesf,targetf,candidf,otherf,okf,ignf,specialsf: Boolean;
   d: Extended;
   colMaxLen: array [0..100] of Integer;
   colMaxTxt: array [0..100] of string;
@@ -422,6 +426,7 @@ begin
   candidf := ColonCandidatesCheck.Checked;
   otherf := OtherSystemsCheck.Checked;
   ignf := InclIgnoredCheck.Checked;
+  specialsf := ShowSpecialsMenuItem.Checked;
 
   for i := 0 to ListView.Columns.Count - 1 do
   begin
@@ -523,7 +528,23 @@ begin
         addSubItem(FloatToStrF(b.OrbitalPeriod,ffFixed,7,1));
         addSubItem(FloatToStrF(b.SemiMajorAxis,ffFixed,12,1));
         }
+        addSubItem(FloatToStrF(b.SemiMajorAxis,ffFixed,7,2));
         addSubItem(IfThen(b.HasMoons,'Yes',''),true);
+
+        s := '';
+        if specialsf then
+        begin
+          if b.IsMoon then s := s + 'IsMoon;';
+          if b.ParentBody  <> nil then
+          begin
+            if Pos('earth',LowerCase(b.ParentBody.BodyType)) > 0 then s := s + 'EarthParent;';
+            if Pos('giant',LowerCase(b.ParentBody.BodyType)) > 0 then s := s + 'GiantParent;';
+            if b.ParentBody.HasRings then s := s + 'ParentHasRings;';
+          end;
+        end;
+        addSubItem(s);
+
+
         if CheckFilter then
           addRow(b);
       end;
@@ -577,7 +598,10 @@ begin
     if SortColumn = 14 then
       Compare := CompareValue(TSystemBody(Item1.Data).OrbitalInclination,
         TSystemBody(Item2.Data).OrbitalInclination)
-
+    else
+    if SortColumn = 15 then
+      Compare := CompareValue(TSystemBody(Item1.Data).SemiMajorAxis,
+        TSystemBody(Item2.Data).SemiMajorAxis)
     else
     if SortColumn = 1 then
       Compare := CompareText(
@@ -623,6 +647,11 @@ begin
   if ListView.Selected = nil then Exit;
   StarMapForm.SelectSystem(TSystemBody(ListView.Selected.Data).SysData);
   StarMapForm.RestoreAndShow;
+end;
+
+procedure TBodiesForm.ShowSpecialsMenuItemClick(Sender: TObject);
+begin
+  UpdateItems;
 end;
 
 procedure TBodiesForm.ListViewAction(Sender: TObject);
