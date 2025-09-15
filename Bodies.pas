@@ -528,8 +528,10 @@ begin
         addSubItem(FloatToStrF(b.OrbitalPeriod,ffFixed,7,1));
         addSubItem(FloatToStrF(b.SemiMajorAxis,ffFixed,12,1));
         }
+        addSubItem(FloatToStrF(b.Radius,ffFixed,7,2));
         addSubItem(FloatToStrF(b.SemiMajorAxis,ffFixed,7,2));
         addSubItem(IfThen(b.HasMoons,'Yes',''),true);
+
 
         s := '';
         if specialsf then
@@ -542,6 +544,7 @@ begin
             if b.ParentBody.HasRings then s := s + 'ParentHasRings;';
           end;
         end;
+        if (b.Radius > 0) and (b.Radius < 250) then s := s + 'Tiny;';
         addSubItem(s);
 
 
@@ -600,6 +603,10 @@ begin
         TSystemBody(Item2.Data).OrbitalInclination)
     else
     if SortColumn = 15 then
+      Compare := CompareValue(TSystemBody(Item1.Data).Radius,
+        TSystemBody(Item2.Data).Radius)
+    else
+    if SortColumn = 16 then
       Compare := CompareValue(TSystemBody(Item1.Data).SemiMajorAxis,
         TSystemBody(Item2.Data).SemiMajorAxis)
     else

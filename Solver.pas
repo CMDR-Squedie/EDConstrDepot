@@ -70,6 +70,7 @@ type
     SlotsCombo: TComboBox;
     Label17: TLabel;
     Alternatives1: TMenuItem;
+    StatsHelpLabel: TLabel;
     procedure SolveButtonClick(Sender: TObject);
     procedure ListViewCustomDrawItem(Sender: TCustomListView; Item: TListItem;
       State: TCustomDrawState; var DefaultDraw: Boolean);
@@ -83,10 +84,12 @@ type
     procedure PopupMenuPopup(Sender: TObject);
     procedure AddToSystemMenuItemClick(Sender: TObject);
     procedure SaveButtonClick(Sender: TObject);
+    procedure Label7MouseEnter(Sender: TObject);
+    procedure Label7MouseLeave(Sender: TObject);
   private
     { Private declarations }
     FCP2,FCP3: Integer;
-    FSecLev,FDevLev,FTechlev,FWealthLev,FStdLivLev,FScore: Integer;
+    FSecLev,FDevLev,FTechlev,FWealthLev,FStdLivLev,FScore,FTechBonus: Integer;
     FCurrentSystem: TStarSystem;
     FT23Primary: Boolean;
     FT23Ports: Integer;
@@ -227,10 +230,10 @@ begin
 end;
 
 procedure TSolverForm.SetSystem(sys: TStarSystem; CP2,CP3: Integer; const restoref: Boolean = false);
-var i,orbTaken,surfTaken,bOrd: Integer;
+var i,orbTaken,surfTaken,bOrd,techBonus: Integer;
     ct: TConstructionType;
     item: TListItem;
-    t23portf: Boolean;
+    t23portf,primf: Boolean;
     s: string;
 begin
 
@@ -291,12 +294,14 @@ begin
   FWealthlev := 0;
   FStdLivLev := 0;
   FScore := 0;
-
+  FTechBonus := 35;
+  primf := False;
 
   DataSrc.UpdateSystemStations;
   for i := 0 to FCurrentSystem.Constructions.Count - 1 do
     with TConstructionDepot(FCurrentSystem.Constructions[i]) do
     begin
+      if IsPrimary then primf := True;
       ct := GetConstrType;
       if ct <> nil then
       begin
@@ -312,6 +317,8 @@ begin
              Inc(FT23Ports)
            else
              FT23Primary := True;
+           FTechlev := FTechlev + FTechBonus;
+           FTechBonus := 0;
          end;
 
         FSecLev := FSecLev + ct.SecLev;
@@ -325,10 +332,12 @@ begin
         else
         begin
           //PrioConstructions sorted by tier and starport type
+          bOrd := BuildOrder;
           if IsPrimary then
-            s := '0'
+            bOrd := 0
           else
           begin
+          {
             s := '1';
             if ct.Tier = '2' then
               if ct.Category = 'Starport' then
@@ -336,10 +345,17 @@ begin
               else
                 s := '2';
             if ct.Tier = '3' then s := '8';
-            bOrd := BuildOrder;
-            if bOrd = 0 then bOrd := 99999;
-            s := bOrd.ToString.PadLeft(5) + s;
+            }
+            if bOrd = 0 then
+            begin
+              bOrd := 99900;
+              if ct.Tier = '1' then bOrd := bOrd - 1;
+              //tier 2 - no change
+              if ct.Tier = '3' then bOrd := bOrd + 3;
+              if ct.Dependencies <> '' then bOrd := bOrd + 1;
+            end;
           end;
+          s := bOrd.ToString.PadLeft(5,'0'); // + s;
           FPrioConstructions.AddObject(s,ct);
         end;
       end;
@@ -349,6 +365,9 @@ begin
 
   InitialCP2Edit.Text := FCP2.ToString;
   InitialCP3Edit.Text := FCP3.ToString;
+
+  if not primf then WarnLabel.Caption := 'add or select primary port before using solver';
+
   FPrioConstructions.Sort;
 
 
@@ -416,6 +435,21 @@ begin
   GoalCombo.ItemIndex := 2;
 end;
 
+procedure TSolverForm.Label7MouseEnter(Sender: TObject);
+begin
+  if Sender is TControl then
+  if TControl(Sender).Hint <> '' then
+  begin
+    StatsHelpLabel.Caption := TControl(Sender).Hint;
+    StatsHelpLabel.Visible := True;
+  end;
+end;
+
+procedure TSolverForm.Label7MouseLeave(Sender: TObject);
+begin
+  StatsHelpLabel.Visible := False;
+end;
+
 procedure TSolverForm.ListViewCustomDrawItem(Sender: TCustomListView;
   Item: TListItem; State: TCustomDrawState; var DefaultDraw: Boolean);
 begin
@@ -469,9 +503,9 @@ var item: TListItem;
     s,constrType,constrTag: string;
     nextBuild,reqBuild: TNextBuild;
     nextCt,depCt: TConstructionType;
-    balstatsf,outpostsf,hubsf,nonegf,portsf,primaryf,slotbalf: Boolean;
+    balstatsf,outpostsf,hubsf,nonegf,portsf,primaryf,slotbalf,prioT3portf: Boolean;
     reqSec,reqWealth,reqStdLiv,reqDev,reqTech,reqTot: Integer;
-    ASecLev,ADevLev,ATechlev,AWealthLev,AStdLivLev,AScore,statTot: Integer;
+    ASecLev,ADevLev,ATechlev,AWealthLev,AStdLivLev,AScore,ATechBonus,statTot,orgStatTot: Integer;
     nextPts: Extended;
     inflList: TStringList;
     dependMode: Integer;
@@ -546,6 +580,11 @@ var item: TListItem;
       AWealthlev := AWealthlev + ct.WealthLev;
       AStdLivLev := AStdLivLev + ct.StdLivLev;
       AScore := AScore + ct.Score;
+      if ct.IsT23Port then
+      begin
+        ATechLev := ATechLev + ATechBonus;
+        ATechBonus := 0;
+      end;
 
       if FInflList.Count > 0 then
       if ct.Influence <> '' then
@@ -762,7 +801,24 @@ var item: TListItem;
       }
     end;
 
-    procedure updateReqStats(resetf: Boolean);
+    procedure checkStatBal(var reqStat: Integer; var AStatLev: Integer);
+    begin
+      if reqStat = 0 then Exit;
+
+      //keep the stats within 5% margin of trackbar proportions
+      if (AStatLev/orgStatTot > 1.05 * reqStat/reqTot) then
+        reqStat := 1;
+
+      //prioritize if stat severely lags behind
+      if (AStatLev/orgStatTot < 0.10 * reqStat/reqTot) then
+        reqStat := 50
+      else
+      if (AStatLev/orgStatTot < 0.25 * reqStat/reqTot) then
+        reqStat := Min(20, reqTot div 2);
+    end;
+
+    procedure updateReqStats;
+    var balStep: Integer;
     begin
 
       reqSec := SecTrackBar.Position;
@@ -781,6 +837,9 @@ var item: TListItem;
         if (reqTech > 0) and (ATechLev < 0) then reqTech := 50;
       end;
 
+      //do some stats balancing
+      //only start balancing if min. stats total is reached
+
       statTot := 0;
       if reqSec > 0 then statTot := statTot + ASecLev;
       if reqWealth > 0 then statTot := statTot + AWealthLev;
@@ -788,17 +847,17 @@ var item: TListItem;
       if reqDev > 0 then statTot := statTot + ADevLev;
       if reqTech > 0 then statTot := statTot + ATechLev;
 
-      //do some stats levelling
-      //keep them within 5% margin of trackbar proportions
-      //only start balancing if min. stats total is reached
-      if (reqTot > 0) and (statTot > 20) then
-      begin
-        if (reqSec > 0) and (ASecLev/statTot > 1.05 * reqSec/reqTot) then reqSec := 1;
-        if (reqWealth > 0) and (AWealthLev/statTot > 1.05 * reqWealth/reqTot) then reqWealth := 1;
-        if (reqStdLiv > 0) and (AStdLivLev/statTot > 1.05 * reqStdLiv/reqTot) then reqStdLiv := 1;
-        if (reqDev > 0) and (ADevLev/statTot > 1.05 * reqDev/reqTot) then reqDev := 1;
-        if (reqTech > 0) and (ATechLev/statTot > 1.05 * reqTech/reqTot) then reqTech := 1;
-      end;
+      orgStatTot := statTot;
+
+      if reqTot > 0 then
+        if statTot > 20 then
+        begin
+          checkStatBal(reqDev,ADevLev);
+          checkStatBal(reqTech,ATechLev);
+          checkStatBal(reqWealth,AWealthLev);
+          checkStatBal(reqStdLiv,AStdLivLev);
+          checkStatBal(reqSec,ASecLev);
+        end;
 
 
     end;
@@ -923,6 +982,7 @@ begin
   AWealthlev := FWealthlev;
   AStdLivLev := FStdLivLev;
   AScore := FScore;
+  ATechBonus := FTechBonus;
 
 
   if balstatsf then
@@ -941,7 +1001,7 @@ begin
     item.SubItems.Add('( initial stats )');
     addStats;
 
-    updateReqStats(true);
+//    updateReqStats;
   end;
 
 
@@ -954,7 +1014,10 @@ begin
     primaryf := false;
     nextBuild := nNone;
     reqBuild := nNone;
+    prioT3portf := false;
     nextCt := nil;
+    if balstatsf then
+      updateReqStats;
 
     case slotPolicy of
       spAlternate: 
@@ -979,7 +1042,7 @@ begin
     if prioIdx < APrioConstructions.Count then
     begin
       nextCt := TConstructionType(APrioConstructions.Objects[prioIdx]);
-      if APrioConstructions[prioIdx] = '0' then //primary
+      if APrioConstructions[prioIdx] = '00000' then //primary
       begin
         primaryf := True;
         nextBuild := nPrio;
@@ -989,23 +1052,35 @@ begin
         if nextCt.IsT23port then
         begin
           if nextCt.Tier = '2' then
-            if CP2 >= cp2cost then nextBuild := nPrio;
-          if nextCt.Tier = '3' then
-            if CP3 >= cp3cost then nextBuild := nPrio;
-        end
-        else
-          if (CP2 + nextCt.CP2 >= 0) and (CP3 + nextCt.CP3 >= 0) then nextBuild := nPrio;
-        if nextBuild <> nPrio then
-        begin
-          if CP2 + nextCt.CP2 < 0 then
-            reqBuild := nT1Inst
-          else
-            if (CP2 > 0) and (CP3 + nextCt.CP3 < 0) then
-              reqBuild := nT2Inst
+            if CP2 >= cp2cost then
+              nextBuild := nPrio
             else
               reqBuild := nT1Inst;
-          nextCt := nil;
+          if nextCt.Tier = '3' then
+            if CP3 >= cp3cost then
+              nextBuild := nPrio
+            else
+            begin
+              prioT3portf := true;
+              reqBuild := nT2Inst;
+            end;
+        end
+        else
+        begin
+          if (CP2 + nextCt.CP2 >= 0) and (CP3 + nextCt.CP3 >= 0) then nextBuild := nPrio;
+
+          if nextBuild <> nPrio then
+          begin
+            if CP2 + nextCt.CP2 < 0 then
+              reqBuild := nT1Inst
+            else
+              if (CP2 > 0) and (CP3 + nextCt.CP3 < 0) then
+                reqBuild := nT2Inst
+              else
+                reqBuild := nT1Inst;
+          end;
         end;
+        if nextBuild <> nPrio then nextCt := nil;
       end;
     end
     else
@@ -1121,10 +1196,10 @@ begin
             checkNextBuild(nT2Orb,nextCt,nextPts)
           else
           //check for T2Orb better than T2Settl only if
-          // - more free OrbSlots than SurfSlots
+          // - more free orb. slots than surf.
           // - all T3 ports are done
-            if (OrbSlots-OrbReserved) - (SurfSlots-SurfReserved) > 1 then
-            if t3ToBuild + t3SurfToBuild = 0 then
+            if (reqBuild in [nAnyInst,nAnyOrb]) or ((OrbSlots-OrbReserved) - (SurfSlots-SurfReserved) > 0) then
+            if not prioT3portf and (t3ToBuild + t3SurfToBuild = 0) then
               checkNextBuild(nT2Orb,nextCt,nextPts);
       end;
       if nextBuild = nNone then
@@ -1141,10 +1216,10 @@ begin
           checkNextBuild(nT1Settl,nextCt,nextPts)
         else
           //check for T1Settl better than T1Orb only if
-          // - more free SurfSlots than
+          // - more free surf. slots than orb.
           // - all T3 ports are done
-           if (SurfSlots-SurfReserved) - (OrbSlots-OrbReserved) > 1 then
-           if t3ToBuild + t3SurfToBuild = 0 then
+           if (SurfSlots-SurfReserved) - (OrbSlots-OrbReserved) > 0 then
+           if not prioT3portf and (t3ToBuild + t3SurfToBuild = 0) then
              checkNextBuild(nT1Settl,nextCt,nextPts)
     end;
 
@@ -1302,7 +1377,7 @@ begin
         constrType := nextCt.StationType_full;
       FConstrList.Add(nextCt);
       updSysStats(nextCt);
-      updateReqStats(false);
+      //updateReqStats(false);
 
       if (nextCt.Tier = '1') and nextCt.IsPort then
         Inc(t1ports);

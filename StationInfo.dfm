@@ -3,7 +3,7 @@ object StationInfoForm: TStationInfoForm
   Top = 0
   BorderIcons = [biSystemMenu]
   Caption = 'Construction Info'
-  ClientHeight = 540
+  ClientHeight = 587
   ClientWidth = 563
   Color = 4866358
   Font.Charset = DEFAULT_CHARSET
@@ -17,7 +17,7 @@ object StationInfoForm: TStationInfoForm
   TextHeight = 19
   object WealthBkgLabel: TLabel
     Left = 147
-    Top = 330
+    Top = 354
     Width = 231
     Height = 33
     Caption = #10096#10096#10096#10096#10096#10096#10096#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097
@@ -30,7 +30,7 @@ object StationInfoForm: TStationInfoForm
   end
   object LivBkgLabel: TLabel
     Left = 147
-    Top = 306
+    Top = 330
     Width = 231
     Height = 33
     Caption = #10096#10096#10096#10096#10096#10096#10096#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097
@@ -43,7 +43,7 @@ object StationInfoForm: TStationInfoForm
   end
   object DevBkgLabel: TLabel
     Left = 147
-    Top = 234
+    Top = 258
     Width = 231
     Height = 33
     Caption = #10096#10096#10096#10096#10096#10096#10096#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097
@@ -56,7 +56,7 @@ object StationInfoForm: TStationInfoForm
   end
   object TechBkgLabel: TLabel
     Left = 147
-    Top = 258
+    Top = 282
     Width = 231
     Height = 33
     Caption = #10096#10096#10096#10096#10096#10096#10096#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097
@@ -69,7 +69,7 @@ object StationInfoForm: TStationInfoForm
   end
   object SecBkgLabel: TLabel
     Left = 147
-    Top = 282
+    Top = 306
     Width = 231
     Height = 33
     Caption = #10096#10096#10096#10096#10096#10096#10096#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097
@@ -82,14 +82,14 @@ object StationInfoForm: TStationInfoForm
   end
   object Label1: TLabel
     Left = 9
-    Top = 19
+    Top = 43
     Width = 36
     Height = 19
     Caption = 'Name'
   end
   object Label2: TLabel
     Left = 166
-    Top = 52
+    Top = 76
     Width = 74
     Height = 19
     Caption = #9999' Planned'
@@ -98,7 +98,7 @@ object StationInfoForm: TStationInfoForm
   end
   object Label3: TLabel
     Left = 284
-    Top = 52
+    Top = 76
     Width = 95
     Height = 19
     Caption = #55357#56999' In Progress'
@@ -107,7 +107,7 @@ object StationInfoForm: TStationInfoForm
   end
   object Label4: TLabel
     Left = 514
-    Top = 63
+    Top = 87
     Width = 49
     Height = 19
     Caption = 'On Hold'
@@ -115,7 +115,7 @@ object StationInfoForm: TStationInfoForm
   end
   object Label5: TLabel
     Left = 414
-    Top = 52
+    Top = 76
     Width = 75
     Height = 19
     Caption = #55357#57001' Finished'
@@ -124,14 +124,14 @@ object StationInfoForm: TStationInfoForm
   end
   object Label6: TLabel
     Left = 8
-    Top = 290
+    Top = 314
     Width = 52
     Height = 19
     Caption = 'Security'
   end
   object SecPosLabel: TLabel
     Left = 224
-    Top = 282
+    Top = 306
     Width = 154
     Height = 33
     Caption = #10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097
@@ -144,14 +144,14 @@ object StationInfoForm: TStationInfoForm
   end
   object Label8: TLabel
     Left = 8
-    Top = 91
+    Top = 115
     Width = 28
     Height = 19
     Caption = 'Type'
   end
   object SecNegLabel: TLabel
     Left = 147
-    Top = 282
+    Top = 306
     Width = 77
     Height = 33
     Alignment = taRightJustify
@@ -165,14 +165,14 @@ object StationInfoForm: TStationInfoForm
   end
   object Label10: TLabel
     Left = 8
-    Top = 266
+    Top = 290
     Width = 69
     Height = 19
     Caption = 'Technology'
   end
   object TechNegLabel: TLabel
     Left = 147
-    Top = 258
+    Top = 282
     Width = 77
     Height = 33
     Alignment = taRightJustify
@@ -186,7 +186,7 @@ object StationInfoForm: TStationInfoForm
   end
   object TechPosLabel: TLabel
     Left = 224
-    Top = 258
+    Top = 282
     Width = 154
     Height = 33
     Caption = #10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097
@@ -199,14 +199,14 @@ object StationInfoForm: TStationInfoForm
   end
   object Label13: TLabel
     Left = 8
-    Top = 242
+    Top = 266
     Width = 81
     Height = 19
     Caption = 'Development'
   end
   object DevNegLabel: TLabel
     Left = 147
-    Top = 234
+    Top = 258
     Width = 77
     Height = 33
     Alignment = taRightJustify
@@ -220,7 +220,7 @@ object StationInfoForm: TStationInfoForm
   end
   object DevPosLabel: TLabel
     Left = 224
-    Top = 234
+    Top = 258
     Width = 154
     Height = 33
     Caption = #10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097
@@ -233,14 +233,14 @@ object StationInfoForm: TStationInfoForm
   end
   object Label16: TLabel
     Left = 8
-    Top = 338
+    Top = 362
     Width = 42
     Height = 19
     Caption = 'Wealth'
   end
   object WealthNegLabel: TLabel
     Left = 147
-    Top = 330
+    Top = 354
     Width = 77
     Height = 33
     Alignment = taRightJustify
@@ -254,7 +254,7 @@ object StationInfoForm: TStationInfoForm
   end
   object WealthPosLabel: TLabel
     Left = 224
-    Top = 330
+    Top = 354
     Width = 154
     Height = 33
     Caption = #10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097
@@ -267,14 +267,14 @@ object StationInfoForm: TStationInfoForm
   end
   object Label19: TLabel
     Left = 8
-    Top = 315
+    Top = 339
     Width = 118
     Height = 19
     Caption = 'Standard of Living'
   end
   object LivNegLabel: TLabel
     Left = 147
-    Top = 307
+    Top = 331
     Width = 77
     Height = 33
     Alignment = taRightJustify
@@ -288,7 +288,7 @@ object StationInfoForm: TStationInfoForm
   end
   object LivPosLabel: TLabel
     Left = 224
-    Top = 307
+    Top = 331
     Width = 154
     Height = 33
     Caption = #10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097#10097
@@ -301,70 +301,70 @@ object StationInfoForm: TStationInfoForm
   end
   object Label22: TLabel
     Left = 8
-    Top = 367
+    Top = 391
     Width = 79
     Height = 19
     Caption = 'Base Market'
   end
   object EconomyLabel: TLabel
     Left = 146
-    Top = 367
+    Top = 391
     Width = 154
     Height = 19
     Caption = '----------------------'
   end
   object EconomyInflLabel: TLabel
     Left = 146
-    Top = 392
+    Top = 416
     Width = 154
     Height = 19
     Caption = '----------------------'
   end
   object Label25: TLabel
     Left = 8
-    Top = 392
+    Top = 416
     Width = 118
     Height = 19
     Caption = 'Economy Influence'
   end
   object Label26: TLabel
     Left = 9
-    Top = 194
+    Top = 218
     Width = 59
     Height = 19
     Caption = 'Comment'
   end
   object Label27: TLabel
     Left = 9
-    Top = 126
+    Top = 150
     Width = 31
     Height = 19
     Caption = 'Body'
   end
   object Label28: TLabel
     Left = 8
-    Top = 417
+    Top = 441
     Width = 47
     Height = 19
     Caption = 'CP Cost'
   end
   object CPCostLabel: TLabel
     Left = 146
-    Top = 417
+    Top = 441
     Width = 154
     Height = 19
     Caption = '----------------------'
   end
   object Label30: TLabel
     Left = 8
-    Top = 442
+    Top = 466
     Width = 107
     Height = 19
     Caption = 'Est./Req. Haul (t)'
   end
   object EstHaulLabel: TLabel
     Left = 146
-    Top = 442
+    Top = 466
     Width = 154
     Height = 19
     Caption = '----------------------'
@@ -372,84 +372,84 @@ object StationInfoForm: TStationInfoForm
   end
   object CPRewardLabel: TLabel
     Left = 424
-    Top = 417
+    Top = 441
     Width = 154
     Height = 19
     Caption = '----------------------'
   end
   object Label33: TLabel
     Left = 329
-    Top = 417
+    Top = 441
     Width = 73
     Height = 19
     Caption = ' CP Reward'
   end
   object SecLabel: TLabel
     Left = 422
-    Top = 290
+    Top = 314
     Width = 35
     Height = 19
     Caption = '-----'
   end
   object TechLabel: TLabel
     Left = 422
-    Top = 266
+    Top = 290
     Width = 35
     Height = 19
     Caption = '-----'
   end
   object DevLabel: TLabel
     Left = 422
-    Top = 243
+    Top = 267
     Width = 35
     Height = 19
     Caption = '-----'
   end
   object WealthLabel: TLabel
     Left = 422
-    Top = 340
+    Top = 364
     Width = 35
     Height = 19
     Caption = '-----'
   end
   object LivLabel: TLabel
     Left = 422
-    Top = 315
+    Top = 339
     Width = 35
     Height = 19
     Caption = '-----'
   end
   object Label7: TLabel
     Left = 8
-    Top = 52
+    Top = 76
     Width = 41
     Height = 19
     Caption = 'Status'
   end
   object Label9: TLabel
     Left = 9
-    Top = 160
-    Width = 91
+    Top = 184
+    Width = 90
     Height = 19
-    Caption = 'Linked Station'
+    Caption = 'Linked Market'
   end
   object Label11: TLabel
     Left = 9
-    Top = 467
+    Top = 491
     Width = 88
     Height = 19
     Caption = 'Requirements'
   end
   object ReqLabel: TLabel
     Left = 147
-    Top = 467
+    Top = 491
     Width = 154
     Height = 19
     Caption = '----------------------'
   end
   object Label12: TLabel
     Left = 333
-    Top = 442
+    Top = 466
     Width = 80
     Height = 19
     Caption = 'Primary Port'
@@ -457,21 +457,21 @@ object StationInfoForm: TStationInfoForm
   end
   object Label14: TLabel
     Left = 333
-    Top = 467
+    Top = 491
     Width = 73
     Height = 19
     Caption = 'Build Order'
   end
   object Label15: TLabel
     Left = 328
-    Top = 160
+    Top = 184
     Width = 43
     Height = 19
     Caption = 'Layout'
   end
   object Label17: TLabel
     Left = 543
-    Top = 92
+    Top = 115
     Width = 17
     Height = 19
     Caption = '[...]'
@@ -479,22 +479,36 @@ object StationInfoForm: TStationInfoForm
   end
   object Label18: TLabel
     Left = 329
-    Top = 126
+    Top = 150
     Width = 46
     Height = 19
     Caption = 'Faction'
   end
+  object Label20: TLabel
+    Left = 8
+    Top = 8
+    Width = 46
+    Height = 19
+    Caption = 'System'
+  end
+  object SystemLabel: TLabel
+    Left = 147
+    Top = 8
+    Width = 154
+    Height = 19
+    Caption = '----------------------'
+    OnClick = SystemLabelClick
+  end
   object Panel1: TPanel
     Left = 0
-    Top = 499
+    Top = 546
     Width = 563
     Height = 41
     Align = alBottom
     BevelOuter = bvNone
     TabOrder = 0
-    ExplicitTop = 524
     object OKButton: TButton
-      Left = 288
+      Left = 310
       Top = 8
       Width = 75
       Height = 25
@@ -512,7 +526,7 @@ object StationInfoForm: TStationInfoForm
       OnClick = CancelButtonClick
     end
     object NextButton: TButton
-      Left = 381
+      Left = 391
       Top = 8
       Width = 75
       Height = 25
@@ -529,10 +543,19 @@ object StationInfoForm: TStationInfoForm
       TabOrder = 3
       OnClick = PasteMatButtonClick
     end
+    object SetActiveButton: TButton
+      Left = 121
+      Top = 8
+      Width = 106
+      Height = 25
+      Caption = 'Set Active'
+      TabOrder = 4
+      OnClick = SetActiveButtonClick
+    end
   end
   object CommentEdit: TEdit
     Left = 147
-    Top = 191
+    Top = 215
     Width = 393
     Height = 27
     ParentColor = True
@@ -541,7 +564,7 @@ object StationInfoForm: TStationInfoForm
   end
   object PlannedStatus: TRadioButton
     Left = 146
-    Top = 54
+    Top = 78
     Width = 20
     Height = 17
     TabOrder = 2
@@ -549,7 +572,7 @@ object StationInfoForm: TStationInfoForm
   end
   object StatusRadio2: TRadioButton
     Left = 264
-    Top = 54
+    Top = 78
     Width = 19
     Height = 17
     TabOrder = 3
@@ -557,7 +580,7 @@ object StationInfoForm: TStationInfoForm
   end
   object StatusRadio3: TRadioButton
     Left = 484
-    Top = 65
+    Top = 89
     Width = 24
     Height = 17
     TabOrder = 4
@@ -565,7 +588,7 @@ object StationInfoForm: TStationInfoForm
   end
   object FinishedStatus: TRadioButton
     Left = 393
-    Top = 54
+    Top = 78
     Width = 19
     Height = 17
     TabOrder = 5
@@ -573,7 +596,7 @@ object StationInfoForm: TStationInfoForm
   end
   object TypeCombo: TComboBox
     Left = 147
-    Top = 88
+    Top = 112
     Width = 393
     Height = 27
     Style = csDropDownList
@@ -585,7 +608,7 @@ object StationInfoForm: TStationInfoForm
   end
   object NameEdit: TEdit
     Left = 147
-    Top = 16
+    Top = 40
     Width = 393
     Height = 27
     ParentColor = True
@@ -594,7 +617,7 @@ object StationInfoForm: TStationInfoForm
   end
   object BodyCombo: TComboBox
     Left = 147
-    Top = 123
+    Top = 147
     Width = 167
     Height = 27
     DropDownCount = 20
@@ -604,7 +627,7 @@ object StationInfoForm: TStationInfoForm
   end
   object LinkedStationCombo: TComboBox
     Left = 147
-    Top = 157
+    Top = 181
     Width = 166
     Height = 27
     Style = csDropDownList
@@ -616,7 +639,7 @@ object StationInfoForm: TStationInfoForm
   end
   object PrimaryCheck: TCheckBox
     Left = 423
-    Top = 444
+    Top = 468
     Width = 17
     Height = 17
     TabOrder = 10
@@ -624,7 +647,7 @@ object StationInfoForm: TStationInfoForm
   end
   object BuildOrderEdit: TEdit
     Left = 424
-    Top = 465
+    Top = 489
     Width = 64
     Height = 27
     NumbersOnly = True
@@ -634,7 +657,7 @@ object StationInfoForm: TStationInfoForm
   end
   object BuildOrderUpDown: TUpDown
     Left = 487
-    Top = 466
+    Top = 490
     Width = 17
     Height = 25
     Max = 1000
@@ -643,7 +666,7 @@ object StationInfoForm: TStationInfoForm
   end
   object LayoutCombo: TComboBox
     Left = 386
-    Top = 157
+    Top = 181
     Width = 154
     Height = 27
     DropDownCount = 20
@@ -653,7 +676,7 @@ object StationInfoForm: TStationInfoForm
   end
   object FactionCombo: TComboBox
     Left = 386
-    Top = 123
+    Top = 147
     Width = 154
     Height = 27
     DropDownCount = 20
@@ -663,7 +686,7 @@ object StationInfoForm: TStationInfoForm
   end
   object PopupMenu: TPopupMenu
     Left = 176
-    Top = 432
+    Top = 456
     object PasteRequestMenuItem: TMenuItem
       Caption = 'Paste Request'
       OnClick = PasteRequestMenuItemClick

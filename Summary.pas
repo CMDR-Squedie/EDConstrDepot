@@ -52,7 +52,7 @@ var i,i2: Integer;
     totSystems10,totSystems100,totShipyards: Integer;
     totELW,totWW,totAW,totELW2,totWW2,totAW2,totELW3,totWW3,totAW3: Integer;
     totLandRings,totG4,totG5,totGW,totGH,
-      totLandOxy,totLandHelium,totAbundLife,totLandAtmMoons,totMetalRings: Integer;
+      totLandOxy,totLandHelium,totAbundLife,totLandAtmMoons,totMetalRings,totLandTiny: Integer;
     ct: TConstructionType;
     s: string;
 
@@ -110,6 +110,7 @@ begin
   totGH := 0;
   totGW := 0;
   totMetalRings := 0;
+  totLandTiny := 0;
   for i := 0 to DataSrc.StarSystems.Count - 1 do
   begin
     sys := DataSrc.StarSystems[i];
@@ -202,6 +203,7 @@ begin
           if Atmosphere <> '' then
             if IsMoon then
               if HasMoons then Inc(totLandAtmMoons);
+         if (Radius > 0) and (Radius < 250) then Inc(totLandTiny);
 
         end;
         if Pos('giant',s) > 0 then
@@ -260,6 +262,7 @@ begin
   addStat('Landable w/Helium',totLandHelium,false,'land+helium');
   addStat('Landable w/Bio-diversity (min.5)',totAbundLife,false,'land+bio');
   addStat('Landable Moon w/Atm. and Moons',totLandAtmMoons,false,'land+atmo+moons');
+  addStat('Tiny Landable',totLandTiny,false,'land+tiny');
   addStat('Planetary Rings - Metallic',totMetalRings,false, 'metallic+ring+~belt+~magma');
 
 end;

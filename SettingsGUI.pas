@@ -49,7 +49,7 @@ implementation
 
 uses Settings, Main, Markets, MarketInfo, DataSource, Splash, Colonies,
   SystemInfo, StationInfo, ConstrTypes, MaterialList, Toolbar, ToolTip, StarMap,
-  Summary, Bodies;
+  Summary, Bodies, BodyInfo;
 
 procedure TSettingsForm.BackupJournalLinkLinkClick(Sender: TObject;
   const Link: string; LinkType: TSysLinkType);
@@ -146,6 +146,7 @@ begin
   DefineGroup('COLONY MAP');
   DefineFlag('ShowAlterNames','alternative system names on map');
   DefineOpt('ShowSysPreview','sys. preview on map: 0-off; 1-on when not plotting route; 2-always on',0,2,'');
+  DefineOpt('ShowSysNames','0-all system names; 1-colonies and high-pop. only; 2-colonies only',0,2,'');
 
   for i := 0 to ListView.Columns.Count - 1 do
   begin
@@ -264,6 +265,7 @@ begin
   StarMapForm.OnChangeSettings;
   SummaryForm.ApplySettings;
   BodiesForm.ApplySettings;
+  BodyInfoForm.ApplySettings;
 end;
 
 end.

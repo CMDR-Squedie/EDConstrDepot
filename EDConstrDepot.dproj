@@ -218,6 +218,10 @@
             <Form>SolverForm</Form>
             <FormType>dfm</FormType>
         </DCCReference>
+        <DCCReference Include="BodyInfo.pas">
+            <Form>BodyInfoForm</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

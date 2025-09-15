@@ -24,29 +24,24 @@ uses
   Summary in 'Summary.pas' {SummaryForm},
   Bodies in 'Bodies.pas' {BodiesForm},
   Memo in 'Memo.pas' {MemoForm},
-  Solver in 'Solver.pas' {SolverForm};
+  Solver in 'Solver.pas' {SolverForm},
+  BodyInfo in 'BodyInfo.pas' {BodyInfoForm};
 
 {$R *.res}
 
-const gNiceVersion: string = 'Release 28, build 1';
-
-{
-}
+const gNiceVersion: string = 'Release 29, build 1';
 
 {
   future builds:
  - economy commodity dependencies
- - free slots per body
  - 'asteroid' slots
  - find similar economy market
-
-  tentative:
- - Population Map layer
- - set faction for non-dockable stations
- - POIs
- - force show system on map
+ - force show system on map  (other than objective)
  - custom star lanes
  - biggest station name layer  +  show biggest station on select
+
+  tentative:
+ - POIs
 }
 
 begin
@@ -77,6 +72,7 @@ begin
   Application.CreateForm(TBodiesForm, BodiesForm);
   Application.CreateForm(TMemoForm, MemoForm);
   Application.CreateForm(TSolverForm, SolverForm);
+  Application.CreateForm(TBodyInfoForm, BodyInfoForm);
   SettingsForm.VersionLabel.Caption := gNiceVersion;
 
   Application.OnActivate :=  EDCDForm.AppActivate;

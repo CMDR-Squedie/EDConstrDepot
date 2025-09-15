@@ -128,19 +128,42 @@ type
     UndoBodyLabelMenuItem: TMenuItem;
     AddLabelsMenuItem: TMenuItem;
     NextPictLabel: TLabel;
-    BodyInfoLabel: TLabel;
     N9: TMenuItem;
+    Label25: TLabel;
+    Label26: TLabel;
+    Label27: TLabel;
+    Label28: TLabel;
+    Label29: TLabel;
+    FreeSlotsCheck: TCheckBox;
+    NoLabelsLabel: TLabel;
+    BodyInfoPanel: TPanel;
     BodyInfoFrame: TShape;
+    BodyInfoLabel: TLabel;
     BodySlotsPanel: TPanel;
-    Label16: TLabel;
-    Label17: TLabel;
-    Label18: TLabel;
-    Label19: TLabel;
-    Label20: TLabel;
-    Label21: TLabel;
-    Label22: TLabel;
     Label23: TLabel;
+    OrbSlotsLabel: TLabel;
+    SurfSlotsLabel: TLabel;
+    Label18: TLabel;
+    Label16: TLabel;
+    Label19: TLabel;
+    Label21: TLabel;
     Label24: TLabel;
+    Label30: TLabel;
+    Label33: TLabel;
+    Label34: TLabel;
+    Label35: TLabel;
+    Label36: TLabel;
+    Label37: TLabel;
+    Label38: TLabel;
+    Label39: TLabel;
+    Label40: TLabel;
+    Label41: TLabel;
+    Label42: TLabel;
+    Label43: TLabel;
+    Label44: TLabel;
+    Label45: TLabel;
+    HideSlotEditLabel: TLabel;
+    BodyStationsLabel: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure EDSMScanButtonClick(Sender: TObject);
@@ -209,6 +232,10 @@ type
     procedure ClearAllLabelsMenuItemClick(Sender: TObject);
     procedure BodyLabelClick(Sender: TObject);
     procedure UndoBodyLabelMenuItemClick(Sender: TObject);
+    procedure Label16Click(Sender: TObject);
+    procedure Label37Click(Sender: TObject);
+    procedure OrbSlotsLabelClick(Sender: TObject);
+    procedure HideSlotEditLabelClick(Sender: TObject);
   private
     { Private declarations }
     FCP2,FCP3: Integer;
@@ -246,6 +273,7 @@ type
     procedure ClearBodyLabels;
     procedure AddBodyLabel(x,y: Integer; bodyNr: Integer);
     procedure SelectNearestBody;
+    procedure UnselectBodyLabel;
   public
     { Public declarations }
     procedure BeginFilterChange;
@@ -267,7 +295,7 @@ implementation
 {$R *.dfm}
 
 uses Markets, Main, Settings, SystemPict, Colonies, Clipbrd, StationInfo,
-  MarketInfo, Splash, Solver, ConstrTypes;
+  MarketInfo, Splash, Solver, ConstrTypes, BodyInfo;
 
 procedure TSystemInfoForm.BeginFilterChange;
 begin
@@ -331,12 +359,12 @@ end;
 procedure TSystemInfoForm.UndoBodyLabelMenuItemClick(Sender: TObject);
 begin
   if FBodyLabelNr = 0 then Exit;
+  UnselectBodyLabel;
   FBodyLabelNr := FBodyLabelNr - 1;
   TLabel(FBodyLabels[FBodyLabelNr]).Free;
   FBodyLabels.Delete(FBodyLabelNr);
   FDataChanged := True;
-  BodyInfoLabel.Visible := False;
-  BodyInfoFrame.Visible := False;
+  BodyInfoPanel.Visible := False;
   UpdateNextBodyLabel;
 end;
 
@@ -356,19 +384,29 @@ end;
 procedure TSystemInfoForm.ClearAllLabelsMenuItemClick(Sender: TObject);
 begin
   ClearBodyLabels;
-  BodyInfoLabel.Visible := False;
-  BodyInfoFrame.Visible := False;
+  BodyInfoPanel.Visible := False;
   FDataChanged := True;
+end;
+
+procedure TSystemInfoForm.UnselectBodyLabel;
+begin
+  if FSelBodyLabel <> nil then
+  begin
+    FSelBodyLabel.Color := clBlack;
+    FSelBodyLabel.Font.Color := clSilver;
+  end;
+  FSelBodyLabel := nil;
+  BodyInfoPanel.Visible := False;
 end;
 
 procedure TSystemInfoForm.ClearBodyLabels;
 var i: Integer;
 begin
+  UnselectBodyLabel;
   for i := 0 to FBodyLabels.Count - 1 do
     TLabel(FBodyLabels[i]).Free;
   FBodyLabels.Clear;
   FBodyLabelNr := 0;
-  FSelBodyLabel := nil;
   UpdateNextBodyLabel;
 end;
 
@@ -389,6 +427,7 @@ begin
   FImageChanged := False;
   SysImage.Picture := nil;
   NoPictureLabel.Visible := True;
+  NoLabelsLabel.Visible := False;
   if ColoniesForm.Visible then
     ColoniesForm.UpdateItems;
 end;
@@ -463,8 +502,8 @@ begin
     
     if Vcl.Dialogs.MessageDlg('Delete this construction?',
        mtConfirmation, [mbYes, mbNo], 0, mbNo) = mrNo then Exit;
-    if cd.LastUpdate <> '' then Exit;
     if StationInfoForm.CurrentStation = cd then StationInfoForm.Close;
+    if FCurrentSystem.PrimaryPortId = cd.MarketID then FCurrentSystem.PrimaryPortId := '';
     DataSrc.RemoveConstruction(cd);
     FCurrentSystem.Save;
     if SolverForm.Visible then
@@ -537,6 +576,7 @@ begin
     cd.StarSystem := FCurrentSystem.StarSystem;
     cd.Body := TSystemBody(ListView.Selected.Data).BodyName;
     cd.ConstructionType := DataSrc.ConstructionTypes[TMenuItem(Sender).Tag];
+
     if QuickAddAsFinishedMenuItem.Checked then cd.Finished := True;
     if QuickAddAsPlannedMenuItem.Checked then cd.Planned := True;
  
@@ -545,6 +585,9 @@ begin
     CreateGUID(UUID);
     cd.MarketId := GUIDToString(UUID);
     DataSrc.Constructions.AddObject(cd.MarketID,cd);
+    if FCurrentSystem.PrimaryPortId = '' then
+      if cd.GetConstrType.IsPort then
+        FCurrentSystem.PrimaryPortId := cd.MarketId;
     FCurrentSystem.Save;
     UpdateView;
   end;
@@ -845,6 +888,8 @@ begin
     bmp.Assign(Clipboard);
     SysImage.Picture.Assign(bmp);
     NoPictureLabel.Visible := False;
+    NoLabelsLabel.Visible := FBodyLabelNr = 0;
+
     FImageChanged := True;
   end;
   bmp.Free;
@@ -962,12 +1007,14 @@ begin
     DataSrc.RemoveListener(self);
   end;
 
-  Opts['System.Left'] := IntToStr(self.Left);
-  Opts['System.Top'] := IntToStr(self.Top);
-  Opts['System.Height'] := IntToStr(self.Height);
-  Opts['System.Width'] := IntToStr(self.Width);
-  Opts.Save;
-
+  if WindowState = wsNormal then
+  begin
+    Opts['System.Left'] := IntToStr(self.Left);
+    Opts['System.Top'] := IntToStr(self.Top);
+    Opts['System.Height'] := IntToStr(self.Height);
+    Opts['System.Width'] := IntToStr(self.Width);
+    Opts.Save;
+  end;
 end;
 
 
@@ -1008,6 +1055,34 @@ end;
 procedure TSystemInfoForm.Label14Click(Sender: TObject);
 begin
   ShowUpLinksCheck.Checked := not ShowUpLinksCheck.Checked;
+end;
+
+procedure TSystemInfoForm.Label16Click(Sender: TObject);
+var b: TSystemBody;
+begin
+  if FSelectedObj = nil then Exit;
+  if not (FSelectedObj is TSystemBody) then Exit;
+
+  b := TSystemBody(FSelectedObj);
+  b.OrbSlots := StrToInt(TLabel(Sender).Caption);
+  OrbSlotsLabel.Caption := b.OrbSlots.toString;
+  UpdateView;
+  RestoreSelection;
+  FDataChanged := True;
+end;
+
+procedure TSystemInfoForm.Label37Click(Sender: TObject);
+var b: TSystemBody;
+begin
+  if FSelectedObj = nil then Exit;
+  if not (FSelectedObj is TSystemBody) then Exit;
+
+  b := TSystemBody(FSelectedObj);
+  b.SurfSlots := StrToInt(TLabel(Sender).Caption);
+  SurfSlotsLabel.Caption := b.SurfSlots.toString;
+  UpdateView;
+  RestoreSelection;
+  FDataChanged := True;
 end;
 
 procedure TSystemInfoForm.ListViewClick(Sender: TObject);
@@ -1094,12 +1169,23 @@ begin
   if (cdsSelected in State) or (cdsFocused in State) then
     Sender.Canvas.Font.Color := clWhite
   else
-  if TObject(Item.Data) is TBaseMarket then
+  if (TObject(Item.Data) is TBaseMarket) then
   begin
     if ListView.Font.Color = clBlack then
       Sender.Canvas.Font.Color := clNavy
     else
       Sender.Canvas.Font.Color := clSilver;
+  end
+  else
+  if Item.SubItems[0].StartsWith('  free')  then
+  begin
+    if Pos('-',Item.SubItems[0]) > 0 then
+      Sender.Canvas.Font.Color := $4040C0
+    else
+    if ListView.Font.Color = clBlack then
+      Sender.Canvas.Font.Color := $404040
+    else
+      Sender.Canvas.Font.Color := clGray; //$40A040
   end
   else
   begin
@@ -1132,22 +1218,30 @@ begin
   if ListView.Selected = nil then Exit;
   data := TObject(ListView.Selected.Data);
 
-  if FClickedColumn = 2 then
-    BodyCommentMenuItemClick(nil);
-
   if FClickedColumn = 3 then
     if TryOpenMarket then Exit;
 
-  if data is TConstructionDepot then
+   if data is TConstructionDepot then
   begin
     if TConstructionDepot(data).Simulated then Exit;
     StationInfoForm.SetStation(TBaseMarket(data));
-    StationInfoForm.Show;
+    StationInfoForm.RestoreAndShow;
   end;
 
+  if data is TSystemBody then
+  begin
+    //if FClickedColumn = 4 then
+    //  BodyCommentMenuItemClick(nil)
+    //else
+    begin
+      BodyInfoForm.SetBody(TSystemBody(data));
+      BodyInfoForm.RestoreAndShow;
+    end;
+  end;
+
+
   if data is TMarket then
-     ShowMessage('Link this market to its construction, or choose Add Construction command to create one.');
-    //AddConstructionMenuItemClick(nil);
+    ShowMessage('Link this market to its construction, or choose Add Construction command to create one.');
   FClickedColumn := -1;
 end;
 
@@ -1204,6 +1298,11 @@ begin
     EDCDForm.AddDepotToGroup(TConstructionDepot(ListView.Selected.Data));
 end;
 
+procedure TSystemInfoForm.HideSlotEditLabelClick(Sender: TObject);
+begin
+  BodySlotsPanel.Width := Label16.Left;
+end;
+
 procedure TSystemInfoForm.IgnoredCheckClick(Sender: TObject);
 begin
   if not (GetKeyState(VK_SHIFT) < 0) then
@@ -1253,6 +1352,11 @@ begin
   if Visible then UpdateView;
 end;
 
+procedure TSystemInfoForm.OrbSlotsLabelClick(Sender: TObject);
+begin
+  BodySlotsPanel.Width := HideSlotEditLabel.Left + HideSlotEditLabel.Width + 2;
+end;
+
 procedure TSystemInfoForm.AddPictureLabels;
 var i: Integer;
 begin
@@ -1280,6 +1384,7 @@ begin
   ResetFilters;
   SysImage.Picture := nil;
   NoPictureLabel.Visible := s.Architect <> '';
+  NoLabelsLabel.Visible := False;
   Scrollbox.HorzScrollBar.Position := 0;
   Scrollbox.VertScrollBar.Position := 0;
   ListView.Scroll(0,0);
@@ -1292,14 +1397,15 @@ begin
     SysImage.Picture.Assign(png);
     AddPictureLabels;
     NoPictureLabel.Visible := False;
+    NoLabelsLabel.Visible := FBodyLabelNr = 0;
   except
   end;
   png.Free;
 
   FLabelMode := False;
   NextPictLabel.Visible := False;
-  BodyInfoLabel.Visible := False;
-  BodyInfoFrame.Visible := False;
+  BodyInfoPanel.Visible := False;
+  BodySlotsPanel.Width := Label16.Left;
 
 
   CommentEdit.Text := FCurrentSystem.Comment;
@@ -1362,14 +1468,22 @@ begin
   s := Vcl.Dialogs.InputBox(FCurrentSystem.StarSystem, 'CURRENT FREE Orbital / Surface Slots', orgs);
   if s <> orgs then
   begin
-    sarr := SplitString(s,'/');
-    if High(sarr) <> 1 then
+    if s = '' then
     begin
-      ShowMessage('Invalid slots');
-      Exit;
+      FCurrentSystem.OrbitalSlots := 0;
+      FCurrentSystem.SurfaceSlots := 0;
+    end
+    else
+    begin
+      sarr := SplitString(s,'/');
+      if High(sarr) <> 1 then
+      begin
+        ShowMessage('Invalid slots');
+        Exit;
+      end;
+      FCurrentSystem.OrbitalSlots := StrToIntDef(sarr[0],0) + orbTaken;
+      FCurrentSystem.SurfaceSlots := StrToIntDef(sarr[1],0) + surfTaken;
     end;
-    FCurrentSystem.OrbitalSlots := StrToIntDef(sarr[0],0) + orbTaken;
-    FCurrentSystem.SurfaceSlots := StrToIntDef(sarr[1],0) + surfTaken;
     FCurrentSystem.Save;
     UpdateView;
   end;
@@ -1394,24 +1508,42 @@ end;
 procedure TSystemInfoForm.BodyLabelClick(Sender: TObject);
 var b: TSystemBody;
     s,bodyInfo: string;
+    i,orbSlots,surfSlots: Integer;
 
-    procedure addLine(title,txt: string);
+    procedure addData(title,txt: string; const newLinef: Boolean = false);
     var s: string;
     begin
       if txt = '' then Exit;
       if title <> '' then s := s + title + ': ';
       s := s + txt;
-      bodyInfo := bodyInfo + s + Chr(13);
+      bodyInfo := bodyInfo + s + '  ';
+      if newLinef then
+        bodyInfo := bodyInfo + Chr(13);
+    end;
+
+    procedure newLine;
+    begin
+      bodyInfo := bodyInfo + Chr(13);
     end;
 
 begin
   if Sender = FSelBodyLabel then
   begin
-    FSelBodyLabel := nil;
-    BodyInfoFrame.Visible := False;
-    BodyInfoLabel.Visible := False;
+    UnselectBodyLabel;
     Exit;
   end;
+
+  if FSelBodyLabel <> nil then
+  begin
+    FSelBodyLabel.Color := clBlack;
+    FSelBodyLabel.Font.Color := clSilver;
+  end;
+
+  FSelBodyLabel := TLabel(Sender);
+  FSelBodyLabel.Color := clSilver;
+  FSelBodyLabel.Font.Color := clBlack;
+
+  if FLabelMode then Exit;
 
   b := FCurrentSystem.BodyByName(TLabel(Sender).Hint);
   if b <> nil then
@@ -1420,42 +1552,101 @@ begin
     RestoreSelection;
   end;
 
-  BodyInfoLabel.Left := TLabel(Sender).Left;
-  BodyInfoLabel.Top := TLabel(Sender).Top + TLabel(Sender).Height + 2;
-  BodyInfoLabel.Visible := true;
   bodyInfo := '';
-  addLine('',b.BodyType);
-  addLine('',b.Comment);
-  addLine('Econ.',b.Economies_nice);
-  addLine('Dist.',FloatToStrF(b.DistanceFromArrivalLS,ffFixed,7,1));
+  addData('',b.BodyType,true);
+  addData('',b.Comment,true);
+  addData('Econ.',b.Economies_nice,true);
   if b.BiologicalSignals > 0 then s := s + 'Bio: ' + IntToStr(b.BiologicalSignals) + '; ';
   if b.GeologicalSignals > 0 then s := s + 'Geo: ' + IntToStr(b.GeologicalSignals) + '; ';
   if b.HumanSignals > 0 then s := s + 'Hum: ' + IntToStr(b.HumanSignals) + '; ';
   if b.OtherSignals > 0 then s := s + 'Oth: ' + IntToStr(b.OtherSignals) + '; ';
-  addLine('Signals',s);
-  addLine('Volcanism',IfThen(b.Volcanism <> '','Yes',''));
+  addData('Signals',s,true);
+
+  addData('Dist.',FloatToStrF(b.DistanceFromArrivalLS,ffFixed,7,1));
   if b.SurfaceGravity > 0 then
-    addLine('Gravity',FloatToStrF(b.SurfaceGravity,ffFixed,7,2));
-  addLine('Tidal Lock',IfThen(b.TidalLock,'Yes',''));
-  addLine('Terraform.',IfThen(b.Terraformable,'Yes',''));
+    addData('Gravity',FloatToStrF(b.SurfaceGravity,ffFixed,7,2));
   if b.IsMoon and (Abs(b.OrbitalInclination) > 0.1) then
-    addLine('Orb. Incl.',FloatToStrF(b.OrbitalInclination,ffFixed,7,1));
+    addData('Orb. Incl.',FloatToStrF(b.OrbitalInclination,ffFixed,7,1));
+  newLine;
+
+  addData('Volcanism',IfThen(b.Volcanism <> '','Yes',''));
+  addData('Tidal Lock',IfThen(b.TidalLock,'Yes',''));
+  addData('Terraform.',IfThen(b.Terraformable,'Yes',''));
+  newLine;
 
   if FLabelMode then
     bodyInfo := bodyInfo + '(Click at new position to move this label)';
   bodyInfo := Trim(bodyInfo);
   BodyInfoLabel.Caption := bodyInfo;
 
-  BodyInfoFrame.Left := BodyInfoLabel.Left - 2;
-  BodyInfoFrame.Top := BodyInfoLabel.Top - 2;
-  BodyInfoFrame.Width := BodyInfoLabel.Width + 4;
-  BodyInfoFrame.Height := BodyInfoLabel.Height + 4;
-  BodyInfoFrame.Visible := true;
+  OrbSlotsLabel.Caption := b.OrbSlots.toString;
+  SurfSlotsLabel.Caption := b.SurfSlots.toString;
 
-  BodyInfoFrame.BringToFront;
-  BodyInfoLabel.BringToFront;
+  BodySlotsPanel.Top := BodyInfoLabel.Height + 2;
 
-  FSelBodyLabel := TLabel(Sender);
+  orbSlots := b.OrbSlots;
+  surfSlots := b.SurfSlots;
+
+  if not b.IsRing then
+  begin
+    s := '';
+    if b.OrbSlots + b.SurfSlots = 0  then
+      s := '⯇click to edit slots' + Chr(13); //←
+    for i := 0 to b.Constructions.Count - 1 do
+    begin
+      if TObject(b.Constructions[i]) is TConstructionDepot then
+        with TConstructionDepot(b.Constructions[i]) do
+        begin
+          s := s + IfThen(Planned,'✏',
+                   IfThen(Finished,'🚩','🚧'));
+          s := s + IfThen(IsOrbital,'⚪•','🏭');
+          s := s + ' ' + StationName;
+          if GetConstrType <> nil then
+            s := s + ' (' + GetConstrType.StationType_abbrev + ')';
+          s := s + Chr(13);
+
+          if IsOrbital then
+            Dec(orbSlots)
+          else
+            Dec(surfSlots);
+        end;
+    end;
+
+    if (b.OrbSlots + b.SurfSlots) > 0  then
+    if (orbSlots <> 0) or (surfSlots <> 0) then
+      s := s + '( free: ' +
+                    IfThen(orbSlots<>0,' ⚪• ' + orbSlots.toString + '  ','') +
+                    IfThen(surfSlots<>0,' 🏭 ' + surfSlots.toString,'') + ' )';
+    BodyStationsLabel.Caption := s;
+
+    BodyStationsLabel.Top := BodyInfoLabel.Top + BodyInfoLabel.Height;
+    BodySlotsPanel.Visible := True;
+    BodySlotsPanel.Height := Max(
+      BodyStationsLabel.Height,
+      SurfSlotsLabel.Top + SurfSlotsLabel.Height);
+  end
+  else
+  begin
+    BodyStationsLabel.Caption := '(ring - check parent body)';
+    BodyStationsLabel.Top := BodyInfoLabel.Top + BodyInfoLabel.Height;
+    BodySlotsPanel.Visible := False;
+    BodySlotsPanel.Height := 0;
+  end;
+
+
+
+  BodyInfoPanel.Left := TLabel(Sender).Left;
+  BodyInfoPanel.Top := TLabel(Sender).Top + TLabel(Sender).Height + 2;
+  BodyInfoPanel.Width := Max(
+    BodyInfoLabel.Left + BodyInfoLabel.Width + 2, Max(
+    BodyStationsLabel.Left + BodyStationsLabel.Width + 4,
+    HideSlotEditLabel.Left + HideSlotEditLabel.Width + 2));
+  BodyInfoPanel.Height := BodyInfoLabel.Height +
+    Max(BodySlotsPanel.Height + 4,BodyStationsLabel.Height + 4);
+  BodyInfoPanel.Visible := True;
+
+  BodyInfoPanel.BringToFront;
+
 end;
 
 procedure TSystemInfoForm.SelectNearestBody;
@@ -1493,7 +1684,11 @@ end;
 
 procedure TSystemInfoForm.AddBodyLabel(x,y: Integer; bodyNr: Integer);
 var lbl: TLabel;
+    b: TSystemBody;
+    s: string;
 begin
+  b := TSystemBody(FCurrentSystem.Bodies.Objects[bodyNr]);
+
   lbl := TLabel.Create(ScrollBox);
   lbl.Parent := ScrollBox;
   lbl.ParentFont := True;
@@ -1504,11 +1699,18 @@ begin
   lbl.Left := x;
   lbl.Top := y;
   lbl.Visible := True;
-  lbl.Hint := TSystemBody(FCurrentSystem.Bodies.Objects[bodyNr]).BodyName;
+  lbl.Hint := b.BodyName;
   if lbl.Hint = '' then
     lbl.Caption := '( Primary )'
   else
     lbl.Caption := ' ' + lbl.Hint + ' ';
+
+//test
+{
+  lbl.Caption := lbl.Caption + ' ' +
+              IfThen(b.OrbSlots<>0,'⚪• ','') +
+              IfThen(b.SurfSlots<>0,'🏭','');
+}
   lbl.OnClick := BodyLabelClick;
   lbl.BringToFront;
   FBodyLabels.Add(lbl);
@@ -1518,10 +1720,12 @@ procedure TSystemInfoForm.SysImageClick(Sender: TObject);
 var pt: TPoint;
     lbl: TLabel;
 begin
-  BodyInfoLabel.Visible := False;
-  BodyInfoFrame.Visible := False;
 
-  if not FLabelMode then Exit;
+  if not FLabelMode then
+  begin
+    UnselectBodyLabel;
+    Exit;
+  end;
 
   pt := Mouse.CursorPos;
   pt := ScrollBox.ScreenToClient(pt);
@@ -1539,7 +1743,7 @@ begin
   begin
     FSelBodyLabel.Left := pt.X;
     FSelBodyLabel.Top := pt.Y;
-    FSelBodyLabel := nil;
+    UnselectBodyLabel;
     FDataChanged := True;
     Exit;
   end;
@@ -1618,6 +1822,22 @@ begin
   end;
 end;
 
+function CompareConstr2(Item1, Item2: Pointer): Integer;
+var idx1,idx2: Integer;
+begin
+  Result := 0;
+  try
+    idx1 := 0;
+    if not TConstructionDepot(Item1).Finished then idx1 := 1;
+    if TConstructionDepot(Item1).Planned then idx1 := 2;
+    idx2 := 0;
+    if not TConstructionDepot(Item2).Finished then idx2 := 1;
+    if TConstructionDepot(Item2).Planned then idx2 := 2;
+    Result := CompareValue(idx1,idx2);
+  except
+  end;
+end;
+
 //assign construction to bodies and find link hubs (ports that accept strong links)
 procedure TSystemInfoForm.ResolveConstructions(orgcl: TList);
 var i,i2: Integer;
@@ -1655,12 +1875,14 @@ begin
   begin
     b := TSystemBody(FCurrentSystem.Bodies.Objects[i]);
     pb := nil; //add constructions to main body c.list as well if rings present
-    if b.IsRing then pb := b.ParentBody;
+    if b.IsRing then
+      pb := b.ParentBody;
     for i2 := remcl.Count - 1 downto 0 do
       if TConstructionDepot(remcl[i2]).Body = b.BodyName then
       begin
         b.Constructions.Add(remcl[i2]);
-        if pb <> nil then pb.Constructions.Add(remcl[i2]);
+        if pb <> nil then
+          pb.Constructions.Add(remcl[i2]);
         remcl.Delete(i2);
       end;
   end;
@@ -1721,12 +1943,13 @@ end;
 
 procedure TSystemInfoForm.GetSystemLinks(cl: TList; var weakLinks: array of TEconomyArray;
   var totWeakLinks: TEconomyArray);
-var i,idx: Integer;
+var i,bi,idx: Integer;
     cd: TConstructionDepot;
     ct: TConstructionType;
     s: string;
     ei: TEconomy;
     wLink: TEconomyArray;
+    b: TSystemBody;
 begin
   for i := 0 to cl.Count - 1 do
   begin
@@ -1734,7 +1957,7 @@ begin
     //ports that accept links (link hubs) do not generate weak links
     //ports that are only linking to other ports work like facilities and generate weak links
     //however, colony ports that are only linking to other ports
-    //do not generate weak links from planetary influence (not verified)
+    //also generate weak links from planetary influence (sick!)
     if cd.LinkHub then continue;
     ct := cd.GetConstrType;
     if ct <> nil then
@@ -1742,7 +1965,8 @@ begin
       idx := 0;
       if not cd.Finished then idx := 1;
       if cd.Planned then idx := 2;
-      wLink := DataSrc.EconomySets.GetWeakLinkEconomies(cd);
+      b := FCurrentSystem.BodyByName(cd.Body);
+      wLink := DataSrc.EconomySets.GetWeakLinkEconomies(cd,b);
       AddEconomies(weakLinks[idx],wLink);
       AddEconomies(totWeakLinks,wLink);
     end;
@@ -1768,7 +1992,7 @@ begin
     if cd.LinkHub then continue;
     ct := cd.GetConstrType;
     if ct <> nil then
-      AddEconomies(bwLinks,DataSrc.EconomySets.GetWeakLinkEconomies(cd));
+      AddEconomies(bwLinks,DataSrc.EconomySets.GetWeakLinkEconomies(cd,b));
   end;
 
   //find strong links for surface and orbital link hub
@@ -1814,6 +2038,7 @@ var  i,i2,idx,cp2idx,cp3idx,curCol: Integer;
      colMaxTxt: array [0..100] of string;
      filters: Boolean;
      fs: string;
+     fsarr: TStringDynArray;
 
      score: array [0..2] of Integer;
      seclev: array [0..2] of Integer;
@@ -1834,12 +2059,17 @@ var  i,i2,idx,cp2idx,cp3idx,curCol: Integer;
      ei: TEconomy;
      eb: TSystemBody;
 
+     orbSlots,surfSlots: Integer;
+
   procedure addRow(data: TObject);
-  var i,ln: Integer;
+  var i,ln,idx: Integer;
      item: TListItem;
   begin
     for i := 0 to row.Count - 1 do
     begin
+      idx := Pos('|',row[i]);
+      if idx > 0 then
+        row[i] := Copy(row[i],1,idx-1);
       ln := Length(row[i]);
       if ln > colMaxLen[i] then
       begin
@@ -1861,9 +2091,16 @@ var  i,i2,idx,cp2idx,cp3idx,curCol: Integer;
     row.Add(s);
   end;
 
-  procedure addSubItem(s: string);
+  procedure addSubItem(s: string; const addColCapf: Boolean = false);
+  var curCol: Integer;
   begin
-    row.Add(s);
+    if addColCapf and (s <> '') then
+    begin
+      curCol := row.Count;
+      row.Add(s + '|' + ListView.Columns[curCol].Caption);
+    end
+    else
+      row.Add(s);
   end;
 
    procedure dispStat(lev: array of Integer; lab: TLabel);
@@ -1872,9 +2109,23 @@ var  i,i2,idx,cp2idx,cp3idx,curCol: Integer;
      s := IntToStr(lev[0]);
      if (lev[1] <> 0) or (lev[2] <> 0) then
      begin
-       s := s + '  (' + IntToStr(lev[0]+lev[1]);
+       s := s + '  (';
+{
        if lev[2] <> 0 then
-         s := s + '/' + IntToStr(lev[0]+lev[1]+lev[2]);
+         s := s + '' + IntToStr(lev[0]+lev[1]+lev[2])
+       else
+         s := s + '' + IntToStr(lev[0]+lev[1]);
+}
+
+       if lev[1] <> 0 then
+       begin
+         s := s + '' + IntToStr(lev[0]+lev[1]); //🚧
+         if lev[2] <> 0 then s := s + '/';
+       end;
+       if lev[2] <> 0 then
+         s := s + '' + IntToStr(lev[0]+lev[1]+lev[2]); //✏
+
+
        s := s + ')';
      end;
      lab.Caption := s;
@@ -1921,7 +2172,8 @@ var  i,i2,idx,cp2idx,cp3idx,curCol: Integer;
    end;
 
   function CheckFilter(data: TObject): Boolean;
-  var i: Integer;
+  var i,i2: Integer;
+      negf: Boolean;
   begin
     Result := True;
     if not FiltersCheck.Checked then Exit;
@@ -1941,6 +2193,7 @@ var  i,i2,idx,cp2idx,cp3idx,curCol: Integer;
 
     if Result and (fs <> '') then
     begin
+{
       Result := False;
       for i := 0 to row.Count - 1 do
         if Pos(fs,LowerCase(row[i])) > 0 then
@@ -1948,12 +2201,34 @@ var  i,i2,idx,cp2idx,cp3idx,curCol: Integer;
           Result := true;
           break;
         end;
+ }
+      for i2 := 0 to High(fsarr) do
+        if fsarr[i2] <> '' then
+        begin
+          s := fsarr[i2];
+          negf := false;
+          if Copy(s,1,1) = '~' then
+          begin
+            negf := True;
+            s := Copy(s,2,100);
+          end;
+          Result := negf;
+          for i := 0 to row.Count - 1 do
+          if Pos(s,LowerCase(row[i])) > 0 then
+          begin
+            Result := not negf;
+            break;
+          end;
+          if not Result then break;
+        end;
     end;
   end;
 
 begin
   if FHoldUpdate then Exit;
   if FCurrentSystem = nil then Exit;
+
+  FCurrentSystem.UpdateMoons;
 
   FCP2 := 0;
   FCP3 := 0;
@@ -1967,6 +2242,7 @@ begin
   end;
 
   fs := LowerCase(FilterEdit.Text);
+  fsarr := SplitString(fs,'+');
   filters := FiltersCheck.Checked;
 
   ListView.Items.BeginUpdate;
@@ -1984,13 +2260,13 @@ begin
      if s = '' then
        //if FCurrentSystem.Population > 0 then
          s := '(click to assign)';
-    ArchitectLabel.Caption := 'Architect: ' + s;
-    PopulationLabel.Caption := 'Population: ' + Format('%.0n', [double(FCurrentSystem.Population)]);;
+    ArchitectLabel.Caption := s;
+    PopulationLabel.Caption := Format('%.0n', [double(FCurrentSystem.Population)]);;
     FactionsLabel.Caption := FCurrentSystem.Factions;
-    LastUpdateLabel.Caption := 'Last Update: ' +
+    LastUpdateLabel.Caption :=
       Copy(FCurrentSystem.LastUpdate,1,10) + ' ' + Copy(FCurrentSystem.LastUpdate,12,8) + ' UTC';
     SystemAddrLabel.Caption := '#' + FCurrentSystem.SystemAddress;
-    SecurityLabel.Caption := 'Security: ' + FCurrentSystem.SystemSecurity;
+    SecurityLabel.Caption := FCurrentSystem.SystemSecurity;
     EDSMScanLabel.Visible := FCurrentSystem.SystemScan_EDSM <> '';
 
     PrimaryLabel.Caption := '(select primary)';
@@ -2034,6 +2310,8 @@ begin
             cl.Add(DataSrc.Constructions.Objects[i]);
             if LinkedMarketId <> '' then sl.Add(LinkedMarketId);
           end;
+
+    cl.Sort(@CompareConstr2); //sort constructions, finished - in progress - planned   
 
     for i := 0 to cl.Count - 1 do
       with TConstructionDepot(cl[i]) do
@@ -2119,6 +2397,9 @@ begin
         PrimaryLabel.Hint := PrimaryLabel.Hint + s + ' T' + ct.Tier + Chr(13);
       end;
     end;
+    i := Max(0,t23sl.Count-1);
+    PrimaryLabel.Caption := 'Next T2/T3 Cost: ' + Chr(13) +
+       (3+2*i).ToString + ' / ' + (6+6*i).ToString;
 
     dispStat(score,ScoreLabel);
     dispStat(seclev,SecLabel);
@@ -2185,31 +2466,75 @@ begin
           addCaption(s);
           addSubItem(b.BodyType);
           s := '';
-          s := s + b.ReserveLevel + '  ' + b.Comment;
+          s := s + b.ReserveLevel;
+
           addSubItem(s);
           s := '';
           if FShowEconomies then
             s := b.Economies_nice;
           addSubItem(s);
-          addSubItem(IfThen(b.Landable,'Yes',''));
-          addSubItem(b.Atmosphere);
+          addSubItem(b.Comment); //features
           addSubItem(FloatToStrF(b.DistanceFromArrivalLS,ffFixed,7,1));
+          addSubItem(IfThen(b.Landable,'Yes',''),true);
+          addSubItem(b.Atmosphere,true);
           s := '';
           if b.BiologicalSignals > 0 then s := s + 'Bio: ' + IntToStr(b.BiologicalSignals) + '; ';
           if b.GeologicalSignals > 0 then s := s + 'Geo: ' + IntToStr(b.GeologicalSignals) + '; ';
           if b.HumanSignals > 0 then s := s + 'Hum: ' + IntToStr(b.HumanSignals) + '; ';
           if b.OtherSignals > 0 then s := s + 'Oth: ' + IntToStr(b.OtherSignals) + '; ';
-          addSubItem(s);
-          addSubItem(b.Volcanism);
+          addSubItem(s,true);
+          addSubItem(b.Volcanism,true);
           addSubItem(FloatToStrF(b.SurfaceGravity,ffFixed,7,2));
-          addSubItem(IfThen(b.TidalLock,'Yes',''));
-          addSubItem(IfThen(b.Terraformable,'Yes',''));
-          addSubItem(FloatToStrF(b.OrbitalInclination,ffFixed,7,1));
+          addSubItem(IfThen(b.TidalLock,'Yes',''),true);
+          addSubItem(IfThen(b.Terraformable,'Yes',''),true);
+
+          //addSubItem(FloatToStrF(b.OrbitalInclination,ffFixed,7,1));
+          s := '';
+          if (b.OrbitalInclination > 0.1) or (b.OrbitalInclination < -0.1) then
+            s := FloatToStrF(b.OrbitalInclination,ffFixed,7,1);
+          addSubItem(s,true);
+
+          addSubItem(FloatToStrF(b.Radius,ffFixed,7,1));
           addSubItem(FloatToStrF(b.RotationPeriod,ffFixed,7,1));
           addSubItem(FloatToStrF(b.OrbitalPeriod,ffFixed,7,1));
           addSubItem(FloatToStrF(b.SemiMajorAxis,ffFixed,12,1));
 
-           if CheckFilter(b) then addRow(b);
+          //not visible
+          s := IfThen(b.HasRings,'Rings','') + ';' +
+               IfThen(b.HasMoons,'Moons','') + ';' +
+               IfThen(b.IsMoon,'Moon','') + ';';
+          addSubItem(s);
+
+          if CheckFilter(b) then
+          begin
+            addRow(b);
+
+            if (b.orbSlots+b.SurfSlots>0) then
+            begin
+              orbSlots := b.OrbSlots;
+              surfSlots := b.SurfSlots;
+              for i2 := 0 to b.Constructions.Count - 1 do
+              begin
+                if TObject(b.Constructions[i2]) is TConstructionDepot then
+                  if TConstructionDepot(b.Constructions[i2]).IsOrbital then
+                    Dec(orbSlots)
+                  else
+                    Dec(surfSlots);
+              end;
+              if {not FiltersCheck.Checked or} FreeSlotsCheck.Checked or (orbSlots < 0) or (surfSlots < 0) then
+              if (orbSlots <> 0) or (surfSlots <> 0) then
+              begin
+                s := '';
+                //if FiltersCheck.Checked then
+                //  s := '  ' + b.BodyName;
+                addCaption(s);
+                addSubItem('  free:' +
+                  IfThen(orbSlots<>0,' ⚪• ' + orbSlots.toString + '  ','') +
+                  IfThen(surfSlots<>0,' 🏭 ' + surfSlots.toString,''));
+                addRow(b);
+              end;
+            end;
+          end;
 
 
          //if b is a ring, the link resolution is not reset after parent's iteration
@@ -2338,24 +2663,32 @@ begin
               end;
             end;
             addSubItem('  ' + s);
+
+
+//            addSubItem(comment);
+//            addSubItem('');
+            s := '';
+            s2 := '';
+            if cd <> nil then s2 := cd.Faction_short;
+            if m <> nil then s2 := m.Faction_short;
+            //addSubItem(s);
+            if s2 <> '' then s := s + '👥' + s2 + ' ';
+
+            s2 := '';
+            if m <> nil then
+            begin
+              if Pos('shipyard',m.Services) > 0  then s2 := s2 + '🚀SY ';
+              if Pos('outfitting',m.Services) > 0  then s2 := s2 + '⚒OF ';
+              if Pos('exploration',m.Services) > 0  then s2 := s2 + '🌐UC ';
+              if Pos('facilitator',m.Services) > 0  then s2 := s2 + '⚖IF ';
+            end;
+            if s2 <> '' then s := s + s2;
+            if comment <> '' then s := s + comment + ' ' ;
+            addSubItem(s);
+
             s := '';
             if bm.BuildOrder <> 0 then
               s := '#' + bm.BuildOrder.ToString;
-            addSubItem(s);
-            addSubItem(comment);
-            addSubItem('');
-            s := '';
-            if cd <> nil then s := cd.Faction_short;
-            if m <> nil then s := m.Faction_short;
-            addSubItem(s);
-            s := '';
-            if m <> nil then
-            begin
-              if Pos('shipyard',m.Services) > 0  then s := s + '🚀SY ';
-              if Pos('outfitting',m.Services) > 0  then s := s + '⚒OF ';
-              if Pos('exploration',m.Services) > 0  then s := s + '🌐UC ';
-              if Pos('facilitator',m.Services) > 0  then s := s + '⚖IF ';
-            end;
             addSubItem(s);
 
             if CheckFilter(bm) then
@@ -2378,6 +2711,7 @@ begin
                   addSubItem('    --- missing: ' + cd.GetConstrType.Requirements);
                   addRow(bm);
                 end;
+
             end;
           end;
 
@@ -2448,6 +2782,7 @@ procedure TSystemInfoForm.AddLabelsMenuItemClick(Sender: TObject);
 begin
   FLabelMode := not FLabelMode;
   NextPictLabel.Visible := FLabelMode;
+  NoLabelsLabel.Visible := not FLabelMode and (FBodyLabelNr = 0);
   if FLabelMode then
     UpdateNextBodyLabel;
 end;
@@ -2460,14 +2795,17 @@ begin
   ShowInTaskBar := Opts.Flags['ShowInTaskbar'];
   with Panel1 do
   begin
+  {
     if not Opts.Flags['DarkMode'] then
     begin
       Font.Color := clSilver;
     end
     else
+  }
     begin
       clr := EDCDForm.TextColLabel.Font.Color;
       Font.Color := clr;
+      SystemNameLabel.Font.Color := clr;
     end;
   end;
 
@@ -2489,6 +2827,7 @@ begin
   end;
 
   BodyInfoLabel.Font.Size := Opts.Int['FontSize2'] - 1;
+  BodyStationsLabel.Font.Size := Opts.Int['FontSize2'] - 1;
 
   if Visible then UpdateView;
 end;
@@ -2535,6 +2874,9 @@ begin
       ListView.Items[i].Focused := True;
       ListView.ItemIndex := i;
       ListView.Items[i].MakeVisible(false);
+
+      //todo: make nice centering based on ItemHeight, not 7 positions upfront
+      ListView.Items[Min(i+7,ListView.Items.Count - 1)].MakeVisible(false);
       break;
     end;
   end;

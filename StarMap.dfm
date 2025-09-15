@@ -271,7 +271,7 @@ object StarMapForm: TStarMapForm
         Width = 137
         Height = 24
         Style = csDropDownList
-        DropDownCount = 15
+        DropDownCount = 16
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText
         Font.Height = -13
@@ -291,6 +291,9 @@ object StarMapForm: TStarMapForm
           
             #55357#56421' Maj. Factions                                                ' +
             '        MF'
+          
+            #55357#56426' Population                                                   ' +
+            '          PP'
           
             #9203'  Last Visit                                                   ' +
             '             LV'
@@ -320,8 +323,7 @@ object StarMapForm: TStarMapForm
             '        SC'
           
             #55357#56658' Colonization History                                         ' +
-            '        AH'
-          '')
+            '        AH')
       end
       object LinkStyleCombo: TComboBox
         Left = 402

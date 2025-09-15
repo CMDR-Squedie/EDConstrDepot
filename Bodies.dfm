@@ -87,6 +87,10 @@ object BodiesForm: TBodiesForm
       end
       item
         Alignment = taRightJustify
+        Caption = 'Radius'
+      end
+      item
+        Alignment = taRightJustify
         Caption = 'S.Axis'
       end
       item

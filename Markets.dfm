@@ -28,6 +28,7 @@ object MarketsForm: TMarketsForm
     Columns = <
       item
         Caption = 'Station Name'
+        Tag = 21
       end
       item
         Caption = 'Station Type'
@@ -262,6 +263,9 @@ object MarketsForm: TMarketsForm
       Caption = 'Set As Active'
       OnClick = ListViewAction
     end
+    object N6: TMenuItem
+      Caption = '-'
+    end
     object ShowOnMapMenuItem: TMenuItem
       Tag = 22
       Caption = 'Show On Map'
@@ -309,7 +313,7 @@ object MarketsForm: TMarketsForm
     object MarketsSubMenu: TMenuItem
       Caption = 'Markets'
       object MarketInfoMenuItem: TMenuItem
-        Tag = 14
+        Tag = 21
         Caption = 'Market Info'
         OnClick = ListViewAction
       end

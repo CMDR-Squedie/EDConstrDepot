@@ -56,6 +56,7 @@ type
     ShowOnMapMenuItem: TMenuItem;
     ConstrTypesButton: TButton;
     InclOtherColCheck: TCheckBox;
+    N6: TMenuItem;
     procedure ListViewColumnClick(Sender: TObject; Column: TListColumn);
     procedure ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
@@ -519,12 +520,14 @@ end;
 
 procedure TMarketsForm.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
-  Opts['Markets.Left'] := IntToStr(self.Left);
-  Opts['Markets.Top'] := IntToStr(self.Top);
-  Opts['Markets.Height'] := IntToStr(self.Height);
-  Opts['Markets.Width'] := IntToStr(self.Width);
-  Opts.Save;
-
+  if WindowState = wsNormal then
+  begin
+    Opts['Markets.Left'] := IntToStr(self.Left);
+    Opts['Markets.Top'] := IntToStr(self.Top);
+    Opts['Markets.Height'] := IntToStr(self.Height);
+    Opts['Markets.Width'] := IntToStr(self.Width);
+    Opts.Save;
+  end;
 end;
 
 procedure TMarketsForm.SetRecentSort;
@@ -819,7 +822,11 @@ begin
       if cd.DistFromStar >= 0 then
         s := Format('%.0n', [double(cd.DistFromStar)]);
       addSubItem(s);
+
       addSubItem('');
+//      s := Format('%.0n', [double(cd.Contribution)]);
+//      addSubItem(s);
+
       addSubItem(cMarketIgnoreInd[DataSrc.GetMarketLevel(cd.MarketId)]);
       addSubItem('');
       s := cd.GetComment;
@@ -1073,9 +1080,6 @@ begin
   if action = -1 then Exit;
   bm := TBaseMarket(ListView.Selected.Data);
   mid := bm.MarketId;
-  if (action = 21) then
-    if bm is TMarket then action := 14;
-
   case action  of
   2:
     begin
@@ -1154,19 +1158,6 @@ begin
       if bm is TMarket then
         EDCDForm.MarketAsExtCargoDlg(TMarket(bm),-1);
     end;
-  14:
-    begin
-      if bm is TMarket then
-      begin
-//        with MarketInfoForm do
-        with TMarketInfoForm.Create(Application) do
-        begin
-          SetMarket(TMarket(bm),false,LowerCase(FilterEdit.Text));
-          FormStyle := fsStayOnTop;
-          Show;
-        end;
-      end;
-    end;
   15:
     begin
        Clipboard.SetTextBuf(PChar(bm.StarSystem));
@@ -1180,14 +1171,6 @@ begin
         SystemInfoForm.RestoreAndShow;
       end;
     end;
-  21:
-    begin
-      if bm is TConstructionDepot then
-      begin
-        StationInfoForm.SetStation(bm);
-        StationInfoForm.RestoreAndShow;
-      end;
-    end;
   22:
     begin
       sys := bm.GetSys;
@@ -1197,7 +1180,7 @@ begin
         StarMapForm.RestoreAndShow;
       end;
     end;
-  else
+  1:
     begin
       if bm is TConstructionDepot then
       begin
@@ -1211,6 +1194,25 @@ begin
           EDCDForm.SetSecondaryMarket(mid);
         end;
     end;
+  else //21
+    begin
+      if bm is TConstructionDepot then
+      begin
+        StationInfoForm.SetStation(bm);
+        StationInfoForm.RestoreAndShow;
+      end;
+      if bm is TMarket then
+      begin
+//        with MarketInfoForm do
+        with TMarketInfoForm.Create(Application) do
+        begin
+          SetMarket(TMarket(bm),false,LowerCase(FilterEdit.Text));
+          FormStyle := fsStayOnTop;
+          Show;
+        end;
+      end;
+    end;
+
   end;
 
   ClickedColumn := -1;

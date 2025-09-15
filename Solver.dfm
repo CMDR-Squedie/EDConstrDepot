@@ -140,7 +140,7 @@ object SolverForm: TSolverForm
       WordWrap = True
     end
     object WarnLabel: TLabel
-      Left = 96
+      Left = 99
       Top = 173
       Width = 334
       Height = 16
@@ -153,7 +153,7 @@ object SolverForm: TSolverForm
       ParentFont = False
     end
     object Label4: TLabel
-      Left = 40
+      Left = 43
       Top = 173
       Width = 50
       Height = 16
@@ -161,7 +161,7 @@ object SolverForm: TSolverForm
       Caption = 'Warnings:'
     end
     object Label5: TLabel
-      Left = -1
+      Left = 2
       Top = 148
       Width = 91
       Height = 16
@@ -183,38 +183,64 @@ object SolverForm: TSolverForm
     end
     object Label7: TLabel
       Left = 468
-      Top = 34
+      Top = 35
       Width = 66
       Height = 16
+      Hint = 
+        'Stats influence:'#13#10'- commodity production (market stocks)'#13#10'- numb' +
+        'er of ships at shipyards'
       Caption = 'Development'
+      OnMouseEnter = Label7MouseEnter
+      OnMouseLeave = Label7MouseLeave
     end
     object Label8: TLabel
       Left = 468
       Top = 64
       Width = 55
       Height = 16
+      Hint = 
+        'Stats influence:'#13#10'- number of outfitting modules'#13#10'- service unlo' +
+        'ck for T1 outposts/ports'
       Caption = 'Technology'
+      OnMouseEnter = Label7MouseEnter
+      OnMouseLeave = Label7MouseLeave
     end
     object Label9: TLabel
       Left = 468
       Top = 156
       Width = 43
       Height = 16
+      Hint = 
+        'Stats influence (* unconfirmed):'#13#10' - interdiction risk, compr. n' +
+        'av beacon chance'#13#10' - int. factors and some commodities avail.'#13#10' ' +
+        '- security forces strength and response time *'
       Caption = 'Security'
+      OnMouseEnter = Label7MouseEnter
+      OnMouseLeave = Label7MouseLeave
     end
     object Label13: TLabel
       Left = 468
       Top = 95
       Width = 33
       Height = 16
+      Hint = 
+        'Stats influence (* unconfirmed):'#13#10'- none tangible'#13#10'- duration an' +
+        'd chance of BGS states *'
       Caption = 'Wealth'
+      OnMouseEnter = Label7MouseEnter
+      OnMouseLeave = Label7MouseLeave
     end
     object Label14: TLabel
       Left = 468
       Top = 126
       Width = 63
       Height = 16
+      Hint = 
+        'Stats influence (* unconfirmed):'#13#10'- none tangible'#13#10'- duration an' +
+        'd chance of BGS states *'#13#10'- population growth and happiness *'
       Caption = 'Std of Living'
+      OnMouseEnter = Label7MouseEnter
+      OnMouseLeave = Label7MouseLeave
     end
     object Label10: TLabel
       Left = 13
@@ -351,11 +377,30 @@ object SolverForm: TSolverForm
       Alignment = taRightJustify
       Caption = 'Slots Usage'
     end
+    object StatsHelpLabel: TLabel
+      Left = 466
+      Top = 243
+      Width = 262
+      Height = 65
+      AutoSize = False
+      Caption = '(help)'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clGreen
+      Font.Height = -13
+      Font.Name = 'Bahnschrift SemiLight SemiConde'
+      Font.Style = [fsItalic]
+      ParentFont = False
+      Visible = False
+      WordWrap = True
+    end
     object SurfSlotsEdit: TLabeledEdit
       Left = 360
       Top = 11
       Width = 41
       Height = 26
+      Hint = 
+        'Current available slots, lower this number if system will not be' +
+        ' fully developed'
       Alignment = taRightJustify
       EditLabel.Width = 69
       EditLabel.Height = 26
@@ -369,12 +414,15 @@ object SolverForm: TSolverForm
       ParentFont = False
       TabOrder = 2
       Text = ''
+      OnMouseEnter = Label7MouseEnter
+      OnMouseLeave = Label7MouseLeave
     end
     object GoalT3OrbEdit: TLabeledEdit
       Left = 97
       Top = 101
       Width = 25
       Height = 26
+      Hint = 'Requested Orbis or Ocellus ports'
       Alignment = taRightJustify
       EditLabel.Width = 59
       EditLabel.Height = 26
@@ -389,6 +437,8 @@ object SolverForm: TSolverForm
       TabOrder = 7
       Text = ''
       OnChange = GoalT3SurfEditChange
+      OnMouseEnter = Label7MouseEnter
+      OnMouseLeave = Label7MouseLeave
     end
     object SolveButton: TButton
       Left = 882
@@ -425,6 +475,7 @@ object SolverForm: TSolverForm
       Top = 101
       Width = 25
       Height = 26
+      Hint = 'Requested Coriolis or Asteroid Base ports'
       Alignment = taRightJustify
       EditLabel.Width = 11
       EditLabel.Height = 26
@@ -439,12 +490,17 @@ object SolverForm: TSolverForm
       TabOrder = 8
       Text = ''
       OnChange = GoalT3SurfEditChange
+      OnMouseEnter = Label7MouseEnter
+      OnMouseLeave = Label7MouseLeave
     end
     object OrbSlotsEdit: TLabeledEdit
       Left = 97
       Top = 12
       Width = 41
       Height = 26
+      Hint = 
+        'Current available slots, lower this number if system will not be' +
+        ' fully developed'
       Alignment = taRightJustify
       EditLabel.Width = 63
       EditLabel.Height = 26
@@ -458,12 +514,17 @@ object SolverForm: TSolverForm
       ParentFont = False
       TabOrder = 0
       Text = ''
+      OnMouseEnter = Label7MouseEnter
+      OnMouseLeave = Label7MouseLeave
     end
     object AsterSlotsEdit: TLabeledEdit
       Left = 224
       Top = 11
       Width = 41
       Height = 26
+      Hint = 
+        'Current available asteroid only slots, only use this field if yo' +
+        'u want Asteroid Bases to be put in asteroid only slots'
       Alignment = taRightJustify
       EditLabel.Width = 74
       EditLabel.Height = 26
@@ -477,12 +538,15 @@ object SolverForm: TSolverForm
       ParentFont = False
       TabOrder = 1
       Text = ''
+      OnMouseEnter = Label7MouseEnter
+      OnMouseLeave = Label7MouseLeave
     end
     object GoalT3SurfEdit: TLabeledEdit
       Left = 325
       Top = 102
       Width = 25
       Height = 26
+      Hint = 'Requested Planetary Ports'
       Alignment = taRightJustify
       EditLabel.Width = 68
       EditLabel.Height = 26
@@ -497,6 +561,8 @@ object SolverForm: TSolverForm
       TabOrder = 6
       Text = ''
       OnChange = GoalT3SurfEditChange
+      OnMouseEnter = Label7MouseEnter
+      OnMouseLeave = Label7MouseLeave
     end
     object InitialCP2Edit: TLabeledEdit
       Left = 97
@@ -538,50 +604,76 @@ object SolverForm: TSolverForm
     end
     object DevTrackBar: TTrackBar
       Left = 540
-      Top = 34
+      Top = 32
       Width = 150
       Height = 30
+      Hint = 
+        'Stats influence:'#13#10'- commodity production (market stocks)'#13#10'- numb' +
+        'er of ships at shipyards'
       Ctl3D = True
       Max = 20
       ParentCtl3D = False
       TabOrder = 10
       OnChange = TechTrackBarChange
+      OnEnter = Label7MouseEnter
+      OnExit = Label7MouseLeave
     end
     object TechTrackBar: TTrackBar
       Left = 540
       Top = 61
       Width = 150
       Height = 28
+      Hint = 
+        'Stats influence:'#13#10'- number of outfitting modules'#13#10'- service unlo' +
+        'ck for T1 outposts/ports'
       Max = 20
       TabOrder = 11
       OnChange = TechTrackBarChange
+      OnEnter = Label7MouseEnter
+      OnExit = Label7MouseLeave
     end
     object SecTrackBar: TTrackBar
       Left = 540
       Top = 153
       Width = 150
       Height = 32
+      Hint = 
+        'Stats influence (* unconfirmed):'#13#10' - interdiction risk, compr. n' +
+        'av beacon chance'#13#10' - int. factors and some commodities avail.'#13#10' ' +
+        '- security forces strength and response time *'
       Max = 20
       TabOrder = 14
       OnChange = TechTrackBarChange
+      OnEnter = Label7MouseEnter
+      OnExit = Label7MouseLeave
     end
     object WealthTrackBar: TTrackBar
       Left = 540
       Top = 92
       Width = 150
       Height = 32
+      Hint = 
+        'Stats influence (* unconfirmed):'#13#10'- none tangible'#13#10'- duration an' +
+        'd chance of BGS states *'
       Max = 20
       TabOrder = 12
       OnChange = TechTrackBarChange
+      OnEnter = Label7MouseEnter
+      OnExit = Label7MouseLeave
     end
     object StdLivTrackBar: TTrackBar
       Left = 540
       Top = 123
       Width = 150
       Height = 32
+      Hint = 
+        'Stats influence (* unconfirmed):'#13#10'- none tangible'#13#10'- duration an' +
+        'd chance of BGS states *'#13#10'- population growth and happiness *'
       Max = 20
       TabOrder = 13
       OnChange = TechTrackBarChange
+      OnEnter = Label7MouseEnter
+      OnExit = Label7MouseLeave
     end
     object BalStatsCheck: TCheckBox
       Left = 461
@@ -596,16 +688,25 @@ object SolverForm: TSolverForm
       Top = 191
       Width = 85
       Height = 17
+      Hint = 
+        'Allow orb. and surf. outposts for suggested constructions (may b' +
+        'ecome facilities and generate econ. influence if placed on same ' +
+        'body)'
       Caption = '- T1 Ports'
       TabOrder = 15
+      OnMouseEnter = Label7MouseEnter
+      OnMouseLeave = Label7MouseLeave
     end
     object AllowHubsCheck: TCheckBox
       Left = 468
       Top = 191
       Width = 76
       Height = 18
+      Hint = 'Allow Hubs (eg. Refinery Hub) for suggested constructions'
       Caption = 'Allow Hubs'
       TabOrder = 16
+      OnMouseEnter = Label7MouseEnter
+      OnMouseLeave = Label7MouseLeave
     end
     object EcoInflCheckList: TCheckListBox
       Left = 797
@@ -673,6 +774,7 @@ object SolverForm: TSolverForm
       Top = 102
       Width = 25
       Height = 26
+      Hint = 'Requested Planetary Outpost Ports'
       Alignment = taRightJustify
       EditLabel.Width = 9
       EditLabel.Height = 26
@@ -687,12 +789,15 @@ object SolverForm: TSolverForm
       TabOrder = 23
       Text = ''
       OnChange = GoalT3SurfEditChange
+      OnMouseEnter = Label7MouseEnter
+      OnMouseLeave = Label7MouseLeave
     end
     object GoalT1OrbEdit: TLabeledEdit
       Left = 198
       Top = 102
       Width = 25
       Height = 26
+      Hint = 'Requested orbital outposts'
       Alignment = taRightJustify
       EditLabel.Width = 9
       EditLabel.Height = 26
@@ -707,6 +812,8 @@ object SolverForm: TSolverForm
       TabOrder = 24
       Text = ''
       OnChange = GoalT3SurfEditChange
+      OnMouseEnter = Label7MouseEnter
+      OnMouseLeave = Label7MouseLeave
     end
     object DependCombo: TComboBox
       Left = 586
@@ -727,8 +834,13 @@ object SolverForm: TSolverForm
       Top = 191
       Width = 96
       Height = 17
+      Hint = 
+        'Allow Coriolis, Orbis and other large ports for suggested constr' +
+        'uctions (additionally to ports requested in Ports Goal section)'
       Caption = '- T2/T3 Ports'
       TabOrder = 26
+      OnMouseEnter = Label7MouseEnter
+      OnMouseLeave = Label7MouseLeave
     end
     object SlotsCombo: TComboBox
       Left = 797
@@ -744,8 +856,7 @@ object SolverForm: TSolverForm
         'balance orb./surf.'
         'alternate orb./surf.'
         'orbital first'
-        'surface first'
-        '')
+        'surface first')
     end
   end
   object PopupMenu: TPopupMenu

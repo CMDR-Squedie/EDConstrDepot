@@ -67,15 +67,18 @@ object SystemInfoForm: TSystemInfoForm
         Caption = 'Economy'
       end
       item
+        Caption = 'Features'
+      end
+      item
+        Alignment = taRightJustify
+        Caption = 'Dist. (Ls)'
+      end
+      item
         Alignment = taCenter
         Caption = 'Land.'
       end
       item
         Caption = 'Atmosphere'
-      end
-      item
-        Alignment = taRightJustify
-        Caption = 'Dist. (Ls)'
       end
       item
         Caption = 'Signals'
@@ -99,6 +102,10 @@ object SystemInfoForm: TSystemInfoForm
         Alignment = taRightJustify
         Caption = ' Orb.Incl.'
         Width = 70
+      end
+      item
+        Alignment = taRightJustify
+        Caption = 'Radius'
       end
       item
         Alignment = taRightJustify
@@ -141,25 +148,32 @@ object SystemInfoForm: TSystemInfoForm
     TabOrder = 1
     object SystemNameLabel: TLabel
       Left = 8
-      Top = 8
-      Width = 193
-      Height = 20
+      Top = 4
+      Width = 214
+      Height = 27
+      Alignment = taCenter
       AutoSize = False
       Caption = '--------------------'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clSilver
+      Font.Height = -19
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentFont = False
       OnClick = SystemNameLabelClick
     end
     object FactionsLabel: TLabel
-      Left = 217
-      Top = 58
-      Width = 347
+      Left = 228
+      Top = 7
+      Width = 335
       Height = 20
       AutoSize = False
       Caption = '----------------------'
       OnDblClick = FactionsLabelDblClick
     end
     object LastUpdateLabel: TLabel
-      Left = 217
-      Top = 33
+      Left = 301
+      Top = 34
       Width = 195
       Height = 20
       AutoSize = False
@@ -175,61 +189,86 @@ object SystemInfoForm: TSystemInfoForm
       OnDblClick = SystemAddrLabelDblClick
     end
     object ArchitectLabel: TLabel
-      Left = 217
-      Top = 8
-      Width = 185
+      Left = 301
+      Top = 55
+      Width = 136
       Height = 20
       AutoSize = False
       Caption = '--------------------'
       OnClick = ArchitectLabelClick
     end
     object PopulationLabel: TLabel
-      Left = 8
+      Left = 95
       Top = 33
-      Width = 161
+      Width = 106
       Height = 20
       AutoSize = False
       Caption = '--------------------'
     end
     object SecurityLabel: TLabel
-      Left = 8
-      Top = 57
-      Width = 161
+      Left = 95
+      Top = 55
+      Width = 106
       Height = 20
       AutoSize = False
       Caption = '------------------------'
     end
     object Label3: TLabel
-      Left = 602
-      Top = 8
-      Width = 55
+      Left = 596
+      Top = 7
+      Width = 58
       Height = 18
       Alignment = taRightJustify
-      Caption = 'Comment'
+      Caption = 'Comment:'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clSilver
+      Font.Height = -15
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentFont = False
     end
     object Label5: TLabel
-      Left = 575
-      Top = 34
-      Width = 82
+      Left = 569
+      Top = 31
+      Width = 85
       Height = 18
       Alignment = taRightJustify
-      Caption = 'Current Goals'
+      Caption = 'Current Goals:'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clSilver
+      Font.Height = -15
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentFont = False
     end
     object Label7: TLabel
-      Left = 596
-      Top = 57
-      Width = 61
+      Left = 590
+      Top = 55
+      Width = 64
       Height = 18
       Alignment = taRightJustify
-      Caption = 'Objectives'
+      Caption = 'Objectives:'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clSilver
+      Font.Height = -15
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentFont = False
     end
     object Label15: TLabel
-      Left = 826
-      Top = 57
-      Width = 35
+      Left = 815
+      Top = 55
+      Width = 46
       Height = 21
+      Alignment = taRightJustify
       AutoSize = False
-      Caption = 'Groups'
+      Caption = 'Groups:'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clSilver
+      Font.Height = -15
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentFont = False
       OnDblClick = SystemAddrLabelDblClick
     end
     object EDSMScanLabel: TLabel
@@ -243,13 +282,80 @@ object SystemInfoForm: TSystemInfoForm
       OnDblClick = SystemAddrLabelDblClick
     end
     object IgnoredLabel: TLabel
-      Left = 489
-      Top = 8
+      Left = 502
+      Top = 55
       Width = 50
       Height = 20
       AutoSize = False
       Caption = 'Ignored'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clSilver
+      Font.Height = -15
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentFont = False
       OnClick = IgnoredLabelClick
+    end
+    object Label26: TLabel
+      Left = 217
+      Top = 55
+      Width = 80
+      Height = 20
+      Alignment = taRightJustify
+      AutoSize = False
+      Caption = 'Architect:'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clSilver
+      Font.Height = -15
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentFont = False
+      OnClick = ArchitectLabelClick
+    end
+    object Label27: TLabel
+      Left = 217
+      Top = 33
+      Width = 80
+      Height = 20
+      Alignment = taRightJustify
+      AutoSize = False
+      Caption = 'Last Update:'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clSilver
+      Font.Height = -15
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentFont = False
+    end
+    object Label28: TLabel
+      Left = 9
+      Top = 33
+      Width = 80
+      Height = 20
+      Alignment = taRightJustify
+      AutoSize = False
+      Caption = 'Population:'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clSilver
+      Font.Height = -15
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentFont = False
+    end
+    object Label29: TLabel
+      Left = 9
+      Top = 55
+      Width = 80
+      Height = 20
+      Alignment = taRightJustify
+      AutoSize = False
+      Caption = 'Security:'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clSilver
+      Font.Height = -15
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentFont = False
     end
     object EDSMScanButton: TButton
       Left = 1011
@@ -262,11 +368,18 @@ object SystemInfoForm: TSystemInfoForm
     end
     object CommentEdit: TEdit
       Left = 660
-      Top = 5
+      Top = 7
       Width = 325
       Height = 26
+      BevelEdges = [beBottom]
+      BevelInner = bvNone
+      BevelOuter = bvNone
+      BorderStyle = bsNone
+      Ctl3D = True
       ParentColor = True
+      ParentCtl3D = False
       TabOrder = 1
+      Text = 'Aa'
       OnChange = CommentEditChange
     end
     object SaveDataButton: TButton
@@ -280,11 +393,13 @@ object SystemInfoForm: TSystemInfoForm
     end
     object GoalsEdit: TEdit
       Left = 660
-      Top = 30
+      Top = 31
       Width = 325
-      Height = 26
+      Height = 22
+      BorderStyle = bsNone
       ParentColor = True
       TabOrder = 3
+      Text = 'Aa'
       OnChange = CommentEditChange
     end
     object ObjectivesEdit: TEdit
@@ -292,8 +407,10 @@ object SystemInfoForm: TSystemInfoForm
       Top = 55
       Width = 149
       Height = 26
+      BorderStyle = bsNone
       ParentColor = True
       TabOrder = 4
+      Text = 'Aa'
       OnChange = CommentEditChange
     end
     object TaskGroupEdit: TEdit
@@ -301,13 +418,15 @@ object SystemInfoForm: TSystemInfoForm
       Top = 55
       Width = 118
       Height = 26
+      BorderStyle = bsNone
       ParentColor = True
       TabOrder = 5
+      Text = 'Aa'
       OnChange = CommentEditChange
     end
     object IgnoredCheck: TCheckBox
-      Left = 467
-      Top = 9
+      Left = 480
+      Top = 56
       Width = 19
       Height = 17
       TabOrder = 6
@@ -333,6 +452,19 @@ object SystemInfoForm: TSystemInfoForm
     PopupMenu = PopupMenu
     TabOrder = 2
     UseWheelForScrolling = True
+    object SysImage: TImage
+      Left = 0
+      Top = 0
+      Width = 481
+      Height = 145
+      AutoSize = True
+      PopupMenu = PopupMenu
+      OnClick = SysImageClick
+      OnDblClick = SysImageDblClick
+      OnMouseDown = SysImageMouseDown
+      OnMouseMove = SysImageMouseMove
+      OnMouseUp = SysImageMouseUp
+    end
     object NoPictureLabel: TLabel
       Left = 22
       Top = 16
@@ -350,140 +482,376 @@ object SystemInfoForm: TSystemInfoForm
       ParentColor = False
       ParentFont = False
     end
-    object SysImage: TImage
-      Left = 0
-      Top = 0
-      Width = 481
-      Height = 145
-      AutoSize = True
-      PopupMenu = PopupMenu
-      OnClick = SysImageClick
-      OnDblClick = SysImageDblClick
-      OnMouseDown = SysImageMouseDown
-      OnMouseMove = SysImageMouseMove
-      OnMouseUp = SysImageMouseUp
-    end
-    object BodyInfoLabel: TLabel
-      Left = 679
-      Top = 160
-      Width = 60
-      Height = 13
-      Caption = 'BodyInfoLabel'
+    object NoLabelsLabel: TLabel
+      Left = 3
+      Top = 5
+      Width = 166
+      Height = 16
+      Caption = 'No body labels, click here to add.'
       Color = clBlack
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clSilver
-      Font.Height = -11
+      Font.Height = -13
       Font.Name = 'Bahnschrift SemiCondensed'
       Font.Style = []
       ParentColor = False
       ParentFont = False
-      Transparent = False
-    end
-    object BodyInfoFrame: TShape
-      Left = 608
-      Top = 160
-      Width = 65
-      Height = 65
-      Brush.Color = clBlack
-      Pen.Color = clSilver
       Visible = False
+      OnClick = AddLabelsMenuItemClick
     end
-    object BodySlotsPanel: TPanel
-      Left = 608
-      Top = 231
-      Width = 145
-      Height = 22
+    object BodyInfoPanel: TPanel
+      Left = 94
+      Top = 168
+      Width = 337
+      Height = 161
       BevelOuter = bvNone
       Color = clBlack
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clSilver
-      Font.Height = -15
+      Font.Height = -13
       Font.Name = 'Bahnschrift SemiCondensed'
       Font.Style = []
       ParentBackground = False
       ParentFont = False
       TabOrder = 0
-      Visible = False
-      object Label16: TLabel
-        Left = 124
-        Top = 0
-        Width = 14
-        Height = 22
-        Align = alLeft
-        Caption = ' + '
-        ExplicitHeight = 18
-      end
-      object Label17: TLabel
-        Left = 77
-        Top = 0
-        Width = 26
-        Height = 22
-        Align = alLeft
-        Caption = ' '#55356#57325' '
-        ExplicitHeight = 18
-      end
-      object Label18: TLabel
-        Left = 103
-        Top = 0
-        Width = 14
-        Height = 22
-        Align = alLeft
-        Caption = ' - '
-        ExplicitHeight = 18
-      end
-      object Label19: TLabel
-        Left = 51
-        Top = 0
-        Width = 14
-        Height = 22
-        Align = alLeft
-        Caption = ' + '
-        ExplicitHeight = 18
-      end
-      object Label20: TLabel
+      object BodyInfoFrame: TShape
         Left = 0
         Top = 0
-        Width = 30
-        Height = 22
-        Align = alLeft
-        Caption = ' '#9898#8226' '
-        ExplicitHeight = 18
+        Width = 337
+        Height = 161
+        Align = alClient
+        Brush.Color = clBlack
+        Pen.Color = clSilver
+        ExplicitLeft = 1
       end
-      object Label21: TLabel
-        Left = 30
-        Top = 0
-        Width = 14
-        Height = 22
-        Align = alLeft
-        Caption = ' - '
-        ExplicitHeight = 18
+      object BodyInfoLabel: TLabel
+        Left = 2
+        Top = 2
+        Width = 60
+        Height = 13
+        Caption = 'BodyInfoLabel'
+        Color = clBlack
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clSilver
+        Font.Height = -11
+        Font.Name = 'Bahnschrift SemiCondensed'
+        Font.Style = []
+        ParentColor = False
+        ParentFont = False
+        Transparent = False
       end
-      object Label22: TLabel
-        Left = 65
-        Top = 0
-        Width = 12
-        Height = 22
-        Align = alLeft
-        Caption = '   '
-        ExplicitHeight = 18
+      object BodyStationsLabel: TLabel
+        Left = 51
+        Top = 80
+        Width = 78
+        Height = 13
+        Caption = 'BodyStationsLabel'
+        Color = clBlack
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clSilver
+        Font.Height = -11
+        Font.Name = 'Bahnschrift SemiCondensed'
+        Font.Style = []
+        ParentColor = False
+        ParentFont = False
+        Transparent = False
       end
-      object Label23: TLabel
-        Left = 44
-        Top = 0
-        Width = 7
-        Height = 22
-        Align = alLeft
-        Caption = '0'
-        ExplicitHeight = 18
-      end
-      object Label24: TLabel
-        Left = 117
-        Top = 0
-        Width = 7
-        Height = 22
-        Align = alLeft
-        Caption = '0'
-        ExplicitHeight = 18
+      object BodySlotsPanel: TPanel
+        Left = 1
+        Top = 79
+        Width = 61
+        Height = 39
+        BevelOuter = bvNone
+        Color = 2105376
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clSilver
+        Font.Height = -15
+        Font.Name = 'Bahnschrift SemiCondensed'
+        Font.Style = []
+        ParentBackground = False
+        ParentFont = False
+        TabOrder = 0
+        object Label23: TLabel
+          Left = 1
+          Top = 0
+          Width = 30
+          Height = 18
+          Caption = ' '#9898#8226' '
+          OnClick = OrbSlotsLabelClick
+        end
+        object OrbSlotsLabel: TLabel
+          Left = 30
+          Top = 0
+          Width = 14
+          Height = 18
+          AutoSize = False
+          Caption = '0'
+          OnClick = OrbSlotsLabelClick
+        end
+        object SurfSlotsLabel: TLabel
+          Left = 30
+          Top = 20
+          Width = 15
+          Height = 18
+          AutoSize = False
+          Caption = '0'
+          OnClick = OrbSlotsLabelClick
+        end
+        object Label18: TLabel
+          Left = 2
+          Top = 20
+          Width = 26
+          Height = 18
+          Caption = ' '#55356#57325' '
+          OnClick = OrbSlotsLabelClick
+        end
+        object Label16: TLabel
+          Left = 48
+          Top = 0
+          Width = 14
+          Height = 18
+          Alignment = taCenter
+          AutoSize = False
+          Caption = '0'
+          Color = clGray
+          ParentColor = False
+          Transparent = False
+          OnClick = Label16Click
+        end
+        object Label19: TLabel
+          Left = 64
+          Top = 0
+          Width = 14
+          Height = 18
+          Alignment = taCenter
+          AutoSize = False
+          Caption = '1'
+          Color = clGray
+          ParentColor = False
+          Transparent = False
+          OnClick = Label16Click
+        end
+        object Label21: TLabel
+          Left = 80
+          Top = 0
+          Width = 14
+          Height = 18
+          Alignment = taCenter
+          AutoSize = False
+          Caption = '2'
+          Color = clGray
+          ParentColor = False
+          Transparent = False
+          OnClick = Label16Click
+        end
+        object Label24: TLabel
+          Left = 96
+          Top = 0
+          Width = 14
+          Height = 18
+          Alignment = taCenter
+          AutoSize = False
+          Caption = '3'
+          Color = clGray
+          ParentColor = False
+          Transparent = False
+          OnClick = Label16Click
+        end
+        object Label30: TLabel
+          Left = 112
+          Top = 0
+          Width = 14
+          Height = 18
+          Alignment = taCenter
+          AutoSize = False
+          Caption = '4'
+          Color = clGray
+          ParentColor = False
+          Transparent = False
+          OnClick = Label16Click
+        end
+        object Label33: TLabel
+          Left = 128
+          Top = 0
+          Width = 14
+          Height = 18
+          Alignment = taCenter
+          AutoSize = False
+          Caption = '5'
+          Color = clGray
+          ParentColor = False
+          Transparent = False
+          OnClick = Label16Click
+        end
+        object Label34: TLabel
+          Left = 144
+          Top = 0
+          Width = 14
+          Height = 18
+          Alignment = taCenter
+          AutoSize = False
+          Caption = '6'
+          Color = clGray
+          ParentColor = False
+          Transparent = False
+          OnClick = Label16Click
+        end
+        object Label35: TLabel
+          Left = 160
+          Top = 0
+          Width = 14
+          Height = 18
+          Alignment = taCenter
+          AutoSize = False
+          Caption = '7'
+          Color = clGray
+          ParentColor = False
+          Transparent = False
+          OnClick = Label16Click
+        end
+        object Label36: TLabel
+          Left = 176
+          Top = 0
+          Width = 14
+          Height = 18
+          Alignment = taCenter
+          AutoSize = False
+          Caption = '8'
+          Color = clGray
+          ParentColor = False
+          Transparent = False
+          OnClick = Label16Click
+        end
+        object Label37: TLabel
+          Left = 48
+          Top = 20
+          Width = 14
+          Height = 18
+          Alignment = taCenter
+          AutoSize = False
+          Caption = '0'
+          Color = clGray
+          ParentColor = False
+          Transparent = False
+          OnClick = Label37Click
+        end
+        object Label38: TLabel
+          Left = 64
+          Top = 20
+          Width = 14
+          Height = 18
+          Alignment = taCenter
+          AutoSize = False
+          Caption = '1'
+          Color = clGray
+          ParentColor = False
+          Transparent = False
+          OnClick = Label37Click
+        end
+        object Label39: TLabel
+          Left = 80
+          Top = 20
+          Width = 14
+          Height = 18
+          Alignment = taCenter
+          AutoSize = False
+          Caption = '2'
+          Color = clGray
+          ParentColor = False
+          Transparent = False
+          OnClick = Label37Click
+        end
+        object Label40: TLabel
+          Left = 96
+          Top = 20
+          Width = 14
+          Height = 18
+          Alignment = taCenter
+          AutoSize = False
+          Caption = '3'
+          Color = clGray
+          ParentColor = False
+          Transparent = False
+          OnClick = Label37Click
+        end
+        object Label41: TLabel
+          Left = 112
+          Top = 20
+          Width = 14
+          Height = 18
+          Alignment = taCenter
+          AutoSize = False
+          Caption = '4'
+          Color = clGray
+          ParentColor = False
+          Transparent = False
+          OnClick = Label37Click
+        end
+        object Label42: TLabel
+          Left = 128
+          Top = 20
+          Width = 14
+          Height = 18
+          Alignment = taCenter
+          AutoSize = False
+          Caption = '5'
+          Color = clGray
+          ParentColor = False
+          Transparent = False
+          OnClick = Label37Click
+        end
+        object Label43: TLabel
+          Left = 144
+          Top = 20
+          Width = 14
+          Height = 18
+          Alignment = taCenter
+          AutoSize = False
+          Caption = '6'
+          Color = clGray
+          ParentColor = False
+          Transparent = False
+          OnClick = Label37Click
+        end
+        object Label44: TLabel
+          Left = 160
+          Top = 20
+          Width = 14
+          Height = 18
+          Alignment = taCenter
+          AutoSize = False
+          Caption = '7'
+          Color = clGray
+          ParentColor = False
+          Transparent = False
+          OnClick = Label37Click
+        end
+        object Label45: TLabel
+          Left = 176
+          Top = 20
+          Width = 14
+          Height = 18
+          Alignment = taCenter
+          AutoSize = False
+          Caption = '8'
+          Color = clGray
+          ParentColor = False
+          Transparent = False
+          OnClick = Label37Click
+        end
+        object HideSlotEditLabel: TLabel
+          Left = 192
+          Top = 10
+          Width = 9
+          Height = 18
+          Alignment = taCenter
+          AutoSize = False
+          Caption = '<'
+          Color = clGray
+          ParentColor = False
+          Transparent = False
+          OnClick = HideSlotEditLabelClick
+        end
       end
     end
   end
@@ -515,7 +883,7 @@ object SystemInfoForm: TSystemInfoForm
       Top = 3
       Width = 68
       Height = 19
-      Hint = 'Current / incl. In Progress / incl. Planned'
+      Hint = 'Current (Current +in progress / +planned)'
       Caption = '00 (00/00)'
       Color = clBlack
       Font.Charset = DEFAULT_CHARSET
@@ -547,7 +915,7 @@ object SystemInfoForm: TSystemInfoForm
       Top = 3
       Width = 68
       Height = 19
-      Hint = 'Current / incl. In Progress / incl. Planned'
+      Hint = 'Current (Current +in progress / +planned)'
       Caption = '00 (00/00)'
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clBlueviolet
@@ -576,7 +944,7 @@ object SystemInfoForm: TSystemInfoForm
       Top = 3
       Width = 68
       Height = 19
-      Hint = 'Current / incl. In Progress / incl. Planned'
+      Hint = 'Current (Current +in progress / +planned)'
       Caption = '00 (00/00)'
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clRoyalblue
@@ -605,7 +973,7 @@ object SystemInfoForm: TSystemInfoForm
       Top = 3
       Width = 68
       Height = 19
-      Hint = 'Current / incl. In Progress / incl. Planned'
+      Hint = 'Current (Current +in progress / +planned)'
       Caption = '00 (00/00)'
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clDarkgoldenrod
@@ -634,7 +1002,7 @@ object SystemInfoForm: TSystemInfoForm
       Top = 3
       Width = 68
       Height = 19
-      Hint = 'Current / incl. In Progress / incl. Planned'
+      Hint = 'Current (Current +in progress / +planned)'
       Caption = '00 (00/00)'
       Color = clNone
       Font.Charset = DEFAULT_CHARSET
@@ -648,16 +1016,17 @@ object SystemInfoForm: TSystemInfoForm
       ShowHint = True
     end
     object PrimaryLabel: TLabel
-      Left = 1056
-      Top = 6
-      Width = 66
-      Height = 14
+      Left = 1047
+      Top = 1
+      Width = 91
+      Height = 27
+      AutoSize = False
       Caption = 'T2/T3 Primary'
       Font.Charset = DEFAULT_CHARSET
-      Font.Color = clSilver
+      Font.Color = clGray
       Font.Height = -12
       Font.Name = 'Bahnschrift SemiCondensed'
-      Font.Style = []
+      Font.Style = [fsItalic]
       ParentFont = False
       ParentShowHint = False
       ShowHint = True
@@ -681,7 +1050,7 @@ object SystemInfoForm: TSystemInfoForm
       Top = 3
       Width = 68
       Height = 19
-      Hint = 'Current / incl. In Progress / incl. Planned'
+      Hint = 'Current (Current +in progress / +planned)'
       Caption = '00 (00/00)'
       Color = clNone
       Font.Charset = DEFAULT_CHARSET
@@ -712,7 +1081,7 @@ object SystemInfoForm: TSystemInfoForm
       Top = 3
       Width = 68
       Height = 19
-      Hint = 'Current / incl. In Progress / incl. Planned'
+      Hint = 'Current (Current +in progress / +planned)'
       Caption = '00 (00/00)'
       Color = clNone
       Font.Charset = DEFAULT_CHARSET
@@ -973,7 +1342,7 @@ object SystemInfoForm: TSystemInfoForm
       Top = 3
       Width = 68
       Height = 19
-      Hint = 'Current / incl. In Progress / incl. Planned'
+      Hint = 'Current (Current +in progress / +planned)'
       Caption = '00 (00/00)'
       Color = clGold
       Font.Charset = DEFAULT_CHARSET
@@ -1038,6 +1407,23 @@ object SystemInfoForm: TSystemInfoForm
       Width = 27
       Height = 16
       Caption = 'Filter'
+    end
+    object Label25: TLabel
+      Left = 1026
+      Top = 0
+      Width = 304
+      Height = 33
+      AutoSize = False
+      Caption = 
+        'Hint: You can use col. headers in filters, eg. "atmo+rings", use' +
+        ' '#39'~'#39' sign to exclude text, '#39'+'#39' to join filters'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -13
+      Font.Name = 'Bahnschrift Light SemiCondensed'
+      Font.Style = [fsItalic]
+      ParentFont = False
+      WordWrap = True
     end
     object PlannedCheck: TCheckBox
       Left = 634
@@ -1135,6 +1521,21 @@ object SystemInfoForm: TSystemInfoForm
       ParentFont = False
       State = cbChecked
       TabOrder = 6
+      OnClick = BodiesCheckClick
+    end
+    object FreeSlotsCheck: TCheckBox
+      Left = 721
+      Top = 8
+      Width = 90
+      Height = 17
+      Caption = 'Free Slots'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -13
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentFont = False
+      TabOrder = 7
       OnClick = BodiesCheckClick
     end
   end

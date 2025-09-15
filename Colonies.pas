@@ -525,12 +525,14 @@ end;
 
 procedure TColoniesForm.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
-  Opts['Colonies.Left'] := IntToStr(self.Left);
-  Opts['Colonies.Top'] := IntToStr(self.Top);
-  Opts['Colonies.Height'] := IntToStr(self.Height);
-  Opts['Colonies.Width'] := IntToStr(self.Width);
-  Opts.Save;
-
+  if WindowState = wsNormal then
+  begin
+    Opts['Colonies.Left'] := IntToStr(self.Left);
+    Opts['Colonies.Top'] := IntToStr(self.Top);
+    Opts['Colonies.Height'] := IntToStr(self.Height);
+    Opts['Colonies.Width'] := IntToStr(self.Width);
+    Opts.Save;
+  end;
 end;
 
 procedure TColoniesForm.FormCreate(Sender: TObject);

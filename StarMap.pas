@@ -133,6 +133,7 @@ type
     FRouteName: string;
     FHistory: TSystemList;
     FHistoryEntry: Integer;
+    FHistTimerPaused: Boolean;
     FSelectedSystem: TStarSystem;
     FPreviewRect: TRect;
     function InfoLayer: string;
@@ -238,6 +239,7 @@ end;
 procedure TStarMapForm.HistTimerTimer(Sender: TObject);
 var idx: Integer;
 begin
+  if FHistTimerPaused then Exit;
   try
     if FHistoryEntry >= FHistory.Count - 1 then
       HistTimer.Enabled := False
@@ -285,6 +287,7 @@ procedure TStarMapForm.TaskGroupComboChange(Sender: TObject);
 begin
   FHistory.Clear;
   FHistoryEntry := 0;
+  FHistTimerPaused := False;
   HistTimer.Enabled := False;
 
   ResetMap;
@@ -435,10 +438,13 @@ begin
   Opts['MapProjX'] := ProjectionXCombo.Text;
   Opts['MapProjY'] := ProjectionYCombo.Text;
   Opts['MapLanes'] := LinkStyleCombo.Text;
-  Opts['Map.Left'] := IntToStr(self.Left);
-  Opts['Map.Top'] := IntToStr(self.Top);
-  Opts['Map.Height'] := IntToStr(self.Height);
-  Opts['Map.Width'] := IntToStr(self.Width);
+  if WindowState = wsNormal then
+  begin
+    Opts['Map.Left'] := IntToStr(self.Left);
+    Opts['Map.Top'] := IntToStr(self.Top);
+    Opts['Map.Height'] := IntToStr(self.Height);
+    Opts['Map.Width'] := IntToStr(self.Width);
+  end;
 end;
 
 
@@ -525,7 +531,7 @@ begin
   if Key = ' ' then
     if InfoLayer = 'AH' then
     begin
-      HistTimer.Enabled := not HistTimer.Enabled;
+      FHistTimerPaused := not FHistTimerPaused;
       if FHistoryEntry >= FHistory.Count - 1 then
         FHistoryEntry := 0;
     end;
@@ -874,7 +880,7 @@ var i,i2,i3,w,idx,si,margin,projectionX,projectionY,labOffsetX,labOffsetY,fontSi
     proj: TMapPos;
     linkRects: array [0..100] of TRect;
     linkRectsCnt: Integer;
-    maxSize,minPop,maxLinks,maxLinkCnt,curLinkCnt,maxDist: Integer;
+    maxSize,minPop,maxLinks,maxLinkCnt,curLinkCnt,maxDist,radius: Integer;
     dt: TDateTime;
     PixelsPerLy,dist,totDist,dDt: Extended;
     starSymbol,s,laneStyle: string;
@@ -884,8 +890,9 @@ var i,i2,i3,w,idx,si,margin,projectionX,projectionY,labOffsetX,labOffsetY,fontSi
     selSysIdx: Integer;
     minY,maxY,midY: Integer;
     elevationf: Boolean;
+    othernamesf: Integer;
 label
-    LSkipLabelReposition;
+    LSkipLabelReposition,LSkipLabelPrint;
 
     procedure setMin(var mapSpanVal: Integer; starPos: Extended);
     begin
@@ -982,6 +989,7 @@ begin
   maxY := 0;
   midY := 0;
   elevationf := ElevationCheck.Checked;
+  othernamesf := Opts.Int['ShowSysNames'];
 
   projectionX := ProjectionXCombo.ItemIndex;
   projectionY := ProjectionYCombo.ItemIndex;
@@ -1084,6 +1092,38 @@ begin
         MoveTo(Trunc(i * 10*PixelsPerLy),0);
         LineTo(Trunc(i * 10*PixelsPerLy),Height);
       end;
+    end;
+
+
+
+    if InfoLayer = 'PP' then
+    begin
+      Pen.Color := $303030;
+      Pen.Style := psSolid;
+      Pen.Width := 1;
+      Brush.Style := bsSolid;
+      for i := FColonies.Count - 1 downto 0 do    //Max(FColonies.Count - 12,0)
+      begin
+        if FColonies[i].Population < 1000000 then continue;
+        getSysPos_projected(FColonies[i],proj);
+        radius := Trunc(Power((FColonies[i].Population  div 100000),1/3)*4);
+        radius := Trunc(radius * (FMapZoom/100));
+        pt.X := -FOrigin.X + Trunc(PixelsPerLy*(proj.X - FMapSpan.Left)) + fontSize div 2 + 2;
+        pt.Y := -FOrigin.Y + Trunc(PixelsPerLy*(proj.Y - FMapSpan.Top)) + fontSize div 2 + 6;
+        if elevationf then
+          pt.Y := pt.Y - Trunc((FColonies[i].StarPosY-midY)*PixelsPerLy/6);
+        if pt.X < -radius then continue;
+        if pt.Y < -radius then continue;
+        if pt.X > FMap.Width + radius then continue;
+        if pt.Y > FMap.Height + radius then continue;
+        r.Left := pt.X - radius;
+        r.Right := pt.X + radius;
+        r.Top := pt.Y - radius;
+        r.Bottom := pt.Y + radius;
+        Brush.Color := $402000 + 32*(i mod 2);
+        Ellipse(r);
+      end;
+      Brush.Style := bsClear;
     end;
 
     laneStyle := LinkStyleCombo.Text;
@@ -1274,6 +1314,9 @@ begin
           starSymbol := '✦';
         Font.Size := fontSize + 4; //default star size is somewhat small
 
+        //if sys.Population > 100000000 then
+        //  starSymbol := '✹';
+
         //targets
         if (sys.Population = 0) and not sys.PrimaryDone and (sys.Architect <> '') then
           starSymbol := '⛶';
@@ -1337,6 +1380,16 @@ begin
           if sys.ClaimDate > FHistory.Strings[FHistoryEntry] then
             continue;
 
+        if sys <> FSelectedSystem then
+        if sys.CurrentGoals = '' then
+        if sys.AlterName = '' then
+        case othernamesf of
+          0: ; //show all names
+          1: if not sys.IsOwnColony and (sys.Population < 10000000) then goto LSkipLabelPrint;
+          2: if not sys.IsOwnColony then goto LSkipLabelPrint;
+        end;
+
+
         Font.Size := fontSize;
         pt.X := pt.X + labOffSetX;
         pt.Y := pt.Y + labOffSetY;
@@ -1388,6 +1441,7 @@ LSkipLabelReposition:;
           if Opts.Flags['ShowAlterNames'] then s := sys.AlterName;
         TextOut(r.Left,r.Top,s);
 
+LSkipLabelPrint:;
         Pen.Color := $606060;
         s := '';
         // s2 := '';
@@ -1629,6 +1683,7 @@ LSkipLabelReposition:;
             for i2 := 0 to sys.Stations.Count - 1 do
             with TMarket(sys.Stations[i2]) do
               if Pos('shipyard',Services) > 0 then
+              if Pos('Carrier',StationType) <= 0 then
                 Inc(cnt1);
             s := '';
             if cnt1 > 0  then s := s + '🚀' + cnt1.ToString + ' ';
@@ -1664,6 +1719,7 @@ LSkipLabelReposition:;
             for i2 := 0 to sys.Stations.Count - 1 do
             with TMarket(sys.Stations[i2]) do
               if Pos('exploration',Services) > 0 then
+              if Pos('Carrier',StationType) <= 0 then
                 if LPads > 0 then
                   Inc(cnt1)
                 else

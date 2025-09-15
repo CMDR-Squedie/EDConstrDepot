@@ -86,6 +86,9 @@ type
     UseMaxRequestMenuItem: TMenuItem;
     Label18: TLabel;
     FactionCombo: TComboBox;
+    SetActiveButton: TButton;
+    Label20: TLabel;
+    SystemLabel: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure TypeComboChange(Sender: TObject);
     procedure OKButtonClick(Sender: TObject);
@@ -108,6 +111,8 @@ type
     procedure UseAvgRequestMenuItemClick(Sender: TObject);
     procedure ClearMatListMenuItemClick(Sender: TObject);
     procedure PasteRequestMenuItemClick(Sender: TObject);
+    procedure SetActiveButtonClick(Sender: TObject);
+    procedure SystemLabelClick(Sender: TObject);
   private
     { Private declarations }
     FCurrentStation: TBaseMarket;
@@ -131,7 +136,7 @@ implementation
 
 {$R *.dfm}
 
-uses SystemInfo, Main, MaterialList, ConstrTypes;
+uses SystemInfo, Main, MaterialList, ConstrTypes, Splash, Clipbrd;
 
 procedure TStationInfoForm.RestoreAndShow;
 begin
@@ -309,6 +314,13 @@ begin
   FDataChanged := True;
 end;
 
+procedure TStationInfoForm.SetActiveButtonClick(Sender: TObject);
+begin
+  if FCurrentStation.MarketID <> '' then
+  if FCurrentStation is TConstructionDepot then
+    EDCDForm.SetDepot(FCurrentStation.MarketID,false);
+end;
+
 procedure TStationInfoForm.SetStation(st: TBaseMarket);
 var i: Integer;
     m: TMarket;
@@ -321,6 +333,10 @@ begin
   end;
   FCurrentStation := st; //
   FCurrentSystem := st.GetSys;
+  SystemLabel.Caption := st.StarSystem;
+  if FCurrentSystem <> nil then
+    if FCurrentSystem.AlterName <> '' then
+      SystemLabel.Caption := st.StarSystem + ' (' + FCurrentSystem.AlterName + ')';
   NameEdit.Text := FCurrentStation.StationName;
   CommentEdit.Text := FCurrentStation.GetComment;
   BuildOrderEdit.Text := IntToStr(FCurrentStation.BuildOrder);
@@ -384,8 +400,14 @@ begin
   PrimaryCheck.Checked := (FCurrentStation.GetSys.PrimaryPortId <> '') and
     (FCurrentStation.GetSys.PrimaryPortId = FCurrentStation.MarketID);
 
-  PasteMatButton.Visible := (FCurrentStation is TConstructionDepot) and (FCurrentStation.Status = '');
+  PasteMatButton.Enabled := (FCurrentStation is TConstructionDepot) and (FCurrentStation.Status = '');
   FDataChanged := False;
+end;
+
+procedure TStationInfoForm.SystemLabelClick(Sender: TObject);
+begin
+  Clipboard.AsText := SystemLabel.Caption;
+  SplashForm.ShowInfo('System name copied...',1000);
 end;
 
 procedure TStationInfoForm.NewConstruction(sys: TStarSystem; body: string);

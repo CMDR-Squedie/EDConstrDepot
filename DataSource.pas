@@ -175,6 +175,7 @@ public
   OrbitalInclination: Extended;
   OrbitalPeriod: Extended;
   RotationPeriod: Extended;
+  Radius: Extended;
   AxialTilt: Extended;
   GeologicalSignals: Integer;
   BiologicalSignals: Integer;
@@ -191,6 +192,8 @@ public
   Comment: string;
   PrimaryLoc: Boolean;
   LabelPos: TPoint;
+  OrbSlots: Integer;
+  SurfSlots: Integer;
   procedure UpdateEconomies;
   function Economies: TEconomyArray;
   function BaseEconomies: TEconomyArray;
@@ -237,6 +240,8 @@ private
   FBodies: TStringList;
   FResourceReserve: string;
   FShared: Boolean;
+  FOrbitalSlots: Integer;
+  FSurfaceSlots: Integer;
   function GetFactions_short: string;
   function GetFactions_full: string;
   function GetArchitectName: string;
@@ -244,6 +249,8 @@ private
   procedure SetArchitect(s: string);
   procedure SetAlterName(s: string);
   procedure Delete;
+  function GetOrbitalSlots: Integer;
+  function GetSurfaceSlots: Integer;
 public
   StarSystem: string;
   SystemAddress: string;
@@ -265,8 +272,6 @@ public
   Objectives: string;
   Ignored: Boolean;
   NavBeaconScan: Boolean;
-  OrbitalSlots: Integer;
-  SurfaceSlots: Integer;
   TaskGroup: string;
   MapKey: Integer;
   Constructions: TList; //on demand, eg. in Map View;
@@ -303,6 +308,8 @@ published
   property ArchitectName: string read GetArchitectName write SetArchitectByName;
   property Architect: string read FArchitect write SetArchitect;
   property AlterName: string read FAlterName write SetAlterName;
+  property OrbitalSlots: Integer read GetOrbitalSlots write FOrbitalSlots;
+  property SurfaceSlots: Integer read GetSurfaceSlots write FSurfaceSlots;
 end;
 
 TBaseMarket = class
@@ -371,10 +378,12 @@ TConstructionDepot = class (TBaseMarket)
   Planned: Boolean;
   Simulated: Boolean;
   ActualHaul: Integer;
+  Contribution: Integer;
   LinkHub: Boolean; //true if a port is collecting links; irrelevant for facilities
   CustomRequest: string;
   ReplacedWith: string; //session only, when player's construction is replaced with actual one by name
   procedure UpdateHaul;
+  procedure UpdateContribution(j: TJSONObject);
   procedure PasteRequest;
   function InProgress: Boolean;
   function CheckDependencies(const constrList: TList = nil): Boolean;
@@ -391,7 +400,7 @@ type TEconomySets = class
   function GetStationEconomies(cd: TConstructionDepot; b: TSystemBody): TEconomyArray;
   function GetStationEconomies_nice(cd: TConstructionDepot; b: TSystemBody): string;
   function GetLinkEconomies(cd: TConstructionDepot; b: TSystemBody): TEconomyArray;
-  function GetWeakLinkEconomies(cd: TConstructionDepot): TEconomyArray;
+  function GetWeakLinkEconomies(cd: TConstructionDepot; b: TSystemBody): TEconomyArray;
   function GetUpLinkEconomies(cd: TConstructionDepot; b: TSystemBody): TEconomyArray;
   function GetLinkEconomies_nice(cd: TConstructionDepot; b: TSystemBody): string;
   procedure Load;
@@ -455,6 +464,7 @@ type TEDDataSource = class (TDataModule)
     FCurrentCmdr: string;
     FCurrentSystem: string;
     FCargo: TStock;
+    FCargoRacks: TStock;
     FFileDates: THashedStringList;
     FLastConstrTimes: THashedStringList;
     FItemCategories: THashedStringList;
@@ -490,6 +500,7 @@ type TEDDataSource = class (TDataModule)
     FLastBody: string;
     FDoingBackup: Boolean;
     FBackupFile: string;
+    FBackupFileNr,FBackupLineCnt: Integer;
     FLastConstructionDone: string;
     FConstructionTypes: TConstructionTypes;
     FEconomySets: TEconomySets;
@@ -499,6 +510,8 @@ type TEDDataSource = class (TDataModule)
     FRoutes: TStringList;
     FDocked: Boolean;
     FProcessedEvents: THashedStringList;
+    FModules: THashedStringList;
+    FLastLoadoutUpdTime: string;
 
     procedure SetDataChanged;
     function CheckLoadFromFile(var sl: TStringList; fn: string): Boolean;
@@ -510,6 +523,7 @@ type TEDDataSource = class (TDataModule)
     procedure UpdateCargo;
     procedure UpdateMarket;
     procedure UpdateCapacity;
+    procedure UpdateCapacity2(js: string);
     procedure UpdateSimDepot;
     procedure UpdateFromJournal(fn: string; jrnl: TStringList);
     procedure NotifyListeners;
@@ -517,7 +531,8 @@ type TEDDataSource = class (TDataModule)
     procedure SetTaskGroup(s: string);
     procedure UpdateDockTime(tms: string; m: TBaseMarket);
     procedure RemoveIdleDockTime(tms: string);
-    procedure CalcShipRanges(j: TJSONObject);
+    procedure UpdateModules(j: TJSONObject);
+    procedure AppendToBackupFile(js: string);
   public
     //todo: switch to THashedStringList and TDictionary
 
@@ -1179,33 +1194,56 @@ begin
       Result[ei] := Result[ei] + b.EconomyBonuses[ei];
 end;
 
-function TEconomySets.GetWeakLinkEconomies(cd: TConstructionDepot): TEconomyArray;
+function TEconomySets.GetWeakLinkEconomies(cd: TConstructionDepot; b: TSystemBody): TEconomyArray;
 var ei: TEconomy;
     ct: TConstructionType;
     ecos: string;
     es: TEconomySet;
     ts: string;
     i: Integer;
+label LBodyEcoOnly;
 begin
   for ei := Low(TEconomy) to High(TEconomy) do Result[ei] := 0;
   ct := cd.GetConstrType;
   if ct = nil then Exit;
+
+  ts := LowerCase('T' + ct.Tier + ' ' + ct.Category);
+
   ecos := ct.Influence;
   if ecos = '' then
     if ct.IsPort then
       if not cd.LinkHub then
-         ecos := ct.Economy; //ports that are up-linking to other ports work like facilities
+      begin
+        //ports that are up-linking to other ports work like facilities
+        ecos := ct.Economy;
+        if (ecos = '') or (ecos = 'Colony') then
+        begin
+          //this is so sick... as of Trailblazers Upd.3, ports that turned to facilities
+          //generate weak links from planetary influence!!!
+          if b <> nil then
+          for ei := Low(TEconomy) to High(TEconomy) do
+            if b.BaseEconomies[ei] > 0 then
+              for i := 0 to DataSrc.FEconomySets.WeakLinks.Count - 1 do
+              begin
+                es := TEconomySet(DataSrc.FEconomySets.WeakLinks.Objects[i]);
+                if (es.Condition = '') or (Pos(es.Condition,ts) > 0) then
+                  Result[ei] := Result[ei] + es.Economies[ecoInhe];
+              end;
+          Exit;
+        end;
+      end;
   if ecos = '' then Exit;
   if ecos = 'Colony' then Exit;
   ei := DataSrc.EcoFromName(ecos);
 
-  ts := LowerCase('T' + ct.Tier + ' ' + ct.Category);
   for i := 0 to DataSrc.FEconomySets.WeakLinks.Count - 1 do
   begin
     es := TEconomySet(DataSrc.FEconomySets.WeakLinks.Objects[i]);
     if (es.Condition = '') or (Pos(es.Condition,ts) > 0) then
       Result[ei] := Result[ei] + es.Economies[ecoInhe];
   end;
+
+
 end;
 
 function TEconomySets.GetStationEconomies_nice(cd: TConstructionDepot; b: TSystemBody): string;
@@ -1609,6 +1647,21 @@ begin
   end;
 end;
 
+procedure TConstructionDepot.UpdateContribution(j: TJSONObject);
+var jarr: TJSONArray;
+    i,q: Integer;
+begin
+  try
+    jarr := j.GetValue<TJSONArray>('Contributions');
+    for i := 0 to jarr.Count - 1 do
+    begin
+      jarr[i].TryGetValue<Integer>('Amount',q);
+      self.Contribution := self.Contribution + q;
+    end;
+  except
+  end;
+end;
+
 function TConstructionDepot.InProgress: Boolean;
 begin
   Result := not Planned and not Finished;
@@ -1900,6 +1953,8 @@ begin
 
     j.TryGetValue<Extended>('SurfaceGravity',SurfaceGravity);
     SurfaceGravity := SurfaceGravity / 9.80665;
+    j.TryGetValue<Extended>('Radius',Radius);
+    Radius := Radius / 1000;
     j.TryGetValue<Extended>('SemiMajorAxis',SemiMajorAxis);
     SemiMajorAxis := SemiMajorAxis / 1000000;
     j.TryGetValue<Extended>('OrbitalInclination',OrbitalInclination);
@@ -2065,6 +2120,7 @@ begin
             Volcanism := Copy(Volcanism,1,Length(Volcanism) - 8);
 
           jarr[i].TryGetValue<Extended>('gravity',SurfaceGravity);
+          jarr[i].TryGetValue<Extended>('radius',Radius);
           jarr[i].TryGetValue<Extended>('semiMajorAxis',SemiMajorAxis);
           SemiMajorAxis := SemiMajorAxis * 149597.8707;  //Mm
           jarr[i].TryGetValue<Extended>('orbitalInclination',OrbitalInclination);
@@ -2181,7 +2237,7 @@ end;
 
 procedure TStarSystem.Save(const sharedf: Boolean = false);
 var j,j2: TJSONObject;
-    fn,fld: string;
+    s,fn,fld: string;
     sarr: TJSONArray;
     st: TJSONObject;
     i: Integer;
@@ -2246,7 +2302,7 @@ begin
   for i := 0 to FBodies.Count - 1 do
     if FBodies[i] <> '?' then
     with TSystemBody(FBodies.Objects[i]) do
-      if FeaturesModified or (LabelPos.X > 0) then
+      if FeaturesModified or (LabelPos.X > 0) or (OrbSlots+SurfSlots>0) then
       begin
         st := TJSONObject.Create;
         st.AddPair(TJSONPair.Create('BodyID', BodyID));
@@ -2264,6 +2320,10 @@ begin
           st.AddPair(TJSONPair.Create('LabelPosX', LabelPos.X));
           st.AddPair(TJSONPair.Create('LabelPosY', LabelPos.Y));
         end;
+        if OrbSlots > 0 then
+          st.AddPair(TJSONPair.Create('OrbSlots', OrbSlots));
+        if SurfSlots > 0 then
+          st.AddPair(TJSONPair.Create('SurfSlots', SurfSlots));
         sarr.Add(st);
       end;
 
@@ -2356,6 +2416,24 @@ begin
   if SystemAddress <> '' then
     fn := DataSrc.FWorkingDir + 'colonies\' + SystemAddress + '.json';
   DeleteFile(PChar(fn));
+end;
+
+function TStarSystem.GetOrbitalSlots: Integer;
+var i: Integer;
+begin
+  Result := FOrbitalSlots;
+  if Result = 0 then
+    for i := 0 to FBodies.Count - 1 do
+      Result := Result + TSystemBody(FBodies.Objects[i]).OrbSlots;
+end;
+
+function TStarSystem.GetSurfaceSlots: Integer;
+var i: Integer;
+begin
+  Result := FSurfaceSlots;
+  if Result = 0 then
+    for i := 0 to FBodies.Count - 1 do
+      Result := Result + TSystemBody(FBodies.Objects[i]).SurfSlots;
 end;
 
 function TStarSystem.GetArchitectName: string;
@@ -2550,8 +2628,8 @@ begin
         j.TryGetValue<Boolean>('Ignored',Ignored);
         j.TryGetValue<string>('FSystemScan_EDSM',SystemScan_EDSM);
         j.TryGetValue<string>('PrimaryPortId',PrimaryPortId);
-        j.TryGetValue<Integer>('OrbitalSlots',OrbitalSlots);
-        j.TryGetValue<Integer>('SurfaceSlots',SurfaceSlots);
+        j.TryGetValue<Integer>('OrbitalSlots',FOrbitalSlots);
+        j.TryGetValue<Integer>('SurfaceSlots',FSurfaceSlots);
         j.TryGetValue<string>('TaskGroup',TaskGroup);
         j.TryGetValue<Integer>('MapKey',MapKey);
         j.TryGetValue<double>('StarPosX',StarPosX);
@@ -2621,7 +2699,8 @@ begin
             if b = nil then continue;
             with b do
             begin
-              jarr[i].TryGetValue<string>('BodyName',b.BodyName);
+              jarr[i].TryGetValue<string>('BodyName',s);
+              if s <> '' then b.BodyName := s;
               jarr[i].TryGetValue<Integer>('BiologicalSignals',b.BiologicalSignals);
               jarr[i].TryGetValue<Integer>('GeologicalSignals',b.GeologicalSignals);
               jarr[i].TryGetValue<string>('ReserveLevel',b.ReserveLevel);
@@ -2629,6 +2708,8 @@ begin
               jarr[i].TryGetValue<Boolean>('PrimaryLoc',b.PrimaryLoc);
               jarr[i].TryGetValue<Integer>('LabelPosX',b.LabelPos.X);
               jarr[i].TryGetValue<Integer>('LabelPosY',b.LabelPos.Y);
+              jarr[i].TryGetValue<Integer>('OrbSlots',b.OrbSlots);
+              jarr[i].TryGetValue<Integer>('SurfSlots',b.SurfSlots);
               FeaturesModified := True;
             end;
           end;
@@ -3072,6 +3153,8 @@ begin
   end;
 end;
 
+//ModuleInfo is NOT updated when swapping accounts or modules
+//so this routine is not used
 procedure TEDDataSource.UpdateCapacity;
 var j: TJSONObject;
     jarr: TJSONArray;
@@ -3099,6 +3182,81 @@ begin
     FCapacity := orgCapacity;
   end;
   sl.Free;
+end;
+
+procedure TEDDataSource.UpdateCapacity2(js: string);
+var j: TJSONObject;
+    jarr: TJSONArray;
+    i: Integer;
+    ev,tms,s,eng,slot,curmod,newmod: string;
+
+begin
+  try
+    j := TJSONObject.ParseJSONValue(js) as TJSONObject;
+    try
+      j.TryGetValue<string>('event',ev);
+      j.TryGetValue<string>('timestamp',tms);
+      if tms <= FLastLoadoutUpdTime then Exit;
+      if tms < DateToISO8601(Now-1) then Exit;
+
+      slot := '';
+      newmod := '';
+      eng := '';
+
+      if (ev = 'ModuleRetrieve') or (ev = 'ModuleBuy') then
+      begin
+        j.TryGetValue<string>('Slot',slot);
+        if slot = '' then Exit;
+        curmod := FModules.Values[slot];
+        newmod := '';
+        j.TryGetValue<string>('RetrievedItem',newmod);
+        if newmod = '' then
+          j.TryGetValue<string>('BuyItem',newmod);
+        newmod := Copy(newmod,2,Length(newmod)-7);
+
+        j.TryGetValue<string>('EngineerModifications',eng);
+        s := newmod + ';' + eng;
+
+        FCapacity := FCapacity + FCargoRacks.Qty[s];
+
+        if curmod <> '' then
+          FCapacity := FCapacity - FCargoRacks.Qty[curmod];
+        FModules.Values[slot] := s;
+      end;
+
+      if (ev = 'ModuleStore') or (ev = 'ModuleSell') then
+      begin
+        j.TryGetValue<string>('Slot',slot);
+        if slot = '' then Exit;
+        curmod := FModules.Values[slot];
+        if curmod <> '' then
+          FCapacity := FCapacity - FCargoRacks.Qty[curmod];
+        FModules.Values[slot] := '';
+      end;
+
+      if ev = 'MassModuleStore' then
+      begin
+        jarr := nil;
+        j.TryGetValue<TJSONArray>('Items',jarr);
+        if jarr <> nil then
+        for i := 0 to jarr.Count - 1 do
+        begin
+          jarr[i].TryGetValue<string>('Slot',slot);
+          if slot = '' then continue;
+          curmod := FModules.Values[slot];
+          if curmod <> '' then
+            FCapacity := FCapacity - FCargoRacks.Qty[curmod];
+          FModules.Values[slot] := '';
+        end;
+      end;
+
+      FLastLoadoutUpdTime := tms;
+    finally
+      j.Free;
+    end;
+  except
+  end;
+
 end;
 
 procedure TEDDataSource.UpdateCargo;
@@ -3314,11 +3472,11 @@ begin
   end;
 end;
 
-procedure TEDDataSource.CalcShipRanges(j: TJSONObject);
+procedure TEDDataSource.UpdateModules(j: TJSONObject);
 var jarr: TJSONArray;
     i: Integer;
     nominalRange,rangeBoost, minFuel: Extended;
-    s: string;
+    slot,item,eng,s: string;
 begin
   //MaxJumpRange seems to be calculated with fuel tank filled to one jump...
   //all subsequent calculations match perfectly in-game calculations
@@ -3328,19 +3486,28 @@ begin
   minFuel := 0;  //max fuel per one jump
   rangeBoost := 0;
 
+  FModules.Clear;
   try
     jarr := j.GetValue<TJSONArray>('Modules');
     for i := 0 to jarr.Count - 1 do
     begin
-      s := '';
-      jarr[i].TryGetValue('Item',s);
-      if s = 'int_guardianfsdbooster_size1' then rangeBoost := 4.00 else
-      if s = 'int_guardianfsdbooster_size2' then rangeBoost := 6.00 else
-      if s = 'int_guardianfsdbooster_size3' then rangeBoost := 7.75 else
-      if s = 'int_guardianfsdbooster_size4' then rangeBoost := 9.25 else
-      if s = 'int_guardianfsdbooster_size5' then rangeBoost := 10.50 else
-      if s = 'int_hyperdrive_overcharge_size7_class5' then minFuel := 12.00;
+      item := '';
+      slot := '';
+      eng := '';
+      jarr[i].TryGetValue('Item',item);
+      jarr[i].TryGetValue('Slot',slot);
+      jarr[i].TryGetValue('Engineering.BlueprintName',eng);
 
+      if item = 'int_guardianfsdbooster_size1' then rangeBoost := 4.00 else
+      if item = 'int_guardianfsdbooster_size2' then rangeBoost := 6.00 else
+      if item = 'int_guardianfsdbooster_size3' then rangeBoost := 7.75 else
+      if item = 'int_guardianfsdbooster_size4' then rangeBoost := 9.25 else
+      if item = 'int_guardianfsdbooster_size5' then rangeBoost := 10.50 else
+      if item = 'int_hyperdrive_overcharge_size7_class5' then minFuel := 12.00;
+
+      jarr[i].TryGetValue('Item',item);
+
+      FModules.Values[slot] := item + ';' + eng;
     end;
   except
   end;
@@ -3353,6 +3520,24 @@ begin
   FLadenJumpRange := FBaseJumpRange * (FHullMass  + minFuel) / (FHullMass + FFuelMass + FCapacity) + rangeBoost;
 end;
 
+procedure TEDDataSource.AppendToBackupFile(js: string);
+var fn: string;
+    dt: TDateTime;
+begin
+  if FBackupLineCnt = 0 then
+  begin
+    dt := Now;
+    FBackupFile := 'journal.' + DateToISO8601(dt).Replace(':','') + '.backup' + IntToStr(FBackupFileNr).PadLeft(3,'0') + '.log';
+  end;
+  System.IOUtils.TFile.AppendAllText(FWorkingDir + FBackupFile,js+Chr(13),TEncoding.ASCII);
+  Inc(FBackupLineCnt);
+  if FBackupLineCnt > 32000 then
+  begin
+    FBackupLineCnt := 0;
+    Inc(FBackupFileNr);
+  end;
+  
+end;
 
 procedure TEDDataSource.UpdateFromJournal(fn: string; jrnl: TStringList);
 var j: TJSONObject;
@@ -3440,12 +3625,23 @@ begin
           continue;
         end;
 
+
+          if (s = 'ModuleStore') or (s = 'ModuleRetrieve') or (s = 'MassModuleStore') or
+             (s = 'ModuleBuy') or (s = 'ModuleSell') then
+          begin
+            UpdateCapacity2(js);
+            SetDataChanged;
+            continue;
+          end;
+
+
         if (s<>'Commander') and
            (s<>'Shutdown') and
 //core events
            (s<>'Loadout') and
            (s<>'Docked') and
            (s<>'ColonisationConstructionDepot') and
+//           (s<>'ColonisationContribution') and
 
 //delivery time only
            (s<>'Undocked') and
@@ -3479,10 +3675,9 @@ begin
         event := s;
         orgevent := event;
 
-
         if FDoingBackup then
         begin
-          System.IOUtils.TFile.AppendAllText(FWorkingDir + FBackupFile,js+Chr(13),TEncoding.ASCII);
+          AppendToBackupFile(js);
           continue;
         end;
 
@@ -3516,7 +3711,8 @@ begin
         if event = 'Loadout' then
         begin
           FCapacity := j.GetValue<Integer>('CargoCapacity');
-          CalcShipRanges(j);
+          FLastLoadoutUpdTime := tms;
+          UpdateModules(j);
           goto LUpdateTms;
         end;
 
@@ -3804,6 +4000,13 @@ begin
             end;
           end;
         end;
+
+        if event = 'ColonisationContribution' then
+        begin
+          cd := DepotForMarketId(mID);
+          cd.UpdateContribution(j);
+        end;
+
 
         if event = 'ColonisationConstructionDepot' then
         begin
@@ -4214,27 +4417,19 @@ end;
 procedure TEDDataSource.DoBackup;
 var sl: TStringList;
     fn,jsd: string;
-    res,fnr,fcnt: Integer;
+    res: Integer;
     fa: DWord;
     srec: TSearchRec;
-    dt: TDateTime;
-
-    procedure SetBkpFileName;
-    begin
-      FBackupFile := 'journal.' + DateToISO8601(dt) + '.backup' + IntToStr(fnr).PadLeft(3,'0') + '.log';
-      FBackupFile := FBackupFile.Replace(':','');
-    end;
 begin
   sl := TStringList.Create;
   try
     FDoingBackup := True;
-    dt := Now;
-    fnr := 1;
-    SetBkpFileName;
+    FBackupLineCnt := 0;
+    FBackupFileNr := 1;
+
     fn := '';
     jsd := Opts['JournalStart'];
     res := FindFirst(FJournalDir + 'journal.*.log', faAnyFile, srec);
-    fcnt := 0;
     while res = 0 do
     begin
       fn := LowerCase(srec.Name);
@@ -4244,13 +4439,6 @@ begin
         sl.Clear;
         try _share_LoadFromFile(sl,FJournalDir + srec.Name); except end;
         UpdateFromJournal(srec.Name,sl);
-        fcnt := fcnt + 1;
-        if fcnt > 100 then
-        begin
-          fcnt := 0;
-          fnr := fnr + 1;
-          SetBkpFileName;
-        end;
       end;
       res := FindNext(srec);
     end;
@@ -4586,6 +4774,8 @@ begin
   FEconomySets := TEconomySets.Create;
   FCurrentRoute := TStarRoute.Create;
   FRoutes := TStringList.Create;
+  FCargoRacks := TStock.Create;
+  FModules := THashedStringList.Create;
   FDataChanged := false;
 
   {
@@ -4629,6 +4819,7 @@ begin
   try FMarketLevels.LoadFromFile(FWorkingDir + 'market_level.txt') except end;
   try FMarketGroups.LoadFromFile(FWorkingDir + 'market_groups.txt') except end;
   try FRoutes.LoadFromFile(FWorkingDir + 'routes.txt',TEncoding.UTF8) except end;
+  try FCargoRacks.LoadFromFile(FWorkingDir + 'cargo_racks.txt') except end;
 
 
 //  UpdTimer.Enabled := True;
