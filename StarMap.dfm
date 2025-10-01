@@ -271,7 +271,7 @@ object StarMapForm: TStarMapForm
         Width = 137
         Height = 24
         Style = csDropDownList
-        DropDownCount = 16
+        DropDownCount = 18
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText
         Font.Height = -13
@@ -294,6 +294,9 @@ object StarMapForm: TStarMapForm
           
             #55357#56426' Population                                                   ' +
             '          PP'
+          
+            #55357#56426' Population (w/labels)                                        ' +
+            '     PP2'
           
             #9203'  Last Visit                                                   ' +
             '             LV'
@@ -321,6 +324,9 @@ object StarMapForm: TStarMapForm
           
             #55356#57286' System Score                                                 ' +
             '        SC'
+          
+            #55356#57286' System Score (w/labels)                                      ' +
+            '   SC2'
           
             #55357#56658' Colonization History                                         ' +
             '        AH')

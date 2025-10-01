@@ -800,15 +800,17 @@ begin
           s := m.StationName_full;
       end;
       addCaption(s);
-      s := '(Active)';
-      if cd.Finished then
-        s := '(Finished)'
+      s := '';
+      if cd.Simulated then
+        s := '(Simul.)'
       else
-        if cd.Planned then
-          s := '(Planned)'
-        else
-          if cd.Simulated then
-            s := '(Simul.)';
+        case cd.ConstrStatus of
+          csInProgress: s := '(Active)';
+          csFinished: s := '(Finished)';
+          csCancelled: s := '(Cancelled)';
+          csTentative: ;
+          csPlanned: s := '(Planned)';
+        end;
       if cd.GetConstrType <> nil then
         s := s + ' ' + cd.GetConstrType.StationType_full;
       addSubItem(s);

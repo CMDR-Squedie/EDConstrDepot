@@ -21,6 +21,15 @@ type TMarketLevel = (
   miLast
 );
 
+type TConstructionStatus = (
+  csInProgress = 0,
+  csFinished = 1,
+  csCancelled = 2,
+  csTentative = 3,
+  csPlanned = 4
+//  csSimulated = 9,
+);
+
 type TStock = class(THashedStringList)
     procedure SetQty(const Name: string; v: Integer);
     function GetQty(const Name: string): Integer;
@@ -279,6 +288,7 @@ public
   NearestColony: TStarSystem; //on demand, Map View only
   ColonyPlanner: TColonyPlanner;
   function IsOwnColony: Boolean;
+  function IsColTarget: Boolean;
   function ResourceReserve: string;
   function DistanceTo(s: TStarSystem): Double;
   function PopForTimeStamp(tms: string): Int64;
@@ -366,17 +376,23 @@ public
 end;
 
 TMarket = class (TBaseMarket)
-  Economies: string; //this changes on dock
-  MarketEconomies: string; //this changes on market visit
+  Economies: string; //updated on dock
+  MarketEconomies: string; //updated on market visit
   HoldSnapshots: Boolean;
   Snapshot: Boolean;
 end;
 
 TConstructionDepot = class (TBaseMarket)
-  Finished: Boolean;
-  DepotComplete: Boolean; //player actually docked and finished the construction?
-  Planned: Boolean;
+  ConstrStatus: TConstructionStatus;
+  //Cancelled: Boolean;
+  //Valid/Actual/Verified?
+
+//  Finished: Boolean;
+//  Planned: Boolean;
+
   Simulated: Boolean;
+
+  DepotComplete: Boolean; //player actually docked and finished the construction?
   ActualHaul: Integer;
   Contribution: Integer;
   LinkHub: Boolean; //true if a port is collecting links; irrelevant for facilities
@@ -385,8 +401,11 @@ TConstructionDepot = class (TBaseMarket)
   procedure UpdateHaul;
   procedure UpdateContribution(j: TJSONObject);
   procedure PasteRequest;
-  function InProgress: Boolean;
   function CheckDependencies(const constrList: TList = nil): Boolean;
+  function InProgress: Boolean;
+  function Finished: Boolean;
+  function Planned: Boolean;
+  function Cancelled: Boolean;
 end;
 
 type TEconomySets = class
@@ -1664,7 +1683,22 @@ end;
 
 function TConstructionDepot.InProgress: Boolean;
 begin
-  Result := not Planned and not Finished;
+  Result := ConstrStatus = csInProgress; //not Planned and not Finished;
+end;
+
+function TConstructionDepot.Planned: Boolean;
+begin
+  Result := ConstrStatus = csPlanned;
+end;
+
+function TConstructionDepot.Finished: Boolean;
+begin
+  Result := ConstrStatus = csFinished;
+end;
+
+function TConstructionDepot.Cancelled: Boolean;
+begin
+  Result := ConstrStatus = csCancelled;
 end;
 
 function TConstructionDepot.CheckDependencies(const constrList: TList = nil): Boolean;
@@ -1688,6 +1722,11 @@ begin
   Result := (Architect <> '') and (PrimaryDone or (Population > 0));
   if Result then
     if DataSrc.Commanders.Values[Architect] = '' then Result := False;
+end;
+
+function TStarSystem.IsColTarget;
+begin
+  Result := Architect = '(target)';
 end;
 
 function TStarSystem.ResourceReserve: string;
@@ -1752,7 +1791,7 @@ begin
     begin
       ct := GetConstrType;
       if ct <> nil then
-         Result := Result+ ct.Score;
+         Result := Result + ct.Score;
     end;
 end;
 
@@ -2284,8 +2323,9 @@ begin
         st.AddPair(TJSONPair.Create('Name', StationName));
         st.AddPair(TJSONPair.Create('Body', Body));
         st.AddPair(TJSONPair.Create('ConstructionType', ConstructionType));
-        st.AddPair(TJSONPair.Create('Planned', Planned));
-        st.AddPair(TJSONPair.Create('Finished', Finished));
+//        st.AddPair(TJSONPair.Create('Planned', Planned));
+//        st.AddPair(TJSONPair.Create('Finished', Finished));
+        st.AddPair(TJSONPair.Create('ConstrStatus', Integer(ConstrStatus)));
         st.AddPair(TJSONPair.Create('Comment', Comment));
         st.AddPair(TJSONPair.Create('MarketLevel', Integer(MarketLevel)));
         st.AddPair(TJSONPair.Create('LinkedMarketId', LinkedMarketId));
@@ -2604,12 +2644,13 @@ var j,j2: TJSONObject;
     s, tms, mtyp, bodyId: string;
     sys: TStarSystem;
     pop: Int64;
-    i,mlev: Integer;
+    i,mlev,cs: Integer;
 //    cd: TConstructionDepot;
 //    m: TMarket;
     bm: TBaseMarket;
     ct: TConstructionType;
     b: TSystemBody;
+    planf,finf: Boolean;
 begin
   try
     j := TJSONObject.ParseJSONValue(js) as TJSONObject;
@@ -2674,8 +2715,17 @@ begin
               jarr[i].TryGetValue<string>('ConstructionType',bm.ConstructionType);
               jarr[i].TryGetValue<string>('LinkedMarketId',bm.LinkedMarketId);
               jarr[i].TryGetValue<Integer>('BuildOrder',bm.BuildOrder);
-              jarr[i].TryGetValue<Boolean>('Finished',TConstructionDepot(bm).Finished);
-              jarr[i].TryGetValue<Boolean>('Planned',TConstructionDepot(bm).Planned);
+              jarr[i].TryGetValue<Integer>('ConstrStatus',cs);
+              TConstructionDepot(bm).ConstrStatus := TConstructionStatus(cs);
+
+              //obsolete now, backward compatibility code
+              planf := False;
+              jarr[i].TryGetValue<Boolean>('Planned',planf);
+              if planf then TConstructionDepot(bm).ConstrStatus := csPlanned;
+              finf := False;
+              jarr[i].TryGetValue<Boolean>('Finished',finf);
+              if finf then TConstructionDepot(bm).ConstrStatus := csFinished;
+
               jarr[i].TryGetValue<string>('CustomRequest',TConstructionDepot(bm).CustomRequest);
               jarr[i].TryGetValue<string>('Faction',TConstructionDepot(bm).Faction);
               DataSrc.FConstructions.AddObject(bm.MarketId,bm);
@@ -3882,10 +3932,11 @@ begin
           if (Pos('Construction',s) > 0) or (Pos('ColonisationShip',s2) > 0) then
           begin
             cd := DepotForMarketId(mID);
-            cd.StarSystem := j.GetValue<string>('StarSystem');
             s := '';
             try s := j.GetValue<string>('StationName_Localised'); except end;
             if s = '' then s := j.GetValue<string>('StationName');
+            if s.Contains('_inactive') then
+              goto LUpdateTms; //accidental docking to finished primary
             if newstationf then
               cd.FOrbital_JRNL := Ord((Pos('Orbital ',s) > 0));
             cpos := Pos(': ',s);
@@ -3904,6 +3955,7 @@ begin
             try
               cd.DistFromStar := Trunc(j.GetValue<single>('DistFromStarLS'));
             except end;
+            cd.StarSystem := j.GetValue<string>('StarSystem');
             if cd.Body = '' then cd.Body := FLastBody;
 
             cd.LastDock := tms;
@@ -4022,7 +4074,8 @@ begin
             if s = 'true' then
             begin
               cd.DepotComplete := true;
-              cd.Finished := true;
+              if not cd.Cancelled then
+                cd.ConstrStatus := csFinished;
               sys := FStarSystems.SystemByName[cd.StarSystem];
               if sys <> nil then sys.PrimaryDone := True;
               FLastConstructionDone := mID;
@@ -4518,6 +4571,7 @@ begin
     sys := DataSrc.Constructions[i].GetSys;
     if sys <> nil then
       if sys.Constructions <> nil then
+        if not DataSrc.Constructions[i].Cancelled then
         if not DataSrc.Constructions[i].Simulated then
           sys.Constructions.Add(DataSrc.Constructions[i]);
   end;

@@ -131,13 +131,13 @@ begin
   cd.StarSystem := FCurrentSystem.StarSystem;
   cd.Body := '?';
   cd.ConstructionType := ct.Id;
-  cd.Planned := True;
+  cd.ConstrStatus := csPlanned;
   cd.Modified := True;
   CreateGUID(UUID);
   cd.MarketId := GUIDToString(UUID);
   DataSrc.Constructions.AddObject(cd.MarketID,cd);
   FCurrentSystem.UpdateSave;
-  SetSystem(FCurrentSystem,FCP2,FCP3);
+  SetSystem(FCurrentSystem,FCP2,FCP3); //refresh
   SolveButtonClick(nil);
 end;
 

@@ -84,6 +84,7 @@ begin
       FCurrentBody.SurfSlots := StrToIntDef(SurfSlotsEdit.Text,0);
 
       FCurrentBody.FeaturesModified := True;
+      FCurrentBody.SysData.ResetEconomies;
       FCurrentBody.SysData.Save;
       FDataChanged := False;
     finally

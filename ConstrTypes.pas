@@ -400,7 +400,7 @@ begin
     cd.StarSystem := SystemInfoForm.CurrentSystem.StarSystem;
     cd.Body := TSystemBody(SystemInfoForm.CurrentSystem.Bodies.Objects[0]).BodyName;
     cd.ConstructionType := ct.Id;
-    cd.Planned := True;
+    cd.ConstrStatus := csPlanned;
     cd.Modified := True;
 
     CreateGUID(UUID);

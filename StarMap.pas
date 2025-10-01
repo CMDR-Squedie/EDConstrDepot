@@ -378,7 +378,7 @@ begin
   sl.Free;
 //  Exit;
 
-
+{
   for i := 0 to DataSrc.StarSystems.Count - 1 do
     if DataSrc.StarSystems[i].SystemScan_EDSM = '' then
     if not DataSrc.StarSystems[i].Ignored then
@@ -392,7 +392,7 @@ begin
       DataSrc.StarSystems[i].Save;
       Sleep(1000);
     end;
-
+}
 end;
 
 procedure TStarMapForm.AddToTargetsMenuItemClick(Sender: TObject);
@@ -880,7 +880,7 @@ var i,i2,i3,w,idx,si,margin,projectionX,projectionY,labOffsetX,labOffsetY,fontSi
     proj: TMapPos;
     linkRects: array [0..100] of TRect;
     linkRectsCnt: Integer;
-    maxSize,minPop,maxLinks,maxLinkCnt,curLinkCnt,maxDist,radius: Integer;
+    maxSize,minPop,maxLinks,maxLinkCnt,curLinkCnt,maxDist,radius,maxRadius: Integer;
     dt: TDateTime;
     PixelsPerLy,dist,totDist,dDt: Extended;
     starSymbol,s,laneStyle: string;
@@ -1096,18 +1096,29 @@ begin
 
 
 
-    if InfoLayer = 'PP' then
+    if (InfoLayer = 'PP') or (InfoLayer = 'SC') or
+       (InfoLayer = 'PP2') or (InfoLayer = 'SC2')then
     begin
       Pen.Color := $303030;
       Pen.Style := psSolid;
       Pen.Width := 1;
       Brush.Style := bsSolid;
+      maxRadius := Trunc(15*PixelsPerLy);
       for i := FColonies.Count - 1 downto 0 do    //Max(FColonies.Count - 12,0)
       begin
-        if FColonies[i].Population < 1000000 then continue;
+        if (InfoLayer = 'PP') or (InfoLayer = 'PP2') then
+        begin
+          if FColonies[i].Population < 1000000 then continue;
+          radius := Trunc(Power((FColonies[i].Population  div 100000),1/3)*4)
+        end
+        else
+        begin
+          radius := Trunc(Sqrt(FColonies[i].GetScore)*5);
+        end;
+        radius := Trunc(radius * (PixelsPerLy/10));
+        if radius > maxRadius then
+          radius := Trunc(maxRadius + Sqrt(radius-maxRadius)*2);
         getSysPos_projected(FColonies[i],proj);
-        radius := Trunc(Power((FColonies[i].Population  div 100000),1/3)*4);
-        radius := Trunc(radius * (FMapZoom/100));
         pt.X := -FOrigin.X + Trunc(PixelsPerLy*(proj.X - FMapSpan.Left)) + fontSize div 2 + 2;
         pt.Y := -FOrigin.Y + Trunc(PixelsPerLy*(proj.Y - FMapSpan.Top)) + fontSize div 2 + 6;
         if elevationf then
@@ -1125,6 +1136,7 @@ begin
       end;
       Brush.Style := bsClear;
     end;
+
 
     laneStyle := LinkStyleCombo.Text;
     if laneStyle = '' then laneStyle := 'A';
@@ -1239,8 +1251,8 @@ begin
             Pen.Color := $404040
           else
             if (FNeighbours[i].LastUpdate = '') or
-               (FNeighbours[i].Comment = '') or
-               (FSelectedSystem.LastUpdate = '') then
+               (FNeighbours[i].Comment = '') {or
+               (FSelectedSystem.LastUpdate = '')} then
               Pen.Color := clYellow;
 
         MoveTo(r.Left,r.Top);
@@ -1382,11 +1394,13 @@ begin
 
         if sys <> FSelectedSystem then
         if sys.CurrentGoals = '' then
+        if sys.Architect = '' then
         if sys.AlterName = '' then
+        //if not sys.IsOwnColony and not sys.IsColTarget  then
         case othernamesf of
           0: ; //show all names
-          1: if not sys.IsOwnColony and (sys.Population < 10000000) then goto LSkipLabelPrint;
-          2: if not sys.IsOwnColony then goto LSkipLabelPrint;
+          1: if sys.Population < 10000000 then goto LSkipLabelPrint;
+          2: goto LSkipLabelPrint;
         end;
 
 
@@ -1471,7 +1485,7 @@ LSkipLabelPrint:;
             Font.Color := $00A0FF;
           end;
 
-          if InfoLayer = 'SC' then
+          if InfoLayer = 'SC2' then
           if (sys.Population > 0) or sys.PrimaryDone then
           begin
             cnt1 := sys.GetScore;
@@ -1487,6 +1501,16 @@ LSkipLabelPrint:;
             else
               Font.Color := $00A000;
           end;
+
+
+          if InfoLayer = 'PP2' then
+          if sys.Population > 1000000 then
+          begin
+            cnt1 := sys.Population div 1000000;
+            s := '👥 ' + cnt1.ToString;
+            Font.Color := $808080;
+          end;
+
 
         {
           if InfoLayer = 'MF' then

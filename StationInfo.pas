@@ -18,7 +18,7 @@ type
     PlannedStatus: TRadioButton;
     StatusRadio2: TRadioButton;
     Label3: TLabel;
-    StatusRadio3: TRadioButton;
+    CancelledStatus: TRadioButton;
     Label4: TLabel;
     FinishedStatus: TRadioButton;
     Label5: TLabel;
@@ -167,8 +167,10 @@ begin
           if Vcl.Dialogs.MessageDlg('This station was previously tagged as Finished.' + Chr(13) +
              'Are you sure you want to change its status?',
              mtConfirmation, [mbYes, mbNo], 0, mbNo) = mrNo then Exit;
-        Finished := FinishedStatus.Checked;
-        Planned := PlannedStatus.Checked;
+        ConstrStatus := csInProgress;
+        if PlannedStatus.Checked then ConstrStatus := csPlanned;
+        if FinishedStatus.Checked then ConstrStatus := csFinished;
+        if CancelledStatus.Checked then ConstrStatus := csCancelled;
       end;
 
       if FCurrentStation.MarketId = '' then
@@ -395,6 +397,8 @@ begin
     StatusRadio2.Enabled := true;
     FinishedStatus.Checked := Finished;
     FinishedStatus.Enabled := true;
+    CancelledStatus.Checked := Cancelled;
+    CancelledStatus.Enabled := true;
   end;
 
   PrimaryCheck.Checked := (FCurrentStation.GetSys.PrimaryPortId <> '') and
@@ -419,7 +423,7 @@ begin
   cd := TConstructionDepot.Create;
   cd.StarSystem := sys.StarSystem;
   cd.Body := body;
-  cd.Planned := True;
+  cd.ConstrStatus := csPlanned;
   cd.Modified := True;
   SetStation(cd);
 end;
@@ -450,7 +454,7 @@ begin
   cd.DistFromStar := m.DistFromStar;
   cd.Comment := m.Comment;
   cd.Body := m.Body;
-  cd.Finished := True;
+  cd.ConstrStatus := csFinished;
   cd.Modified := True;
   SetStation(cd);
 end;

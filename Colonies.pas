@@ -440,7 +440,7 @@ begin
 }
   s := Vcl.Dialogs.InputBox('Add System To Scan', 'System Name', s);
   if s = '' then Exit;
-  if not DataSrc.StarSystems.AddFromName(s) then
+  if not DataSrc.StarSystems.AddSystem_EDSM(s)  then   //StarSystems.AddFromName(s)
   begin
     ShowMessage('System already listed, check filters if not visible.');
     Exit;

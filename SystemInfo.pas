@@ -497,7 +497,7 @@ begin
   if TObject(ListView.Selected.Data) is TConstructionDepot then
   begin
     cd := TConstructionDepot(ListView.Selected.Data);
-    if cd.Simulated then Exit;
+    if cd.Simulated then Exit;  //should not happen - these are not listed
     if cd.LastUpdate <> '' then Exit; //journal-based construction
     
     if Vcl.Dialogs.MessageDlg('Delete this construction?',
@@ -577,8 +577,8 @@ begin
     cd.Body := TSystemBody(ListView.Selected.Data).BodyName;
     cd.ConstructionType := DataSrc.ConstructionTypes[TMenuItem(Sender).Tag];
 
-    if QuickAddAsFinishedMenuItem.Checked then cd.Finished := True;
-    if QuickAddAsPlannedMenuItem.Checked then cd.Planned := True;
+    if QuickAddAsFinishedMenuItem.Checked then cd.ConstrStatus := csFinished;
+    if QuickAddAsPlannedMenuItem.Checked then cd.ConstrStatus := csPlanned;
  
     cd.Modified := True;
 
@@ -1221,7 +1221,7 @@ begin
   if FClickedColumn = 3 then
     if TryOpenMarket then Exit;
 
-   if data is TConstructionDepot then
+  if data is TConstructionDepot then
   begin
     if TConstructionDepot(data).Simulated then Exit;
     StationInfoForm.SetStation(TBaseMarket(data));
@@ -1452,6 +1452,7 @@ begin
   surfTaken := 0;
   for i := 0 to DataSrc.Constructions.Count - 1 do
     with TConstructionDepot(DataSrc.Constructions.Objects[i]) do
+      if not Cancelled then
       if not Planned and (StarSystem = FCurrentSystem.StarSystem) then
       begin
         ct := GetConstrType;
@@ -1596,6 +1597,7 @@ begin
     begin
       if TObject(b.Constructions[i]) is TConstructionDepot then
         with TConstructionDepot(b.Constructions[i]) do
+        if not Cancelled then
         begin
           s := s + IfThen(Planned,'✏',
                    IfThen(Finished,'🚩','🚧'));
@@ -2228,6 +2230,8 @@ begin
   if FHoldUpdate then Exit;
   if FCurrentSystem = nil then Exit;
 
+//todo: move all calculations to TStarSystem class
+
   FCurrentSystem.UpdateMoons;
 
   FCP2 := 0;
@@ -2270,6 +2274,7 @@ begin
     EDSMScanLabel.Visible := FCurrentSystem.SystemScan_EDSM <> '';
 
     PrimaryLabel.Caption := '(select primary)';
+{
     if FCurrentSystem.PrimaryPortId <> '' then
     begin
       PrimaryLabel.Caption := '(T1 primary)';
@@ -2281,6 +2286,7 @@ begin
           PrimaryLabel.Caption := '(T2/T3 primary)';
       end;
     end;
+ }
     PrimaryLabel.Hint := 'T2/T3 Port Order:' + Chr(13);
 
     for i := 0 to 2 do
@@ -2305,7 +2311,7 @@ begin
     for i := 0 to DataSrc.Constructions.Count - 1 do
       with TConstructionDepot(DataSrc.Constructions.Objects[i]) do
         if StarSystem = FCurrentSystem.StarSystem then
-          if not Simulated and (StationType <> 'FleetCarrier') then
+          if not Simulated and not Cancelled and (StationType <> 'FleetCarrier') then
           begin
             cl.Add(DataSrc.Constructions.Objects[i]);
             if LinkedMarketId <> '' then sl.Add(LinkedMarketId);
@@ -2397,10 +2403,12 @@ begin
         PrimaryLabel.Hint := PrimaryLabel.Hint + s + ' T' + ct.Tier + Chr(13);
       end;
     end;
-    i := Max(0,t23sl.Count-1);
-    PrimaryLabel.Caption := 'Next T2/T3 Cost: ' + Chr(13) +
-       (3+2*i).ToString + ' / ' + (6+6*i).ToString;
-
+   if FCurrentSystem.PrimaryPortId <> '' then
+   begin
+     i := Max(0,t23sl.Count-1);
+     PrimaryLabel.Caption := 'Next Port Cost: ' + Chr(13) +
+        'T2: ' + (3+2*i).ToString + '   T3: ' + (6+6*i).ToString;
+    end;
     dispStat(score,ScoreLabel);
     dispStat(seclev,SecLabel);
     dispStat(devlev,devLabel);

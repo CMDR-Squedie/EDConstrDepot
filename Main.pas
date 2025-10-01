@@ -695,7 +695,7 @@ begin
       for ci := 0 to DataSrc.Constructions.Count - 1 do
       begin
         cd := TConstructionDepot(DataSrc.Constructions.Objects[ci]);
-        if not cd.Finished and not cd.Simulated and (cd.Status <> '') then
+        if not cd.Finished and not cd.Simulated and not cd.Cancelled and (cd.Status <> '') then
           if cd.LastUpdate > lastUpdate then
             if DataSrc.GetMarketLevel(cd.MarketID) <> miIgnore then
             begin
@@ -2209,6 +2209,7 @@ begin
     cd := TConstructionDepot(DataSrc.Constructions.Objects[i]);
     //if cd.Status = '' then continue; //docked but no depot info?
     if cd.Planned then continue; //docked but no depot info?
+    if cd.Cancelled then continue;
     if cd.Finished and not Opts.Flags['IncludeFinished'] then
       if FSelectedConstructions.IndexOf(cd.MarketID) = -1 then continue;
     if DataSrc.GetMarketLevel(cd.MarketID) = miIgnore then continue;

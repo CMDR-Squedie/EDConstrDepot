@@ -39,7 +39,7 @@ object BodyInfoForm: TBodyInfoForm
   object SystemLabel: TLabel
     Left = 147
     Top = 8
-    Width = 238
+    Width = 154
     Height = 19
     Caption = '----------------------'
     OnClick = SystemLabelClick
@@ -104,7 +104,7 @@ object BodyInfoForm: TBodyInfoForm
   object TypeLabel: TLabel
     Left = 147
     Top = 39
-    Width = 238
+    Width = 154
     Height = 19
     Caption = '----------------------'
     OnClick = SystemLabelClick
@@ -117,7 +117,6 @@ object BodyInfoForm: TBodyInfoForm
     Align = alBottom
     BevelOuter = bvNone
     TabOrder = 0
-    ExplicitTop = 546
     object OKButton: TButton
       Left = 310
       Top = 8

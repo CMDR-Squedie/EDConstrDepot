@@ -4,7 +4,7 @@ object StationInfoForm: TStationInfoForm
   BorderIcons = [biSystemMenu]
   Caption = 'Construction Info'
   ClientHeight = 587
-  ClientWidth = 563
+  ClientWidth = 615
   Color = 4866358
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clSilver
@@ -97,7 +97,7 @@ object StationInfoForm: TStationInfoForm
     OnClick = Label2Click
   end
   object Label3: TLabel
-    Left = 284
+    Left = 277
     Top = 76
     Width = 95
     Height = 19
@@ -106,15 +106,16 @@ object StationInfoForm: TStationInfoForm
     OnClick = Label2Click
   end
   object Label4: TLabel
-    Left = 514
-    Top = 87
-    Width = 49
+    Left = 517
+    Top = 76
+    Width = 77
     Height = 19
-    Caption = 'On Hold'
-    Visible = False
+    Caption = #9746' Cancelled'
+    FocusControl = CancelledStatus
+    OnClick = Label2Click
   end
   object Label5: TLabel
-    Left = 414
+    Left = 406
     Top = 76
     Width = 75
     Height = 19
@@ -302,9 +303,9 @@ object StationInfoForm: TStationInfoForm
   object Label22: TLabel
     Left = 8
     Top = 391
-    Width = 79
+    Width = 116
     Height = 19
-    Caption = 'Base Market'
+    Caption = 'Base Market Econ.'
   end
   object EconomyLabel: TLabel
     Left = 146
@@ -463,23 +464,23 @@ object StationInfoForm: TStationInfoForm
     Caption = 'Build Order'
   end
   object Label15: TLabel
-    Left = 328
-    Top = 184
+    Left = 352
+    Top = 182
     Width = 43
     Height = 19
     Caption = 'Layout'
   end
   object Label17: TLabel
-    Left = 543
-    Top = 115
+    Left = 590
+    Top = 120
     Width = 17
     Height = 19
     Caption = '[...]'
     OnClick = Label17Click
   end
   object Label18: TLabel
-    Left = 329
-    Top = 150
+    Left = 353
+    Top = 148
     Width = 46
     Height = 19
     Caption = 'Faction'
@@ -502,13 +503,14 @@ object StationInfoForm: TStationInfoForm
   object Panel1: TPanel
     Left = 0
     Top = 546
-    Width = 563
+    Width = 615
     Height = 41
     Align = alBottom
     BevelOuter = bvNone
     TabOrder = 0
+    ExplicitWidth = 563
     object OKButton: TButton
-      Left = 310
+      Left = 378
       Top = 8
       Width = 75
       Height = 25
@@ -517,7 +519,7 @@ object StationInfoForm: TStationInfoForm
       OnClick = OKButtonClick
     end
     object CancelButton: TButton
-      Left = 472
+      Left = 540
       Top = 8
       Width = 75
       Height = 25
@@ -526,7 +528,7 @@ object StationInfoForm: TStationInfoForm
       OnClick = CancelButtonClick
     end
     object NextButton: TButton
-      Left = 391
+      Left = 459
       Top = 8
       Width = 75
       Height = 25
@@ -556,7 +558,7 @@ object StationInfoForm: TStationInfoForm
   object CommentEdit: TEdit
     Left = 147
     Top = 215
-    Width = 393
+    Width = 437
     Height = 27
     ParentColor = True
     TabOrder = 1
@@ -571,23 +573,23 @@ object StationInfoForm: TStationInfoForm
     OnClick = PlannedStatusClick
   end
   object StatusRadio2: TRadioButton
-    Left = 264
+    Left = 257
     Top = 78
     Width = 19
     Height = 17
     TabOrder = 3
     OnClick = PlannedStatusClick
   end
-  object StatusRadio3: TRadioButton
-    Left = 484
-    Top = 89
-    Width = 24
+  object CancelledStatus: TRadioButton
+    Left = 497
+    Top = 78
+    Width = 20
     Height = 17
     TabOrder = 4
-    Visible = False
+    OnClick = PlannedStatusClick
   end
   object FinishedStatus: TRadioButton
-    Left = 393
+    Left = 385
     Top = 78
     Width = 19
     Height = 17
@@ -597,7 +599,7 @@ object StationInfoForm: TStationInfoForm
   object TypeCombo: TComboBox
     Left = 147
     Top = 112
-    Width = 393
+    Width = 437
     Height = 27
     Style = csDropDownList
     DropDownCount = 20
@@ -609,7 +611,7 @@ object StationInfoForm: TStationInfoForm
   object NameEdit: TEdit
     Left = 147
     Top = 40
-    Width = 393
+    Width = 437
     Height = 27
     ParentColor = True
     TabOrder = 7
@@ -618,7 +620,7 @@ object StationInfoForm: TStationInfoForm
   object BodyCombo: TComboBox
     Left = 147
     Top = 147
-    Width = 167
+    Width = 190
     Height = 27
     DropDownCount = 20
     ParentColor = True
@@ -628,7 +630,7 @@ object StationInfoForm: TStationInfoForm
   object LinkedStationCombo: TComboBox
     Left = 147
     Top = 181
-    Width = 166
+    Width = 190
     Height = 27
     Style = csDropDownList
     DropDownCount = 20
@@ -665,9 +667,9 @@ object StationInfoForm: TStationInfoForm
     OnClick = BuildOrderUpDownClick
   end
   object LayoutCombo: TComboBox
-    Left = 386
-    Top = 181
-    Width = 154
+    Left = 410
+    Top = 179
+    Width = 174
     Height = 27
     DropDownCount = 20
     ParentColor = True
@@ -675,9 +677,9 @@ object StationInfoForm: TStationInfoForm
     OnChange = LayoutComboChange
   end
   object FactionCombo: TComboBox
-    Left = 386
-    Top = 147
-    Width = 154
+    Left = 410
+    Top = 145
+    Width = 174
     Height = 27
     DropDownCount = 20
     ParentColor = True
