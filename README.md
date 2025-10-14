@@ -4,7 +4,7 @@ Lastest version to download: https://github.com/CMDR-Squedie/EDConstrDepot/relea
 
 A minimalistic transparent overlay tool to track construction depots from Elite Dangerous player journals.
 
-It also features a myriad of tools to assist you with colonization, like colony management and planning, market suggestions etc.
+It also features a myriad of tools to assist you with colonization, like colony management and planning, market suggestions etc. based on player-collected data only.
 
 Features:
 - construction depot commodity/progress tracking
