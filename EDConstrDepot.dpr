@@ -29,13 +29,9 @@ uses
 
 {$R *.res}
 
-const gNiceVersion: string = 'Release 30, build 1';
+const gNiceVersion: string = 'Release 30, build 2';
 
 {
-  - construction cancelling and demolition
-  - fix to accidental docking to finished primary colon. ship
-
-
 
   future builds:
  - economy commodity dependencies

@@ -4,7 +4,7 @@ object StationInfoForm: TStationInfoForm
   BorderIcons = [biSystemMenu]
   Caption = 'Construction Info'
   ClientHeight = 587
-  ClientWidth = 615
+  ClientWidth = 626
   Color = 4866358
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clSilver
@@ -503,12 +503,12 @@ object StationInfoForm: TStationInfoForm
   object Panel1: TPanel
     Left = 0
     Top = 546
-    Width = 615
+    Width = 626
     Height = 41
     Align = alBottom
     BevelOuter = bvNone
     TabOrder = 0
-    ExplicitWidth = 563
+    ExplicitWidth = 615
     object OKButton: TButton
       Left = 378
       Top = 8

@@ -1113,7 +1113,9 @@ begin
         end
         else
         begin
-          radius := Trunc(Sqrt(FColonies[i].GetScore)*5);
+          cnt1 := FColonies[i].GetScore;
+          if cnt1 < 4 then continue;
+          radius := Trunc(Sqrt(cnt1)*5);
         end;
         radius := Trunc(radius * (PixelsPerLy/10));
         if radius > maxRadius then

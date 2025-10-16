@@ -1593,6 +1593,7 @@ begin
   DistFromStar := -1;
   LPads := -1;
   MPads := -1;
+  Body := '-';
 end;
 
 destructor TBaseMarket.Destroy;
@@ -3843,12 +3844,12 @@ begin
             if FLastBody <> '' then
             begin
               cd := DepotFromId(FLastDropId);
-              if (cd <> nil) and (cd.Body = '') and (cd.StarSystem = s) then
+              if (cd <> nil) and (cd.Body = '-') and (cd.StarSystem = s) then
                 cd.Body := FLastBody
               else
               begin
                 m := MarketFromId(FLastDropId); //station drops are at 'Station' body after weekly tick! :(((
-                if (m <> nil) and (m.Body = '')  and (m.StarSystem = s) then
+                if (m <> nil) and (m.Body = '-')  and (m.StarSystem = s) then
                   m.Body := FLastBody;
               end;
             end;
@@ -3902,12 +3903,12 @@ begin
             if FLastBody <> '' then
             begin
               cd := DepotFromId(mID);
-              if (cd <> nil) and (cd.Body = '') then
+              if (cd <> nil) and (cd.Body = '-') then
                 cd.Body := FLastBody
               else
               begin
                 m := MarketFromId(mID);
-                if (m <> nil) and (m.Body = '') then
+                if (m <> nil) and (m.Body = '-') then
                   m.Body := FLastBody;
               end;
             end;
@@ -3956,7 +3957,7 @@ begin
               cd.DistFromStar := Trunc(j.GetValue<single>('DistFromStarLS'));
             except end;
             cd.StarSystem := j.GetValue<string>('StarSystem');
-            if cd.Body = '' then cd.Body := FLastBody;
+            if cd.Body = '-' then cd.Body := FLastBody;
 
             cd.LastDock := tms;
             cd.LastUpdate := tms;

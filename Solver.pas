@@ -311,22 +311,22 @@ begin
             Inc(orbTaken)
           else
             Inc(surfTaken);
-         if ct.IsT23port then
-         begin
-           if not IsPrimary then
-             Inc(FT23Ports)
-           else
-             FT23Primary := True;
-           FTechlev := FTechlev + FTechBonus;
-           FTechBonus := 0;
-         end;
+          if ct.IsT23port then
+          begin
+            if not IsPrimary then
+              Inc(FT23Ports)
+            else
+              FT23Primary := True;
+            FTechlev := FTechlev + FTechBonus;
+            FTechBonus := 0;
+          end;
 
-        FSecLev := FSecLev + ct.SecLev;
-        FDevLev := FDevLev + ct.DevLev;
-        FTechlev := FTechLev + ct.TechLev;
-        FWealthlev := FWealthlev + ct.WealthLev;
-        FStdLivLev := FStdLivLev + ct.StdLivLev;
-        FScore:= FScore + ct.Score;
+          FSecLev := FSecLev + ct.SecLev;
+          FDevLev := FDevLev + ct.DevLev;
+          FTechlev := FTechLev + ct.TechLev;
+          FWealthlev := FWealthlev + ct.WealthLev;
+          FStdLivLev := FStdLivLev + ct.StdLivLev;
+          FScore:= FScore + ct.Score;
 
         end
         else
@@ -338,14 +338,6 @@ begin
           else
           begin
           {
-            s := '1';
-            if ct.Tier = '2' then
-              if ct.Category = 'Starport' then
-                s := '9'
-              else
-                s := '2';
-            if ct.Tier = '3' then s := '8';
-            }
             if bOrd = 0 then
             begin
               bOrd := 99900;
@@ -354,8 +346,13 @@ begin
               if ct.Tier = '3' then bOrd := bOrd + 3;
               if ct.Dependencies <> '' then bOrd := bOrd + 1;
             end;
+            }
+            if bOrd = 0 then bOrd := 99900;
           end;
           s := bOrd.ToString.PadLeft(5,'0'); // + s;
+          s := s + ct.Tier;
+          s := s + IfThen(ct.Dependencies <> '','9','0');
+          s := s + ct.EstCargo.ToString.PadLeft(8,'0');;
           FPrioConstructions.AddObject(s,ct);
         end;
       end;
@@ -1042,7 +1039,7 @@ begin
     if prioIdx < APrioConstructions.Count then
     begin
       nextCt := TConstructionType(APrioConstructions.Objects[prioIdx]);
-      if APrioConstructions[prioIdx] = '00000' then //primary
+      if APrioConstructions[prioIdx].StartsWith('00000') then //primary
       begin
         primaryf := True;
         nextBuild := nPrio;
@@ -1081,6 +1078,27 @@ begin
           end;
         end;
         if nextBuild <> nPrio then nextCt := nil;
+
+        //test - try to pick next missing construction from player contructions
+        if nextBuild <> nPrio then
+        begin
+          for i := prioIdx + 1 to APrioConstructions.Count - 1 do
+          begin
+            nextCt := TConstructionType(APrioConstructions.Objects[i]);
+            if (reqBuild = nT1Inst) and (nextCt.Tier <> '1') then nextCt := nil;
+            if (reqBuild = nT2Inst) and (nextCt.Tier <> '2') then nextCt := nil;
+            if nextCt <> nil then
+            begin
+              APrioConstructions.InsertObject(prioIdx,
+                APrioConstructions[i],APrioConstructions.Objects[i]);
+              APrioConstructions.Delete(i+1);
+              reqBuild := nNone;
+              nextBuild := nPrio;
+              break;
+            end;
+          end;
+        end;
+
       end;
     end
     else
