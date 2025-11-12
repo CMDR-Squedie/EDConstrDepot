@@ -71,6 +71,7 @@ type
     Label17: TLabel;
     Alternatives1: TMenuItem;
     StatsHelpLabel: TLabel;
+    IgnorePlannedCheck: TCheckBox;
     procedure SolveButtonClick(Sender: TObject);
     procedure ListViewCustomDrawItem(Sender: TCustomListView; Item: TListItem;
       State: TCustomDrawState; var DefaultDraw: Boolean);
@@ -500,7 +501,7 @@ var item: TListItem;
     s,constrType,constrTag: string;
     nextBuild,reqBuild: TNextBuild;
     nextCt,depCt: TConstructionType;
-    balstatsf,outpostsf,hubsf,nonegf,portsf,primaryf,slotbalf,prioT3portf: Boolean;
+    balstatsf,outpostsf,hubsf,nonegf,portsf,primaryf,prioT3portf: Boolean;
     reqSec,reqWealth,reqStdLiv,reqDev,reqTech,reqTot: Integer;
     ASecLev,ADevLev,ATechlev,AWealthLev,AStdLivLev,AScore,ATechBonus,statTot,orgStatTot: Integer;
     nextPts: Extended;
@@ -642,16 +643,13 @@ var item: TListItem;
           nT1Orb: if (act.Tier <> '1') or (act.Location <> 'Orbital') then continue;
           nT1Port: if (act.Tier <> '1') or (act.Location <> 'Orbital') or (act.Category <> 'Outpost') then continue;
           nT1SurfPort: if (act.Tier <> '1') or (act.Location <> 'Surface') or (act.Category <> 'Planetary Port') then continue;
-        end;        
-
-//test
-{
-        if constrNr mod 3 = 0 then
-        begin
-          if act.Category = 'Outpost' then continue;
-          if act.Category = 'Planetary Port' then continue;
         end;
-}
+
+        //always skip T1 installations that generate no CP2, regardless of stats
+        //as of now includes tourist/research settlements
+        if bld in [nT1Settl,nT1Orb] then
+          if act.CP2 <= 0 then continue;
+
 
         if not (bld in [nT1Port,nT1SurfPort]) then
         if not outpostsf then
@@ -662,10 +660,11 @@ var item: TListItem;
         if not hubsf then
           if act.Category = 'Hub' then continue;
 
+        if not act.CheckDependencies(FConstrList) then
         if dependMode = 2 then
         begin
           //skip construction if dependencies are not there
-          if not act.CheckDependencies(FConstrList) then continue
+          continue;
         end
         else
           //do not list dependencies if system has no slots of type needed
@@ -700,48 +699,30 @@ var item: TListItem;
               if (ASecLev < OrbSlots + SurfSlots) then continue;
         end;
 
-        //do not let stats go down past zero if requested proportion is not zero
-        if false then
-        if nonegf then
-        if not (bld in [nT1Port,nT1SurfPort]) then
-        if (reqTot > 0) and (statTot <> 0) then
-        begin
-
-          {
-          if (reqDev > 0) and (act.DevLev < 0) then
-            if (ADevLev < reqDev-act.DevLev) or (ADevLev/statTot < reqDev/reqTot) then continue;
-          if (reqTech > 0) and (act.TechLev < 0) then
-            if (ATechLev < reqTech-act.TechLev) or (ATechLev/statTot < reqTech/reqTot) then continue;
-          if (reqWealth > 0) and (act.WealthLev < 0) then
-            if (AWealthLev < reqWealth-act.WealthLev) or (AWealthLev/statTot < reqWealth/reqTot) then continue;
-          }
-          if (reqStdLiv > 0) and (act.StdLivLev < 0) then
-            if (AStdLivLev < reqStdLiv-act.StdLivLev) or  (AStdLivLev/statTot < reqStdLiv/reqTot) then continue;
-          if (reqSec > 0) and (act.SecLev < 0) then
-            if (ASecLev < reqSec-act.SecLev) or (ASecLev/statTot < reqSec/reqTot) then continue;
-        end;
-
-
-        //assign some tiny weight if no economy influence is selected
+        //assign some base tiny weight for all stats, eg. if no economy influence is selected
+        //dev and tech are most useful
         pts := pts +
                act.DevLev * 0.0020 +
                act.TechLev * 0.0010 +
                act.WealthLev * 0.0005 +
                act.StdLivLev * 0.0005 +
-               act.SecLev * 0.0002;
+               act.SecLev * 0.0002 +
+               act.Score * 0.0001;
 
-        //for T1 installations, pick the ones that have best total
+        {
+        //for T1 installations, add bonus for best total
         if (reqTot > 0) and (FInflList.Count = 0) then
         if bld in [nT1Orb,nT1Settl] then
         begin
-          if (reqDev > 1) then pts := pts + act.DevLev;
-          if (reqTech > 1) then pts := pts + act.TechLev;
-          if (reqSec > 1) then pts := pts + act.SecLev;
-          if (reqWealth > 1) then pts := pts + act.WealthLev;
-          if (reqStdLiv > 1) then pts := pts + act.StdLivLev;
+          if (reqDev > 1) then pts := pts + act.DevLev * 0.1;
+          if (reqTech > 1) then pts := pts + act.TechLev * 0.1;
+          if (reqSec > 1) then pts := pts + act.SecLev * 0.1;
+          if (reqWealth > 1) then pts := pts + act.WealthLev * 0.1;
+          if (reqStdLiv > 1) then pts := pts + act.StdLivLev * 0.1;
         end;
+        }
 
-        //installation score corrected for requested proportions
+        //correct the score for requested stats proportions
         if reqTot > 0 then
           pts := pts +
             act.DevLev * reqDev/reqTot +
@@ -781,21 +762,6 @@ var item: TListItem;
 
       if ct = nil then bestPts := minPts;
       Result := bestPts;
-      {
-      if ct <> nil then
-      begin
-
-        //correct CP3 calculation, for T2 surface assumed CP3 = 2
-        if ct.Tier = '2' then
-          if ct.Location = 'Surface' then
-            if ct.CP3 = 1 then CP3 := CP3 - 1;
-
-
-        updSysStats(ct);
-
-        constrType := ct.StationType_full;
-      end;
-      }
     end;
 
     procedure checkStatBal(var reqStat: Integer; var AStatLev: Integer);
@@ -885,7 +851,9 @@ var item: TListItem;
 begin
   ListView.Clear;
 
-  APrioConstructions.Assign(FPrioConstructions);
+  APrioConstructions.Clear;
+  if not IgnorePlannedCheck.Checked then
+    APrioConstructions.Assign(FPrioConstructions);
   FConstrList.Clear;
   for i := 0 to FCurrentSystem.Constructions.Count - 1 do
     if not TConstructionDepot(FCurrentSystem.Constructions[i]).Planned then
@@ -908,7 +876,6 @@ begin
 
   constrNr := 0;
 
-  slotbalf := Opts['SlotBalancing'] <> '0';
   balstatsf := BalStatsCheck.Checked or EcoInflCheck.Checked;
   outpostsf := AllowOutpostsCheck.Checked;
   hubsf := AllowHubsCheck.Checked;
@@ -1079,9 +1046,10 @@ begin
         end;
         if nextBuild <> nPrio then nextCt := nil;
 
-        //test - try to pick next missing construction from player contructions
+        //try to pick next missing construction from player contructions
         if nextBuild <> nPrio then
         begin
+          if (reqBuild = nT2Inst) and (CP2 <= 0) then reqBuild := nT1Inst;
           for i := prioIdx + 1 to APrioConstructions.Count - 1 do
           begin
             nextCt := TConstructionType(APrioConstructions.Objects[i]);
@@ -1122,7 +1090,7 @@ begin
 
 
       //under most circumstances, t3 is priority
-      //however, if t2 is ALSO requested and we are still under penalty
+      //however, if t2 is ALSO requested and we are still under penalty threshold
       //build one t2 first as this will get us one CP3 point
       if reqBuild in [nT3Port,nT3SurfPort] then
         if (t23ports = 0) and (t2ToBuild > 0) then
@@ -1222,6 +1190,8 @@ begin
       end;
       if nextBuild = nNone then
         reqBuild := nT1Inst;
+      //if nextBuild <> nNone then
+      //  reqBuild := nNone;
     end;
 
     if reqBuild in [nT1Inst,nAnyInst,nAnyOrb,nAnySurf] then
@@ -1234,11 +1204,18 @@ begin
           checkNextBuild(nT1Settl,nextCt,nextPts)
         else
           //check for T1Settl better than T1Orb only if
-          // - more free surf. slots than orb.
           // - all T3 ports are done
-           if (SurfSlots-SurfReserved) - (OrbSlots-OrbReserved) > 0 then
+          // - orbital slot is not specifically requested
+          // - no slot policy OR
+          //   surface slot is requested OR
+          //   there are more free surf. slots than orb.
            if not prioT3portf and (t3ToBuild + t3SurfToBuild = 0) then
-             checkNextBuild(nT1Settl,nextCt,nextPts)
+           if reqSlot <> stOrb then
+           if (slotPolicy = spNone) or (reqSlot = stSurf) or
+              ((SurfSlots-SurfReserved) - (OrbSlots-OrbReserved) > 0) then
+             checkNextBuild(nT1Settl,nextCt,nextPts);
+      //if nextBuild <> nNone then
+      //  reqBuild := nNone;
     end;
 
     if balstatsf then
@@ -1389,6 +1366,8 @@ begin
         end;
     end;
 
+    lastReqSlot := reqSlot;
+
     if nextCt <> nil then
     begin
       if not (nextBuild in [nT2Port,nT3Port,nT3SurfPort,nT2Aster]) then
@@ -1399,10 +1378,15 @@ begin
 
       if (nextCt.Tier = '1') and nextCt.IsPort then
         Inc(t1ports);
+
+      if nextCt.IsOrbital then
+        lastReqSlot := stOrb
+      else
+        lastReqSlot := stSurf;
     end;
 
-    lastReqSlot := reqSlot;
-      
+
+
 
     item := ListView.Items.Add;
     if nextBuild <> nNone then

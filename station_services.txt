@@ -1,5 +1,8 @@
-The requirements for station service activation
+The requirements for station service activation:
 
+NOTE: Always check your station for services first. 
+Some services are available even if requirements are not met.
+ 
     • Commodities Market:
         ◦ All tier 2 and tier 3 Ports
         ◦ All Settlements

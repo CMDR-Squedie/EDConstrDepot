@@ -29,9 +29,17 @@ uses
 
 {$R *.res}
 
-const gNiceVersion: string = 'Release 30, build 2';
+const gNiceVersion: string = 'Release 31, build 1';
 
 {
+
+  changes:
+    - 'Ignore Recent Time' command added to Delivery Times menu
+    - 'Ignored Planned' option in colony planner to ignore current player-added contructions
+    - system alternative name field added to System Info window
+    - colony planner slots policy settings more strict
+    - colony planner bonus for T1 stations total stats decreased
+    - colony planner dependencies not checked when out of slots (minor fix)
 
   future builds:
  - economy commodity dependencies
@@ -82,12 +90,14 @@ begin
 
   SplashForm.ShowInfo('Reading journal files...',0);
   SplashForm.Update;
+
   DataSrc.Load;
   EDCDForm.UpdateConstrDepot;
-  SplashForm.Hide;
   EDCDForm.Show;
   EDCDForm.BringToFront;
   DataSrc.UpdTimer.Enabled := True;
+
+  SplashForm.Hide;
 
   Application.Run;
 end.

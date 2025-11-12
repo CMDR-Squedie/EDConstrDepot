@@ -49,10 +49,10 @@ var i,i2: Integer;
     isColonyf: Boolean;
     totPop: Int64;
     totHaul,totScore,totSystems,totConstr,totT3,totT2,totT1surf,totT1orb: Integer;
-    totSystems10,totSystems100,totShipyards: Integer;
+    totSystems10,totSystems100,totSystems1b,totShipyards: Integer;
     totELW,totWW,totAW,totELW2,totWW2,totAW2,totELW3,totWW3,totAW3: Integer;
     totLandRings,totG4,totG5,totGW,totGH,
-      totLandOxy,totLandHelium,totAbundLife,totLandAtmMoons,totMetalRings,totLandTiny: Integer;
+      totLandOxy,totLandHelium,totAbundLife,totLandAtmMoons,totWaterGeysers,totMetalRings,totLandTiny: Integer;
     ct: TConstructionType;
     s: string;
 
@@ -84,6 +84,7 @@ begin
   totSystems := 0;
   totSystems10 := 0;
   totSystems100 := 0;
+  totSystems1b := 0;
   totHaul := 0;
   totT3 := 0;
   totT2 := 0;
@@ -102,6 +103,7 @@ begin
   totAW3 := 0;
   totLandRings := 0;
   totLandAtmMoons := 0;
+  totWaterGeysers := 0;
   totLandHelium := 0;
   totLandOxy := 0;
   totAbundLife := 0;
@@ -128,11 +130,14 @@ begin
     totPop := totPop + sys.Population;
     totScore := totScore + sys.GetScore;
     Inc(totSystems);
+    if sys.Population >= 1000000000 then
+      Inc(totSystems1b)
+    else
     if sys.Population >= 100000000 then
       Inc(totSystems100)
     else
-      if sys.Population >= 10000000 then
-        Inc(totSystems10);
+    if sys.Population >= 10000000 then
+      Inc(totSystems10);
 
 
     if sys.Constructions <> nil then
@@ -203,7 +208,9 @@ begin
           if Atmosphere <> '' then
             if IsMoon then
               if HasMoons then Inc(totLandAtmMoons);
-         if (Radius > 0) and (Radius < 250) then Inc(totLandTiny);
+          if (Radius > 0) and (Radius < 250) then Inc(totLandTiny);
+          if GeologicalSignals > 0 then
+            if Pos('major water',LowerCase(Volcanism)) > 0 then Inc(totWaterGeysers);
 
         end;
         if Pos('giant',s) > 0 then
@@ -228,8 +235,9 @@ begin
   addStat('Score',totScore);
   addStat('Base Income',10000*totScore);
   addStat('Number of Systems',totSystems);
-  addStat('  - pop. 10-100m',totSystems10);
-  addStat('  - pop. over 100m',totSystems100);
+  addStat('  - popul. 10-100m',totSystems10);
+  addStat('  - popul. 100m-1b',totSystems100,false);
+  addStat('  - popul. over 1b',totSystems1b,false);
 
   addHeader('CONSTRUCTIONS');
   addStat('T3 Ports (Orbis, Ocellus, Surf. Port)',totT3);
@@ -262,6 +270,7 @@ begin
   addStat('Landable w/Helium',totLandHelium,false,'land+helium');
   addStat('Landable w/Bio-diversity (min.5)',totAbundLife,false,'land+bio');
   addStat('Landable Moon w/Atm. and Moons',totLandAtmMoons,false,'land+atmo+moons');
+  addStat('Landable w/Major Water Geysers',totWaterGeysers,false,'land+major water+geo');
   addStat('Tiny Landable',totLandTiny,false,'land+tiny');
   addStat('Planetary Rings - Metallic',totMetalRings,false, 'metallic+ring+~belt+~magma');
 
@@ -355,6 +364,7 @@ end;
 procedure TSummaryForm.ListViewDblClick(Sender: TObject);
 begin
   if ListView.Selected = nil then Exit;
+  if ListView.Selected.SubItems.Count < 2 then Exit;
   if ListView.Selected.SubItems[1] = '' then Exit;
   BodiesForm.BeginFilterChange;
   try

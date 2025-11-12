@@ -48,6 +48,7 @@ type TDockToDockTimes = class
   AddIdx: Integer;
   fdata: array [0..5] of TFlightData;
   procedure Clear;
+  procedure ClearLast;
   procedure Add(t: Extended; dest: string);
   function GetAvg: Extended;
 end;
@@ -359,6 +360,7 @@ public
   function GetSys: TStarSystem;
   function Faction_short: string;
   function FullName: string;
+  function CurStationName: string;
   function StationName_full: string;
   function StationName_abbrev(const addLink: Boolean = false): string;
   function StarSystem_nice: string;
@@ -1357,6 +1359,14 @@ begin
   for i := 0 to High(fdata) do fdata[i].Time := 0;
 end;
 
+procedure TDockToDockTimes.ClearLast;
+begin
+  AddIdx := AddIdx - 1;
+  if AddIdx < 0 then AddIdx := High(fdata);
+  fdata[AddIdx].Time := 0;
+  Last := 0;
+end;
+
 procedure TDockToDockTimes.Add(t: Extended; dest: string);
 var i: Integer;
 begin
@@ -1529,6 +1539,18 @@ begin
 //looks nice... but not just yet
 //  p := Pos('Col 285 Sector ',Result); //custom list here?
 //  if p > 0 then Result := Copy(Result,p+15,200);
+end;
+
+function TBaseMarket.CurStationName: string;
+var m: TMarket;
+begin
+  Result := StationName;
+  if not NameModified and (LinkedMarketId <> '') then
+  begin
+    GetLinkedMarket;
+    if FLinkedMarket <> nil then
+      Result := FLinkedMarket.StationName;
+  end;
 end;
 
 function TBaseMarket.StationName_full: string;
@@ -2527,6 +2549,8 @@ begin
   FBodies := TStringList.Create;
   FBodies.Sorted := True;
   FBodies.Duplicates := dupIgnore;
+
+  FResourceReserve := 'Pristine'; //99.9% of uncolonized systems are pristine
 
 //dummy body for orphan stations
   b := TSystemBody.Create;
@@ -3735,6 +3759,7 @@ begin
         j := TJSONObject.ParseJSONValue(jrnl[i]) as TJSONObject;
 
         tms := j.GetValue<string>('timestamp');
+
         //line index should be enough to track new events, tms is added to be 100% sure...
         entryId := tms + '.' + IntToStr(i).PadLeft(6);
         if entryId <= FLastJrnlTimeStamps.Values[fn] then continue;
@@ -3755,6 +3780,12 @@ begin
           s := j.GetValue<string>('FID');
           if not FCommanders.Sorted then //preloaded for testing only!
             FCommanders.Values[s] := j.GetValue<string>('Name');
+          if s <> FCurrentCmdr then
+          begin
+            //todo: reset all commander-specific data here
+            FLastDropId := '';
+            FLastBody := '';
+          end;
           FCurrentCmdr := s;
           goto LUpdateTms;
         end;
@@ -3791,7 +3822,10 @@ begin
 
         if event = 'Location' then
         begin
+          //reset all commander-specific data - here or on 'commander' event?
           FLastDropId := '';
+//          FLastBody := '';
+
           j.TryGetValue<string>('StarSystem',FCurrentSystem);
           try StarSystems.UpdateFromFSDJump(js,j); except end;
 
@@ -3832,8 +3866,8 @@ begin
         begin
           if FLastDropId <> '' then
           begin
-            s := j.GetValue<string>('StarSystem');
             FLastBody := '';
+            s := j.GetValue<string>('StarSystem');
             try
               FLastBody := j.GetValue<string>('Body');
               if not FLastBody.StartsWith(s) then

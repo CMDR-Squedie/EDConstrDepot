@@ -134,7 +134,6 @@ type
     Label27: TLabel;
     Label28: TLabel;
     Label29: TLabel;
-    FreeSlotsCheck: TCheckBox;
     NoLabelsLabel: TLabel;
     BodyInfoPanel: TPanel;
     BodyInfoFrame: TShape;
@@ -164,6 +163,11 @@ type
     Label45: TLabel;
     HideSlotEditLabel: TLabel;
     BodyStationsLabel: TLabel;
+    Label17: TLabel;
+    AlterNameEdit: TEdit;
+    FreeSlotsCheck: TCheckBox;
+    Label20: TLabel;
+    Normal1: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure EDSMScanButtonClick(Sender: TObject);
@@ -236,6 +240,7 @@ type
     procedure Label37Click(Sender: TObject);
     procedure OrbSlotsLabelClick(Sender: TObject);
     procedure HideSlotEditLabelClick(Sender: TObject);
+    procedure Label20Click(Sender: TObject);
   private
     { Private declarations }
     FCP2,FCP3: Integer;
@@ -866,9 +871,10 @@ begin
         1: ReserveLevel := 'Major';
         2: ReserveLevel := 'Low';
         3: ReserveLevel := 'Depleted';
+        4: ReserveLevel := 'Common';
         -1:
           begin
-            ReserveLevel := ''; //common
+            ReserveLevel := ''; //default
           end;
       end;
       FCurrentSystem.ResetEconomies;
@@ -913,6 +919,7 @@ begin
   FCurrentSystem.CurrentGoals := GoalsEdit.Text;
   FCurrentSystem.Objectives := ObjectivesEdit.Text;
   FCurrentSystem.TaskGroup := TaskGroupEdit.Text;
+  FCurrentSystem.AlterName := AlterNameEdit.Text;
   FCurrentSystem.Ignored := IgnoredCheck.Checked;
 
   for i := 0 to FCurrentSystem.Bodies.Count - 1 do
@@ -942,6 +949,9 @@ begin
   try
     SaveData;
     SavePicture;
+
+    if FLabelMode then
+      AddLabelsMenuItemClick(nil);
   finally
     DataSrc.EndUpdate;
   end;
@@ -1071,6 +1081,11 @@ begin
   FDataChanged := True;
 end;
 
+procedure TSystemInfoForm.Label20Click(Sender: TObject);
+begin
+  FreeSlotsCheck.Checked := not FreeSlotsCheck.Checked;
+end;
+
 procedure TSystemInfoForm.Label37Click(Sender: TObject);
 var b: TSystemBody;
 begin
@@ -1177,7 +1192,7 @@ begin
       Sender.Canvas.Font.Color := clSilver;
   end
   else
-  if Item.SubItems[0].StartsWith('  free')  then
+  if Item.SubItems[0].StartsWith('  ◌')  then
   begin
     if Pos('-',Item.SubItems[0]) > 0 then
       Sender.Canvas.Font.Color := $4040C0
@@ -1412,6 +1427,7 @@ begin
   GoalsEdit.Text := FCurrentSystem.CurrentGoals;
   ObjectivesEdit.Text := FCurrentSystem.Objectives;
   TaskGroupEdit.Text := FCurrentSystem.TaskGroup;
+  AlterNameEdit.Text := FCurrentSystem.AlterName;
   SetChecked(IgnoredCheck,FCurrentSystem.Ignored);
 
   FDataChanged := False;
@@ -1602,7 +1618,7 @@ begin
           s := s + IfThen(Planned,'✏',
                    IfThen(Finished,'🚩','🚧'));
           s := s + IfThen(IsOrbital,'⚪•','🏭');
-          s := s + ' ' + StationName;
+          s := s + ' ' + CurStationName;
           if GetConstrType <> nil then
             s := s + ' (' + GetConstrType.StationType_abbrev + ')';
           s := s + Chr(13);
@@ -2517,6 +2533,11 @@ begin
           begin
             addRow(b);
 
+
+            //test
+          end;
+          begin
+
             if (b.orbSlots+b.SurfSlots>0) then
             begin
               orbSlots := b.OrbSlots;
@@ -2533,12 +2554,20 @@ begin
               if (orbSlots <> 0) or (surfSlots <> 0) then
               begin
                 s := '';
-                //if FiltersCheck.Checked then
-                //  s := '  ' + b.BodyName;
+                if FiltersCheck.Checked then
+                  s := '  ' + b.BodyName;
                 addCaption(s);
-                addSubItem('  free:' +
+                addSubItem('  ◌ free:' +
                   IfThen(orbSlots<>0,' ⚪• ' + orbSlots.toString + '  ','') +
                   IfThen(surfSlots<>0,' 🏭 ' + surfSlots.toString,''));
+                if not BodiesCheck.Checked then
+                begin
+                  addSubItem(b.BodyType);
+                  s := '';
+                  if FShowEconomies then
+                    s := b.Economies_nice;
+                  addSubItem(s);
+                end;
                 addRow(b);
               end;
             end;

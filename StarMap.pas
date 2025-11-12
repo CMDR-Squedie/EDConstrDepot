@@ -435,6 +435,7 @@ end;
 
 procedure TStarMapForm.UpdateOpts;
 begin
+  Opts['MapTaskGroup'] := TaskGroupCombo.Text;
   Opts['MapProjX'] := ProjectionXCombo.Text;
   Opts['MapProjY'] := ProjectionYCombo.Text;
   Opts['MapLanes'] := LinkStyleCombo.Text;
@@ -512,7 +513,8 @@ begin
   ProjectionYCombo.ItemIndex := ProjectionYCombo.Items.IndexOf(Opts['MapProjY']);
   LinkStyleCombo.ItemIndex := LinkStyleCombo.Items.IndexOf(Opts['MapLanes']);
   if LinkStyleCombo.ItemIndex = -1 then LinkStyleCombo.ItemIndex := 0;
-  
+  TaskGroupCombo.Text := Opts['MapTaskGroup'];
+
   InfoCombo.ItemIndex := 0;
   FStarSystems := TSystemList.Create;
   FColonies := TSystemList.Create;
@@ -883,7 +885,7 @@ var i,i2,i3,w,idx,si,margin,projectionX,projectionY,labOffsetX,labOffsetY,fontSi
     maxSize,minPop,maxLinks,maxLinkCnt,curLinkCnt,maxDist,radius,maxRadius: Integer;
     dt: TDateTime;
     PixelsPerLy,dist,totDist,dDt: Extended;
-    starSymbol,s,laneStyle: string;
+    starSymbol,sysName,s,laneStyle: string;
     okf,isColonyf: Boolean;
     cnt1,cnt2,cnt3: Integer;
     png: TPngImage;
@@ -1296,17 +1298,6 @@ begin
         sysPosArr[idx].sys := sys;
         sysPosArr[idx].overlaps := 0;
 
-        //reprint selected system on top of map
-        if FStarSystems.Strings[i] = '$selected' then
-        begin
-          if selSysIdx = -1 then continue;
-          r := sysPosArr[selSysIdx].labelRect;
-          goto LSkipLabelReposition;
-        end;
-
-        if sys = FSelectedSystem then selSysIdx := idx;
-
-
         getSysPos_projected(sys,proj);
         pt.X := -FOrigin.X + Trunc(PixelsPerLy*(proj.X - FMapSpan.Left));
         pt.Y := -FOrigin.Y + Trunc(PixelsPerLy*(proj.Y - FMapSpan.Top));
@@ -1318,6 +1309,21 @@ begin
         if pt.Y < -20 then continue;
         if pt.X > FMap.Width then continue;
         if pt.Y > FMap.Height then continue;
+
+        sysName := sys.StarSystem;
+        if sys.AlterName <> '' then
+          if Opts.Flags['ShowAlterNames'] then sysName := sys.AlterName;
+
+        //reprint selected system on top of map
+        if FStarSystems.Strings[i] = '$selected' then
+        begin
+          if selSysIdx = -1 then continue;
+          r := sysPosArr[selSysIdx].labelRect;
+          goto LSkipLabelReposition;
+        end;
+
+        if sys = FSelectedSystem then selSysIdx := idx;
+
 
         Brush.Style := bsClear;
         Font.Style := [];
@@ -1405,14 +1411,19 @@ begin
           2: goto LSkipLabelPrint;
         end;
 
+        {
+        sysName := sys.StarSystem;
+        if sys.AlterName <> '' then
+          if Opts.Flags['ShowAlterNames'] then sysName := sys.AlterName;
+        }
 
         Font.Size := fontSize;
         pt.X := pt.X + labOffSetX;
         pt.Y := pt.Y + labOffSetY;
         r.Left := pt.X;
         r.Top := pt.Y;
-        r.Right := r.Left + TextWidth(sys.StarSystem);
-        r.Bottom := r.Top + TextHeight(sys.StarSystem);
+        r.Right := r.Left + TextWidth(sysName);
+        r.Bottom := r.Top + TextHeight(sysName);
 
         if FMapZoom >= 25 then
         for i2 := 0 to High(sysPosArr) do
@@ -1452,10 +1463,7 @@ LSkipLabelReposition:;
           Font.Color := clBlack;
         end;
 
-        s := sys.StarSystem;
-        if sys.AlterName <> '' then
-          if Opts.Flags['ShowAlterNames'] then s := sys.AlterName;
-        TextOut(r.Left,r.Top,s);
+        TextOut(r.Left,r.Top,sysName);
 
 LSkipLabelPrint:;
         Pen.Color := $606060;
@@ -1917,6 +1925,7 @@ LSkipLabelPrint:;
           png.LoadFromFile(FSelectedSystem.ImagePath);
           r := PaintBox.ClientRect;
           w := r.Width div 3;
+          if w > png.Width  then w := png.Width;
           r.Left := 12;
           r.Right := r.Left + w;
           r.Bottom := r.Bottom - 12;

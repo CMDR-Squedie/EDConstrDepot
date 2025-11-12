@@ -858,6 +858,15 @@ object SolverForm: TSolverForm
         'orbital first'
         'surface first')
     end
+    object IgnorePlannedCheck: TCheckBox
+      Left = 797
+      Top = 245
+      Width = 153
+      Height = 18
+      Hint = 'Allow Hubs (eg. Refinery Hub) for suggested constructions'
+      Caption = 'Ignore Planned'
+      TabOrder = 28
+    end
   end
   object PopupMenu: TPopupMenu
     OnPopup = PopupMenuPopup

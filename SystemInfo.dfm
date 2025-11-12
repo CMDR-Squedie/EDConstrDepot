@@ -180,8 +180,8 @@ object SystemInfoForm: TSystemInfoForm
       Caption = '-----------------------'
     end
     object SystemAddrLabel: TLabel
-      Left = 1230
-      Top = 48
+      Left = 1214
+      Top = 17
       Width = 154
       Height = 20
       AutoSize = False
@@ -256,7 +256,7 @@ object SystemInfoForm: TSystemInfoForm
       ParentFont = False
     end
     object Label15: TLabel
-      Left = 815
+      Left = 909
       Top = 55
       Width = 46
       Height = 21
@@ -272,7 +272,7 @@ object SystemInfoForm: TSystemInfoForm
       OnDblClick = SystemAddrLabelDblClick
     end
     object EDSMScanLabel: TLabel
-      Left = 1104
+      Left = 1214
       Top = 48
       Width = 129
       Height = 20
@@ -357,8 +357,24 @@ object SystemInfoForm: TSystemInfoForm
       Font.Style = []
       ParentFont = False
     end
+    object Label17: TLabel
+      Left = 859
+      Top = 31
+      Width = 96
+      Height = 21
+      Alignment = taRightJustify
+      AutoSize = False
+      Caption = 'Alt.Name:'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clSilver
+      Font.Height = -15
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentFont = False
+      OnDblClick = SystemAddrLabelDblClick
+    end
     object EDSMScanButton: TButton
-      Left = 1011
+      Left = 1109
       Top = 46
       Width = 75
       Height = 25
@@ -369,7 +385,7 @@ object SystemInfoForm: TSystemInfoForm
     object CommentEdit: TEdit
       Left = 660
       Top = 7
-      Width = 325
+      Width = 401
       Height = 26
       BevelEdges = [beBottom]
       BevelInner = bvNone
@@ -383,7 +399,7 @@ object SystemInfoForm: TSystemInfoForm
       OnChange = CommentEditChange
     end
     object SaveDataButton: TButton
-      Left = 1011
+      Left = 1109
       Top = 15
       Width = 75
       Height = 25
@@ -394,7 +410,7 @@ object SystemInfoForm: TSystemInfoForm
     object GoalsEdit: TEdit
       Left = 660
       Top = 31
-      Width = 325
+      Width = 229
       Height = 22
       BorderStyle = bsNone
       ParentColor = True
@@ -405,7 +421,7 @@ object SystemInfoForm: TSystemInfoForm
     object ObjectivesEdit: TEdit
       Left = 660
       Top = 55
-      Width = 149
+      Width = 229
       Height = 26
       BorderStyle = bsNone
       ParentColor = True
@@ -414,9 +430,9 @@ object SystemInfoForm: TSystemInfoForm
       OnChange = CommentEditChange
     end
     object TaskGroupEdit: TEdit
-      Left = 867
+      Left = 961
       Top = 55
-      Width = 118
+      Width = 134
       Height = 26
       BorderStyle = bsNone
       ParentColor = True
@@ -431,6 +447,17 @@ object SystemInfoForm: TSystemInfoForm
       Height = 17
       TabOrder = 6
       OnClick = IgnoredCheckClick
+    end
+    object AlterNameEdit: TEdit
+      Left = 961
+      Top = 31
+      Width = 134
+      Height = 26
+      BorderStyle = bsNone
+      ParentColor = True
+      TabOrder = 7
+      Text = 'Aa'
+      OnChange = CommentEditChange
     end
   end
   object ScrollBox: TScrollBox
@@ -1356,6 +1383,20 @@ object SystemInfoForm: TSystemInfoForm
       ShowHint = True
       OnClick = SlotsLabelClick
     end
+    object Label20: TLabel
+      Left = 1325
+      Top = 6
+      Width = 51
+      Height = 16
+      Caption = 'Free slots'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clSilver
+      Font.Height = -13
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentFont = False
+      OnClick = Label20Click
+    end
     object EconomiesCheck: TCheckBox
       Left = 1141
       Top = 6
@@ -1381,6 +1422,21 @@ object SystemInfoForm: TSystemInfoForm
       State = cbChecked
       TabOrder = 2
       OnClick = ShowUpLinksCheckClick
+    end
+    object FreeSlotsCheck: TCheckBox
+      Left = 1305
+      Top = 6
+      Width = 19
+      Height = 17
+      Caption = 'Free Slots'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -13
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentFont = False
+      TabOrder = 3
+      OnClick = BodiesCheckClick
     end
   end
   object FiltersPanel: TPanel
@@ -1523,21 +1579,6 @@ object SystemInfoForm: TSystemInfoForm
       TabOrder = 6
       OnClick = BodiesCheckClick
     end
-    object FreeSlotsCheck: TCheckBox
-      Left = 721
-      Top = 8
-      Width = 90
-      Height = 17
-      Caption = 'Free Slots'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -13
-      Font.Name = 'Bahnschrift SemiCondensed'
-      Font.Style = []
-      ParentFont = False
-      TabOrder = 7
-      OnClick = BodiesCheckClick
-    end
   end
   object PopupMenu: TPopupMenu
     OnPopup = PopupMenuPopup
@@ -1677,6 +1718,11 @@ object SystemInfoForm: TSystemInfoForm
         Caption = 'Major'
         OnClick = PristineReserveMenuItemClick
       end
+      object Normal1: TMenuItem
+        Tag = 4
+        Caption = 'Common'
+        OnClick = PristineReserveMenuItemClick
+      end
       object Low1: TMenuItem
         Tag = 2
         Caption = 'Low'
@@ -1692,7 +1738,7 @@ object SystemInfoForm: TSystemInfoForm
       end
       object Reset2: TMenuItem
         Tag = -1
-        Caption = 'Clear'
+        Caption = 'Clear (default)'
         OnClick = PristineReserveMenuItemClick
       end
     end

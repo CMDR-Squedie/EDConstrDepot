@@ -276,6 +276,10 @@ object EDCDForm: TEDCDForm
         Caption = 'Reset Dock Times'
         OnClick = ResetDockTimeMenuItemClick
       end
+      object IgnoreRecentTimeMenuItem: TMenuItem
+        Caption = 'Ignore Recent'
+        OnClick = IgnoreRecentTimeMenuItemClick
+      end
       object FlightHistoryMenuItem: TMenuItem
         Caption = 'Delivery History'
         OnClick = FlightHistoryMenuItemClick

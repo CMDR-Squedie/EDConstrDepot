@@ -61,6 +61,7 @@ type
     ManageContructionsMenuItem: TMenuItem;
     StarMapMenuItem: TMenuItem;
     SummaryMenuItem: TMenuItem;
+    IgnoreRecentTimeMenuItem: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure UpdTimerTimer(Sender: TObject);
     procedure TextColLabelMouseMove(Sender: TObject; Shift: TShiftState; X,
@@ -118,6 +119,7 @@ type
     procedure Wiki1Click(Sender: TObject);
     procedure StarMapMenuItemClick(Sender: TObject);
     procedure SummaryMenuItemClick(Sender: TObject);
+    procedure IgnoreRecentTimeMenuItemClick(Sender: TObject);
 private
     { Private declarations }
     FSelectedConstructions: TStringList;
@@ -550,6 +552,18 @@ begin
   UpdateConstrDepot;
 end;
 
+procedure TEDCDForm.IgnoreRecentTimeMenuItemClick(Sender: TObject);
+begin
+  if Vcl.Dialogs.MessageDlg('Ignore recent time?' + Chr(13) +
+    '(This is not permanent - all times are restored after restart.)' ,
+    mtConfirmation, [mbYes, mbNo], 0, mbNo) = mrNo then Exit;
+
+  if FCurrentDepot <> nil then
+    FCurrentDepot.DockToDockTimes.ClearLast;
+  UpdateConstrDepot;
+
+end;
+
 procedure TEDCDForm.OnEDDataUpdate;
 var idx: Integer;
 begin
@@ -927,10 +941,15 @@ begin
         if cargo > 0 then
         begin
           s := IntToStr(cargo);
-          if (reqQty > 0) and not Opts.Flags['ShowIndicators'] then
+          if not Opts.Flags['ShowIndicators'] then
           begin
-            if cargo = reqQty then s := '✓ ' + s;
-            if cargo > reqQty then s := '+ ' + s;
+            if reqQty > 0 then
+            begin
+              if cargo = reqQty then s := '✓ ' + s;
+              if cargo > reqQty then s := '+ ' + s;
+            end
+            else
+              if cargo > 0 then s := '⛔ ' + s;
           end;
         end;
         l[colStock] := s;
