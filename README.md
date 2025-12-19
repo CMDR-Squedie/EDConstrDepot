@@ -32,7 +32,6 @@ Features:
 - manage your colonies from 2D colony map with custom projections and info layers
 - task groups - group markets and depots by context (personal projects/location in galaxy etc.)
 
-More in [Wiki](https://github.com/CMDR-Squedie/EDConstrDepot/wiki)
 
 o7, CMDRs!
 
