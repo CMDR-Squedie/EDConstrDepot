@@ -1,5 +1,3 @@
-![00000aa](https://github.com/user-attachments/assets/774bc254-f7a0-4e59-8276-70ce2eed085a)
-
 Lastest version to download: https://github.com/CMDR-Squedie/EDConstrDepot/releases/latest
 
 A minimalistic transparent overlay tool to track construction depots from Elite Dangerous player journals.
