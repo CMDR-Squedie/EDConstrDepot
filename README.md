@@ -19,12 +19,12 @@ Features:
 - list of visited markets, with their economies
 - list of commodities sold in market (double-click market economy)
 - track colony market history with snapshots (manual or automatic)
-- compare markets, or snapshots of same market (eg. after strong/weak links were added) [details](https://github.com/CMDR-Squedie/EDConstrDepot/wiki#compare-markets-and-market-history)
-- delivery time left, average dock-to-dock time and most recent time; delivery history with recent markets [details](https://github.com/CMDR-Squedie/EDConstrDepot/wiki#delivery-times)
-- manage your colonies, colony candidates and colonisation targets [details](https://github.com/CMDR-Squedie/EDConstrDepot/wiki#colonies)
+- compare markets, or snapshots of same market (eg. after strong/weak links were added)
+- delivery time left, average dock-to-dock time and most recent time; delivery history with recent markets 
+- manage your colonies, colony candidates and colonisation targets 
 - attach system picture (in-game screenshot with Windows Snipping Tool)
 - check construction points, free construction slots and other system statistics
-- add planned constructions and check how they influence the economies [details](https://github.com/CMDR-Squedie/EDConstrDepot/wiki#system-body-and-station-economies)
+- add planned constructions and check how they influence the economies 
 - check bodies from system scan information, check inherent body economies 
 - check station economies, strong links and up-links, including planned stations
 - manage your colonies from 2D colony map with custom projections and info layers
