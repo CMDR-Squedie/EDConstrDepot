@@ -57,6 +57,8 @@ type
     TotalsButton: TButton;
     FindBodyMenuItem: TMenuItem;
     FindBodyButton: TButton;
+    CopyPopHistMenuItem: TMenuItem;
+    CreateRouteMenuItem: TMenuItem;
     procedure ListViewColumnClick(Sender: TObject; Column: TListColumn);
     procedure ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
@@ -94,6 +96,8 @@ type
     procedure TotalsButtonClick(Sender: TObject);
     procedure FindBodyMenuItemClick(Sender: TObject);
     procedure EditArchitectMenuItemClick(Sender: TObject);
+    procedure CopyPopHistMenuItemClick(Sender: TObject);
+    procedure CreateRouteMenuItemClick(Sender: TObject);
   private
     { Private declarations }
     FHoldUpdate: Boolean;
@@ -348,32 +352,100 @@ begin
   UpdateItems(true);
 end;
 
+
+
 procedure TColoniesForm.CopyMenuItemClick(Sender: TObject);
 var s: string;
-    i,j: Integer;
+    i,j,duplCols: Integer;
     selonlyf: Boolean;
 begin
   selonlyf := (Sender = CopyMenuItem);
+  duplCols := 1;  //duplicated columns at far right
+
   s := '';
-  for i := 0 to ListView.Columns.Count -1 do
+  for i := 0 to ListView.Columns.Count - 1 - duplCols do
   begin
     if ListView.Columns[i].Caption <> '' then
       s := s + ListView.Columns[i].Caption + Chr(9);
   end;
+  //s := s + 'Pop. Change' + Chr(9);
   s := s + Chr(13);
 
-  for i := 0 to ListView.Items.Count -1 do
+
+  for i := 0 to ListView.Items.Count - 1 do
   begin
     if selonlyf then
       if not IsSelected(ListView.Items[i]) then continue;
     s := s + ListView.Items[i].Caption + Chr(9);
-    for j := 0 to ListView.Items[i].SubItems.Count - 1 do
+    for j := 0 to ListView.Items[i].SubItems.Count - 1 - duplCols do
       if j < ListView.Columns.Count - 1 then
         if ListView.Columns[j+1].Caption <> '' then
           s := s + ListView.Items[i].SubItems[j] + Chr(9);
+
+    //s := s + TStarSystem(ListView.Items[i].Data).PopDailyChange + Chr(9);
     s := s + Chr(13);
   end;
   Clipboard.SetTextBuf(PChar(s));
+end;
+
+procedure TColoniesForm.CopyPopHistMenuItemClick(Sender: TObject);
+var sys: TStarSystem;
+    s,cs: string;
+    i,d: Integer;
+    pop,lastpop: Int64;
+    dt,lastdt: TDateTime;
+begin
+  if ListView.Selected <> nil then
+  begin
+    sys :=  TStarSystem(ListView.Selected.Data);
+    lastpop := 0;
+    lastdt := 0;
+    cs := sys.StarSystem + Chr(13);
+    cs := cs + 'DateTime' + Chr(9) + 'Date' + Chr(9) +
+        'Population' + Chr(9) + 'Pop. Change' + Chr(9) +
+        'Days' + Chr(9) + 'Daily Change' + Chr(13);
+
+    for i := 0 to sys.PopHistory.Count - 1 do
+    begin
+      pop := StrToInt64Def(sys.PopHistory.ValueFromIndex[i],0);
+      if pop <=0 then continue;
+      
+      s := Copy(sys.PopHistory.Names[i],1,10);
+      dt := StrToDateTime(s);
+      d := 0;
+      if lastdt > 0 then d := Trunc(dt - lastdt);
+      lastdt := dt;
+
+
+      cs := cs + sys.PopHistory.Names[i] + Chr(9) + s + Chr(9) +
+        IntToStr(pop) + Chr(9) + IntToStr(pop-lastpop) + Chr(9) +
+        IntToStr(d) + Chr(9) + IfThen(d>0,IntToStr(Trunc((pop-lastpop)/d)),'') + Chr(9) +
+        Chr(13);
+      lastpop := pop;
+    end;
+    Clipboard.AsText := cs;
+  end;
+end;
+
+procedure TColoniesForm.CreateRouteMenuItemClick(Sender: TObject);
+var i: Integer;
+    sys: TStarSystem;
+    sl: TSystemList;
+begin
+  sl := TSystemList.Create;
+  sl.StrictDelimiter := True;
+  for i := 0 to ListView.Items.Count -1 do
+    if IsSelected(ListView.Items[i]) then
+    begin
+      sys := TStarSystem(ListView.Items[i].Data);
+      sl.AddObject(sys.StarSystem,sys);
+    end;
+  if sl.Count > 1 then
+  begin
+    StarMapForm.Show;
+    StarMapForm.SetRoute(sl);
+  end;
+  sl.Free;
 end;
 
 procedure TColoniesForm.EditArchitectMenuItemClick(Sender: TObject);
@@ -525,14 +597,7 @@ end;
 
 procedure TColoniesForm.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
-  if WindowState = wsNormal then
-  begin
-    Opts['Colonies.Left'] := IntToStr(self.Left);
-    Opts['Colonies.Top'] := IntToStr(self.Top);
-    Opts['Colonies.Height'] := IntToStr(self.Height);
-    Opts['Colonies.Width'] := IntToStr(self.Width);
-    Opts.Save;
-  end;
+  SaveWindowOpts(self,'Colonies');
 end;
 
 procedure TColoniesForm.FormCreate(Sender: TObject);
@@ -546,10 +611,13 @@ begin
   DataSrc.AddListener(self);
   ApplySettings;
 
+  ApplyWindowOpts(self,'Colonies');
+  {
   self.Width := StrToIntDef(Opts['Colonies.Width'],self.Width);
   self.Height := StrToIntDef(Opts['Colonies.Height'],self.Height);
   self.Left := StrToIntDef(Opts['Colonies.Left'],(Screen.Width - self.Width) div 2);
   self.Top := StrToIntDef(Opts['Colonies.Top'],0);
+  }
 
   if Opts['Markets.AlphaBlend'] <> '' then
   begin
@@ -564,6 +632,10 @@ begin
   if FilterEdit.Items.Count = 0 then
     for i := 0 to DataSrc.Commanders.Count - 1 do
       FilterEdit.Items.Add(DataSrc.Commanders.ValueFromIndex[i]);
+
+  //minimizing works really bad in Delphi...
+  //need to restore original pos & size if set to -32000 by TForm
+  ApplyWindowOpts(self,'Colonies',true);
 
   UpdateItems(true);
   FilterEdit.SetFocus;
@@ -710,6 +782,8 @@ begin
     ListView.Items.Clear;
     ListView.SortType := stNone;
 
+    DataSrc.UpdateSystemStations;
+
 
     orgfs := FilterEdit.Text;
     fs := LowerCase(orgfs);
@@ -757,6 +831,10 @@ begin
         s := Format('%.0n', [double(sys.Population)]);
       addSubItem(s);
       s := '';
+      if sys.ArchitectName <> '' then
+        s := sys.GetScore.ToString;
+      addSubItem(s);
+      s := '';
       if FReferenceSystem <> nil then
         if (sys.LastUpdate = '') and (sys.StarPosX = 0) then
           s := '?'
@@ -790,6 +868,13 @@ begin
       addSubItem(sys.TaskGroup);
 
       s := '';
+      if sys.Population >= 0 then
+        s := Format('%.0n', [double(sys.PopDailyChange)]);
+      addSubItem(s);
+      addSubItem(sys.StarSystem);
+
+      s := '';
+{
       if candidf then
       begin
         for i2 := 0 to FColonies.Count - 1 do
@@ -801,6 +886,7 @@ begin
           end;
         end;
       end;
+}
       addSubItem(s);
 
 
@@ -852,12 +938,17 @@ begin
     if SortColumn = 2 then
       Compare := CompareValue(TStarSystem(Item1.Data).Population,TStarSystem(Item2.Data).Population)
     else
-    if SortColumn = 3 then
+    if (SortColumn = 3) or (SortColumn = 4) then
       Compare := CompareText(
         Item1.SubItems[SortColumn-1].PadLeft(10),
         Item2.SubItems[SortColumn-1].PadLeft(10))
     else
-    if (SortColumn = 10) or (SortColumn = 11) then
+    if SortColumn = 15 then //pop daily change
+      Compare := CompareText(
+        Item1.SubItems[SortColumn-1].PadLeft(12),
+        Item2.SubItems[SortColumn-1].PadLeft(12))
+    else
+    if (SortColumn = 11) or (SortColumn = 12) then
     begin
       s := Item1.SubItems[SortColumn-1];
       if s = '' then s := 'ZZZ';
@@ -893,9 +984,9 @@ begin
 
   if Opts.Flags['HighlightGoals'] then
   if TObject(Item.Data) is TStarSystem then
-    if Item.SubItems[9] <> '' then
+    if Item.SubItems[10] <> '' then
     begin
-      if Pos('!',Item.SubItems[9]) > 0 then
+      if Pos('!',Item.SubItems[10]) > 0 then
       begin
         if not Opts.Flags['DarkMode'] then
           Sender.Canvas.Font.Color := clBlue

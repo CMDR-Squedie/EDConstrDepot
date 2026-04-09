@@ -497,7 +497,7 @@ var item: TListItem;
     cp2Cost,cp3Cost,t23ports,t1ports,maxinflcnt: Integer;
     t1ToBuild,t2ToBuild,t3ToBuild,t1SurfToBuild,t3SurfToBuild: Integer;
     t23portf,asteroidOnlyf: Boolean;
-    i,prioIdx: Integer;
+    i,idx,prioIdx: Integer;
     s,constrType,constrTag: string;
     nextBuild,reqBuild: TNextBuild;
     nextCt,depCt: TConstructionType;
@@ -1230,12 +1230,22 @@ begin
     if nextCt.Dependencies <> '' then
     if not nextCt.CheckDependencies(FConstrList) then
     if dependAllowedToBuild(nextCt,depCt) then
-    if APrioConstructions.IndexOfObject(depCt) < 0 then
     begin
-      APrioConstructions.InsertObject(prioIdx,'D',nextCt);
-      APrioConstructions.InsertObject(prioIdx,'D',depCt);
-      continue;
-    end;
+      i := APrioConstructions.IndexOfObject(depCt);
+      if i < 0 then
+      begin
+        APrioConstructions.InsertObject(prioIdx,'D',nextCt);
+        APrioConstructions.InsertObject(prioIdx,'D',depCt);
+        continue;
+      end
+      else
+      begin
+        APrioConstructions.InsertObject(prioIdx,
+          APrioConstructions[i],APrioConstructions.Objects[i]);
+        APrioConstructions.Delete(i+1);
+        continue;
+      end;
+   end;
 
 
     case nextBuild of

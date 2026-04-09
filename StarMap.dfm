@@ -271,7 +271,7 @@ object StarMapForm: TStarMapForm
         Width = 137
         Height = 24
         Style = csDropDownList
-        DropDownCount = 18
+        DropDownCount = 20
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText
         Font.Height = -13
@@ -462,6 +462,10 @@ object StarMapForm: TStarMapForm
       object StopRouteMenuItem: TMenuItem
         Caption = 'Stop'
         OnClick = StopRouteMenuItemClick
+      end
+      object OptimizeRouteMenuItem: TMenuItem
+        Caption = 'Optimize'
+        OnClick = OptimizeRouteMenuItemClick
       end
       object ClearRouteMenuItem: TMenuItem
         Caption = 'Clear'

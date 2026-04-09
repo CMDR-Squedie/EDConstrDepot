@@ -62,5 +62,12 @@ object SummaryForm: TSummaryForm
       Caption = 'Copy'
       OnClick = CopyMenuItemClick
     end
+    object N1: TMenuItem
+      Caption = '-'
+    end
+    object CopyPopHistMenuItem: TMenuItem
+      Caption = 'Copy Pop. History'
+      OnClick = CopyPopHistMenuItemClick
+    end
   end
 end

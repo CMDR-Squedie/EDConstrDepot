@@ -17,7 +17,6 @@ uses
   StationInfo in 'StationInfo.pas' {StationInfoForm},
   MarketInfo in 'MarketInfo.pas' {MarketInfoForm},
   ConstrTypes in 'ConstrTypes.pas' {ConstrTypesForm},
-  MaterialList in 'MaterialList.pas' {MaterialListForm},
   Toolbar in 'Toolbar.pas' {ToolbarForm},
   ToolTip in 'ToolTip.pas' {TooltipForm},
   StarMap in 'StarMap.pas' {StarMapForm},
@@ -25,28 +24,37 @@ uses
   Bodies in 'Bodies.pas' {BodiesForm},
   Memo in 'Memo.pas' {MemoForm},
   Solver in 'Solver.pas' {SolverForm},
-  BodyInfo in 'BodyInfo.pas' {BodyInfoForm};
+  BodyInfo in 'BodyInfo.pas' {BodyInfoForm},
+  MaterialList in 'MaterialList.pas' {MaterialListForm},
+  TradeRoutes in 'TradeRoutes.pas' {TradeRoutesForm};
 
 {$R *.res}
 
-const gNiceVersion: string = 'Release 31, build 1';
+const gNiceVersion: string = 'Release 32, build 1';
 
 {
+changes:
+ - Create Route from Colonies list
+ - Optimize command from Route menu in Star Map
+ - map background from optional starbkg.bmp file
+ - Show Near Markets (up to 10 additional markets for full capacity)
+ - altered system stats option to include new penalties/bonuses
+ - reused depot IDs workaround - duplicate IDs are suffixed with system name if needed
+ - construction identification includes orbital/surface flag
+ - planner now rearranges list of player-planned contructions for dependencies
+ - Copy Population History command for system selected in Colonies list
+ - Copy Population History for Summary window (all colonies)
+ - system score and daily population growth columns in Colonies list
+ - support for unicode chars in system data (alternative name etc.)
+ - minimum strong link of 0.10 added
 
-  changes:
-    - 'Ignore Recent Time' command added to Delivery Times menu
-    - 'Ignored Planned' option in colony planner to ignore current player-added contructions
-    - system alternative name field added to System Info window
-    - colony planner slots policy settings more strict
-    - colony planner bonus for T1 stations total stats decreased
-    - colony planner dependencies not checked when out of slots (minor fix)
 
   future builds:
- - economy commodity dependencies
  - 'asteroid' slots
  - find similar economy market
  - force show system on map  (other than objective)
  - custom star lanes
+ - merge routes, edit routes
  - biggest station name layer  +  show biggest station on select
 
   tentative:
@@ -74,7 +82,6 @@ begin
   Application.CreateForm(TSystemInfoForm, SystemInfoForm);
   Application.CreateForm(TStationInfoForm, StationInfoForm);
   Application.CreateForm(TConstrTypesForm, ConstrTypesForm);
-  Application.CreateForm(TMaterialListForm, MaterialListForm);
   Application.CreateForm(TTooltipForm, TooltipForm);
   Application.CreateForm(TStarMapForm, StarMapForm);
   Application.CreateForm(TSummaryForm, SummaryForm);
@@ -82,6 +89,8 @@ begin
   Application.CreateForm(TMemoForm, MemoForm);
   Application.CreateForm(TSolverForm, SolverForm);
   Application.CreateForm(TBodyInfoForm, BodyInfoForm);
+  Application.CreateForm(TTradeRoutesForm, TradeRoutesForm);
+  Application.CreateForm(TMaterialListForm, MaterialListForm);
   SettingsForm.VersionLabel.Caption := gNiceVersion;
 
   Application.OnActivate :=  EDCDForm.AppActivate;

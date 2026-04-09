@@ -520,14 +520,7 @@ end;
 
 procedure TMarketsForm.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
-  if WindowState = wsNormal then
-  begin
-    Opts['Markets.Left'] := IntToStr(self.Left);
-    Opts['Markets.Top'] := IntToStr(self.Top);
-    Opts['Markets.Height'] := IntToStr(self.Height);
-    Opts['Markets.Width'] := IntToStr(self.Width);
-    Opts.Save;
-  end;
+  SaveWindowOpts(self,'Markets');
 end;
 
 procedure TMarketsForm.SetRecentSort;
@@ -545,12 +538,8 @@ begin
   DataSrc.AddListener(self);
   ApplySettings;
 
-  self.Width := StrToIntDef(Opts['Markets.Width'],self.Width);
-  self.Height := StrToIntDef(Opts['Markets.Height'],self.Height);
-  self.Left := StrToIntDef(Opts['Markets.Left'],(Screen.Width - self.Width) div 2);
-  self.Top := StrToIntDef(Opts['Markets.Top'],Screen.Height div 2);
-
-
+  ApplyWindowOpts(self,'Markets');
+ 
   if Opts['Markets.AlphaBlend'] <> '' then
   begin
     AlphaBlendValue := StrToIntDef(Opts['Markets.AlphaBlend'],255);
@@ -560,6 +549,7 @@ end;
 
 procedure TMarketsForm.FormShow(Sender: TObject);
 begin
+  ApplyWindowOpts(self,'Markets',true);
   UpdateItems(true);
   FilterEdit.SetFocus;
 end;
@@ -808,7 +798,7 @@ begin
           csInProgress: s := '(Active)';
           csFinished: s := '(Finished)';
           csCancelled: s := '(Cancelled)';
-          csTentative: ;
+          csTentative: s := '(Tentative)';
           csPlanned: s := '(Planned)';
         end;
       if cd.GetConstrType <> nil then

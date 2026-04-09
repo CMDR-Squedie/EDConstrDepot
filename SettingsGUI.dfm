@@ -51,7 +51,6 @@ object SettingsForm: TSettingsForm
     ViewStyle = vsReport
     OnCustomDrawItem = ListViewCustomDrawItem
     OnDblClick = ListViewDblClick
-    ExplicitHeight = 833
   end
   object Panel1: TPanel
     Left = 0
@@ -62,7 +61,6 @@ object SettingsForm: TSettingsForm
     BevelOuter = bvNone
     ParentBackground = False
     TabOrder = 1
-    ExplicitTop = 833
     object VersionLabel: TLabel
       Left = 0
       Top = 0

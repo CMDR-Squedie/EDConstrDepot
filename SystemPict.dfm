@@ -97,6 +97,10 @@ object SystemPictForm: TSystemPictForm
       Caption = 'Refresh'
       OnClick = ReloadPictureMenuItemClick
     end
+    object ToggleOverlayMenuItem: TMenuItem
+      Caption = 'Toggle Overlay'
+      OnClick = ToggleOverlayMenuItemClick
+    end
     object N1: TMenuItem
       Caption = '-'
     end

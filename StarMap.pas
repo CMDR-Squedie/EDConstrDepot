@@ -73,6 +73,7 @@ type
     FindSystemMenuItem: TMenuItem;
     FindBodiesMenuItem: TMenuItem;
     AddSystemsMenuItem: TMenuItem;
+    OptimizeRouteMenuItem: TMenuItem;
     procedure PaintBoxPaint(Sender: TObject);
     procedure PaintBoxDblClick(Sender: TObject);
     procedure ProjectionXComboChange(Sender: TObject);
@@ -113,6 +114,7 @@ type
     procedure FindSystemMenuItemClick(Sender: TObject);
     procedure FindBodiesMenuItemClick(Sender: TObject);
     procedure AddSystemsMenuItemClick(Sender: TObject);
+    procedure OptimizeRouteMenuItemClick(Sender: TObject);
   private
     { Private declarations }
     FShowNeighbours: Boolean;
@@ -136,6 +138,7 @@ type
     FHistTimerPaused: Boolean;
     FSelectedSystem: TStarSystem;
     FPreviewRect: TRect;
+    FBkg: TBitmap;
     function InfoLayer: string;
     procedure UpdateItems;
     procedure UpdateMap(const autoCenter: Boolean = false; const centerOnSelected: Boolean = false);
@@ -149,6 +152,7 @@ type
     procedure OnChangeSettings;
     procedure SelectSystem(sys: TStarSystem);
     procedure RestoreAndShow;
+    procedure SetRoute(route: TSystemList);
   end;
 
 var
@@ -168,6 +172,29 @@ begin
     UpdateMap;
     PaintBoxPaint(nil);
   end;
+end;
+
+procedure TStarMapForm.SetRoute(route: TSystemList);
+begin
+  FRouteName := '';
+  FRoute.Assign(route);
+  if Visible then
+  begin
+    UpdateItems;
+    UpdateMap(true);
+    PaintBoxPaint(nil);
+  end;
+end;
+
+
+procedure TStarMapForm.OptimizeRouteMenuItemClick(Sender: TObject);
+var optRoute: TSystemList;
+begin
+  optRoute := FRoute.OptimizedRoute(DataSrc.CurrentSystem);
+  FRoute.Assign(optRoute);
+  optRoute.Free;
+  UpdateMap;
+  PaintBoxPaint(nil);
 end;
 
 procedure TStarMapForm.SelectSystem(sys: TStarSystem);
@@ -207,7 +234,11 @@ end;
 
 procedure TStarMapForm.StartRouteMenuItemClick(Sender: TObject);
 begin
-  DataSrc.CurrentRoute.StartRoute(FRoute);
+//test!
+  if DataSrc.CurrentSystem <> nil then
+    DataSrc.CurrentRoute.StartRoute(FRoute.OptimizedRoute(DataSrc.CurrentSystem))
+  else
+    DataSrc.CurrentRoute.StartRoute(FRoute);
   EDCDForm.UpdateConstrDepot;
 end;
 
@@ -220,6 +251,8 @@ end;
 procedure TStarMapForm.FormShow(Sender: TObject);
 var sl: TStringList;
 begin
+  ApplyWindowOpts(self,'Map',true);
+
   ResetMap;
 
   sl := TStringList.Create;
@@ -439,13 +472,7 @@ begin
   Opts['MapProjX'] := ProjectionXCombo.Text;
   Opts['MapProjY'] := ProjectionYCombo.Text;
   Opts['MapLanes'] := LinkStyleCombo.Text;
-  if WindowState = wsNormal then
-  begin
-    Opts['Map.Left'] := IntToStr(self.Left);
-    Opts['Map.Top'] := IntToStr(self.Top);
-    Opts['Map.Height'] := IntToStr(self.Height);
-    Opts['Map.Width'] := IntToStr(self.Width);
-  end;
+  SaveWindowOpts(self,'Map');
 end;
 
 
@@ -502,10 +529,7 @@ begin
   ShowInTaskBar := Opts.Flags['ShowInTaskbar'];
   DataSrc.AddListener(self);
 
-  self.Width := StrToIntDef(Opts['Map.Width'],self.Width);
-  self.Height := StrToIntDef(Opts['Map.Height'],self.Height);
-  self.Left := StrToIntDef(Opts['Map.Left'],(Screen.Width - self.Width) div 2);
-  self.Top := StrToIntDef(Opts['Map.Top'],(Screen.Height - self.Height) div 2);
+  ApplyWindowOpts(self,'Map');
 
   FMapZoom := 100;
   FOrigin := TPoint.Create(0,0);
@@ -521,10 +545,16 @@ begin
   FNeighbours := TSystemList.Create;
   FConnectors := TSystemList.Create;
   FRoute := TSystemList.Create;
-  FRoute.StrictDelimiter := True;
   FHistory := TSystemList.Create;
   FHistoryEntry := 0;
   FMap := TBitmap.Create;
+
+  FBkg := TBitmap.Create;
+  try
+    FBkg.LoadFromFile('starbkg.bmp');
+  except
+  end;
+
 end;
 
 procedure TStarMapForm.FormKeyPress(Sender: TObject; var Key: Char);
@@ -1007,6 +1037,13 @@ begin
 
   with FMap.Canvas do
   begin
+
+          GetBrushOrgEx(Handle,pt);
+          SetStretchBltMode(Handle,HALFTONE);
+          SetBrushOrgEx(Handle,pt.x,pt.y,@pt);
+          StretchBlt(Handle, 0, 0, FBkg.Width, FBkg.Height,
+            FBkg.Canvas.Handle, 0, 0, FBkg.Width, FBkg.Height, CopyMode);
+
 
     sysSpanList := FColonies;
     if FRouteName <> '' then
@@ -1492,6 +1529,16 @@ LSkipLabelPrint:;
             if InfoLayer = 'C2' then
               s := s + Copy(sys.CurrentGoals,1,40);
 
+            Font.Color := $00A0FF;
+          end;
+
+          if (InfoLayer = 'C3') or (InfoLayer = 'C4') then
+          begin
+            //cnt1 := 0;
+            //cnt2 := 0;
+            sys.GetCP(cnt1,cnt2);
+            if cnt1 > 0  then s := s + 'CP2:' + cnt1.ToString + ' ';
+            if cnt2 > 0  then s := s + 'CP3:' + cnt2.ToString + ' ';
             Font.Color := $00A0FF;
           end;
 
@@ -1981,6 +2028,7 @@ begin
   else
   begin
     FRouteName := TMenuItem(Sender).Hint;
+    FRoute.StrictDelimiter := True;
     FRoute.CommaText := DataSrc.Routes.Values[FRouteName];
     for i := 0 to FRoute.Count - 1 do
       FRoute.Objects[i] := DataSrc.StarSystems.SystemByName[FRoute.Strings[i]];
@@ -2022,6 +2070,7 @@ begin
   StartRouteMenuItem.Enabled := FRoute.Count > 1;
   StopRouteMenuItem.Enabled := (FRoute.Count > 1) or DataSrc.CurrentRoute.Active;
   ClearRouteMenuItem.Enabled := FRoute.Count > 1;
+  OptimizeRouteMenuItem.Enabled := FRoute.Count > 2;
 
   AddSystemsMenuItem.Visible := Opts.Flags['DevMode'];
 

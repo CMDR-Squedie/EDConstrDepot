@@ -4,7 +4,8 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ComCtrls, Vcl.Menus, Vcl.StdCtrls;
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ComCtrls, Vcl.Menus, Vcl.StdCtrls,
+  System.IniFiles, System.DateUtils;
 
 type
   TSummaryForm = class(TForm)
@@ -12,6 +13,8 @@ type
     PopupMenu: TPopupMenu;
     CopyMenuItem: TMenuItem;
     CmdrComboBox: TComboBox;
+    N1: TMenuItem;
+    CopyPopHistMenuItem: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure CopyMenuItemClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
@@ -19,8 +22,10 @@ type
     procedure ListViewCustomDrawItem(Sender: TCustomListView; Item: TListItem;
       State: TCustomDrawState; var DefaultDraw: Boolean);
     procedure ListViewDblClick(Sender: TObject);
+    procedure CopyPopHistMenuItemClick(Sender: TObject);
   private
     { Private declarations }
+    FPopHistory: THashedStringList;
     procedure UpdateItems;
   public
     { Public declarations }
@@ -43,18 +48,19 @@ begin
 end;
 
 procedure TSummaryForm.UpdateItems;
-var i,i2: Integer;
+var i,i2,i3: Integer;
     item: TListItem;
     sys: TStarSystem;
     isColonyf: Boolean;
-    totPop: Int64;
+    totPop,totPopInc,pop: Int64;
     totHaul,totScore,totSystems,totConstr,totT3,totT2,totT1surf,totT1orb: Integer;
-    totSystems10,totSystems100,totSystems1b,totShipyards: Integer;
+    totSystems10,totSystems100,totSystems1b,totShipyards,totTechBrokers: Integer;
     totELW,totWW,totAW,totELW2,totWW2,totAW2,totELW3,totWW3,totAW3: Integer;
     totLandRings,totG4,totG5,totGW,totGH,
       totLandOxy,totLandHelium,totAbundLife,totLandAtmMoons,totWaterGeysers,totMetalRings,totLandTiny: Integer;
     ct: TConstructionType;
-    s: string;
+    s,lasttms: string;
+    dt: TDateTime;
 
     procedure addHeader(s: string);
     begin
@@ -75,11 +81,23 @@ var i,i2: Integer;
 
 begin
   ListView.Items.Clear;
+  FPopHistory.Clear;
+
+  dt := Now;
+  s := Copy(DateToISO8601(dt),1,10);
+  while s > '2025-03' do  //Trailblazers start , todo: switch to journals start
+  begin
+    FPopHistory.Values[s] := '0';
+    //dt := IncMonth(dt,-1);
+    dt := dt - 7;
+    s := Copy(DateToISO8601(dt),1,10);
+  end;
 
   DataSrc.UpdateSystemStations;
 
 
   totPop := 0;
+  totPopInc := 0;
   totScore := 0;
   totSystems := 0;
   totSystems10 := 0;
@@ -92,6 +110,7 @@ begin
   totT1surf := 0;
   totConstr := 0;
   totShipyards := 0;
+  totTechBrokers := 0;
   totELW := 0;
   totWW := 0;
   totAW := 0;
@@ -128,6 +147,7 @@ begin
     sys.UpdateMoons;
 
     totPop := totPop + sys.Population;
+    totPopInc := totPopInc + sys.PopDailyChange;
     totScore := totScore + sys.GetScore;
     Inc(totSystems);
     if sys.Population >= 1000000000 then
@@ -139,6 +159,13 @@ begin
     if sys.Population >= 10000000 then
       Inc(totSystems10);
 
+    for i2 := 0 to FPopHistory.Count - 1 do
+    begin
+      s := FPopHistory.Names[i2];
+      pop := sys.PopForTimeStamp(s + 'ZZZ');
+      if pop = 0 then break;
+      FPopHistory.ValueFromIndex[i2] := (StrToInt64Def(FPopHistory.ValueFromIndex[i2],0) + pop).ToString;
+    end;
 
     if sys.Constructions <> nil then
     for i2 := 0 to sys.Constructions.Count - 1 do
@@ -168,7 +195,8 @@ begin
       with TMarket(sys.Stations[i2]) do
       begin
         if Pos('shipyard',Services) > 0 then Inc(totShipyards);
-        //if Pos('outfitting',m.Services) > 0  then s := s + '⚒OF ';
+        if Pos('techBroker',Services) > 0 then Inc(totTechBrokers);
+         //if Pos('outfitting',m.Services) > 0  then s := s + '⚒OF ';
         //if Pos('exploration',m.Services) > 0  then s := s + '🌐UC ';
         //if Pos('facilitator',m.Services) > 0  then s := s + '⚖IF ';
 
@@ -232,6 +260,7 @@ begin
 
   addHeader('GENERAL');
   addStat('Population',totPop);
+  addStat('  - daily growth',totPopInc);
   addStat('Score',totScore);
   addStat('Base Income',10000*totScore);
   addStat('Number of Systems',totSystems);
@@ -250,6 +279,7 @@ begin
 
   addHeader('FACILITIES');
   addStat('Shipyards',totShipyards);
+  addStat('Tech Brokers',totTechBrokers,false);
 
   addHeader('PLANETS OF INTEREST');
   addStat('Earth-like worlds',totELW,false,'earth');
@@ -323,8 +353,19 @@ begin
   Clipboard.AsText := s;
 end;
 
+procedure TSummaryForm.CopyPopHistMenuItemClick(Sender: TObject);
+var s: string;
+    i: Integer;
+begin
+  s := '';
+  for i := 0 to FPopHistory.Count - 1 do
+    s := s + FPopHistory.Names[i] + Chr(9) + FPopHistory.ValueFromIndex[i] + Chr(13);
+  Clipboard.AsText := s;
+end;
+
 procedure TSummaryForm.FormCreate(Sender: TObject);
 begin
+  FPopHistory := THashedStringList.Create;
   ApplySettings;
   ListView.Items.Clear;
 end;

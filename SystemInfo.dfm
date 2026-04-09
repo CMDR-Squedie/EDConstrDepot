@@ -14,10 +14,11 @@ object SystemInfoForm: TSystemInfoForm
   OnClose = FormClose
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
+  OnShow = FormShow
   TextHeight = 16
   object Splitter1: TSplitter
     Left = 0
-    Top = 500
+    Top = 473
     Width = 1384
     Height = 5
     Cursor = crVSplit
@@ -45,9 +46,9 @@ object SystemInfoForm: TSystemInfoForm
   end
   object ListView: TListView
     Left = 0
-    Top = 597
+    Top = 559
     Width = 1384
-    Height = 264
+    Height = 302
     Align = alClient
     BevelInner = bvNone
     BevelOuter = bvNone
@@ -464,7 +465,7 @@ object SystemInfoForm: TSystemInfoForm
     Left = 0
     Top = 100
     Width = 1384
-    Height = 400
+    Height = 373
     HorzScrollBar.Smooth = True
     HorzScrollBar.Tracking = True
     VertScrollBar.Smooth = True
@@ -884,17 +885,17 @@ object SystemInfoForm: TSystemInfoForm
   end
   object InfoPanel2: TPanel
     Left = 0
-    Top = 505
+    Top = 478
     Width = 1384
-    Height = 59
+    Height = 48
     Align = alTop
     BevelOuter = bvNone
     Color = clBlack
     ParentBackground = False
     TabOrder = 3
     object Label1: TLabel
-      Left = 125
-      Top = 3
+      Left = 102
+      Top = 0
       Width = 38
       Height = 19
       Caption = 'Secur.'
@@ -906,12 +907,12 @@ object SystemInfoForm: TSystemInfoForm
       ParentFont = False
     end
     object SecLabel: TLabel
-      Left = 169
-      Top = 3
-      Width = 68
-      Height = 19
+      Left = 146
+      Top = 0
+      Width = 48
+      Height = 38
       Hint = 'Current (Current +in progress / +planned)'
-      Caption = '00 (00/00)'
+      Caption = '00'#13#10'(00/00)'
       Color = clBlack
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clCrimson
@@ -925,8 +926,8 @@ object SystemInfoForm: TSystemInfoForm
       Transparent = True
     end
     object Label2: TLabel
-      Left = 242
-      Top = 3
+      Left = 192
+      Top = 0
       Width = 37
       Height = 19
       Caption = 'Devel.'
@@ -938,12 +939,12 @@ object SystemInfoForm: TSystemInfoForm
       ParentFont = False
     end
     object DevLabel: TLabel
-      Left = 285
-      Top = 3
-      Width = 68
-      Height = 19
+      Left = 235
+      Top = 0
+      Width = 48
+      Height = 38
       Hint = 'Current (Current +in progress / +planned)'
-      Caption = '00 (00/00)'
+      Caption = '00'#13#10'(00/00)'
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clBlueviolet
       Font.Height = -16
@@ -954,8 +955,8 @@ object SystemInfoForm: TSystemInfoForm
       ShowHint = True
     end
     object Label4: TLabel
-      Left = 358
-      Top = 3
+      Left = 281
+      Top = 0
       Width = 31
       Height = 19
       Caption = 'Tech.'
@@ -967,12 +968,12 @@ object SystemInfoForm: TSystemInfoForm
       ParentFont = False
     end
     object TechLabel: TLabel
-      Left = 395
-      Top = 3
-      Width = 68
-      Height = 19
+      Left = 318
+      Top = 0
+      Width = 48
+      Height = 38
       Hint = 'Current (Current +in progress / +planned)'
-      Caption = '00 (00/00)'
+      Caption = '00'#13#10'(00/00)'
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clRoyalblue
       Font.Height = -16
@@ -983,8 +984,8 @@ object SystemInfoForm: TSystemInfoForm
       ShowHint = True
     end
     object Label6: TLabel
-      Left = 468
-      Top = 3
+      Left = 366
+      Top = 0
       Width = 42
       Height = 19
       Caption = 'Wealth'
@@ -996,12 +997,12 @@ object SystemInfoForm: TSystemInfoForm
       ParentFont = False
     end
     object WealthLabel: TLabel
-      Left = 516
-      Top = 3
-      Width = 68
-      Height = 19
+      Left = 414
+      Top = 0
+      Width = 48
+      Height = 38
       Hint = 'Current (Current +in progress / +planned)'
-      Caption = '00 (00/00)'
+      Caption = '00'#13#10'(00/00)'
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clDarkgoldenrod
       Font.Height = -16
@@ -1012,8 +1013,8 @@ object SystemInfoForm: TSystemInfoForm
       ShowHint = True
     end
     object Label8: TLabel
-      Left = 589
-      Top = 3
+      Left = 459
+      Top = 0
       Width = 42
       Height = 19
       Caption = 'StdLiv.'
@@ -1025,12 +1026,12 @@ object SystemInfoForm: TSystemInfoForm
       ParentFont = False
     end
     object LivLabel: TLabel
-      Left = 637
-      Top = 3
-      Width = 68
-      Height = 19
+      Left = 507
+      Top = 0
+      Width = 48
+      Height = 38
       Hint = 'Current (Current +in progress / +planned)'
-      Caption = '00 (00/00)'
+      Caption = '00'#13#10'(00/00)'
       Color = clNone
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clGreen
@@ -1043,8 +1044,8 @@ object SystemInfoForm: TSystemInfoForm
       ShowHint = True
     end
     object PrimaryLabel: TLabel
-      Left = 1047
-      Top = 1
+      Left = 919
+      Top = 7
       Width = 91
       Height = 27
       AutoSize = False
@@ -1059,8 +1060,8 @@ object SystemInfoForm: TSystemInfoForm
       ShowHint = True
     end
     object Label11: TLabel
-      Left = 832
-      Top = 3
+      Left = 726
+      Top = 1
       Width = 44
       Height = 19
       Alignment = taRightJustify
@@ -1073,12 +1074,12 @@ object SystemInfoForm: TSystemInfoForm
       ParentFont = False
     end
     object CP2Label: TLabel
-      Left = 882
-      Top = 3
-      Width = 68
-      Height = 19
+      Left = 776
+      Top = 1
+      Width = 48
+      Height = 38
       Hint = 'Current (Current +in progress / +planned)'
-      Caption = '00 (00/00)'
+      Caption = '00'#13#10'(00/00)'
       Color = clNone
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clLime
@@ -1091,8 +1092,8 @@ object SystemInfoForm: TSystemInfoForm
       ShowHint = True
     end
     object T2Label: TLabel
-      Left = 959
-      Top = 3
+      Left = 816
+      Top = 0
       Width = 14
       Height = 19
       Caption = 'T3'
@@ -1104,12 +1105,12 @@ object SystemInfoForm: TSystemInfoForm
       ParentFont = False
     end
     object CP3Label: TLabel
-      Left = 978
-      Top = 3
-      Width = 68
-      Height = 19
+      Left = 836
+      Top = 1
+      Width = 48
+      Height = 38
       Hint = 'Current (Current +in progress / +planned)'
-      Caption = '00 (00/00)'
+      Caption = '00'#13#10'(00/00)'
       Color = clNone
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clDeepskyblue
@@ -1123,7 +1124,7 @@ object SystemInfoForm: TSystemInfoForm
     end
     object Label10: TLabel
       Left = 4
-      Top = 32
+      Top = 51
       Width = 120
       Height = 19
       Caption = 'System weak links:'
@@ -1136,7 +1137,7 @@ object SystemInfoForm: TSystemInfoForm
     end
     object InduLinksLabel1: TLabel
       Left = 272
-      Top = 33
+      Top = 52
       Width = 140
       Height = 19
       Hint = 'Current / incl. In Progress / incl. Planned'
@@ -1158,7 +1159,7 @@ object SystemInfoForm: TSystemInfoForm
     end
     object HighLinksLabel1: TLabel
       Left = 412
-      Top = 33
+      Top = 52
       Width = 140
       Height = 19
       Hint = 'Current / incl. In Progress / incl. Planned'
@@ -1180,7 +1181,7 @@ object SystemInfoForm: TSystemInfoForm
     end
     object RefiLinksLabel1: TLabel
       Left = 548
-      Top = 33
+      Top = 52
       Width = 140
       Height = 19
       Hint = 'Current / incl. In Progress / incl. Planned'
@@ -1202,7 +1203,7 @@ object SystemInfoForm: TSystemInfoForm
     end
     object AgriLinksLabel1: TLabel
       Left = 825
-      Top = 33
+      Top = 52
       Width = 140
       Height = 19
       Hint = 'Current / incl. In Progress / incl. Planned'
@@ -1224,7 +1225,7 @@ object SystemInfoForm: TSystemInfoForm
     end
     object ExtrLinksLabel1: TLabel
       Left = 685
-      Top = 33
+      Top = 52
       Width = 140
       Height = 19
       Hint = 'Current / incl. In Progress / incl. Planned'
@@ -1246,7 +1247,7 @@ object SystemInfoForm: TSystemInfoForm
     end
     object TourLinksLabel1: TLabel
       Left = 965
-      Top = 33
+      Top = 52
       Width = 140
       Height = 19
       Hint = 'Current / incl. In Progress / incl. Planned'
@@ -1268,7 +1269,7 @@ object SystemInfoForm: TSystemInfoForm
     end
     object MiliLinksLabel1: TLabel
       Left = 132
-      Top = 33
+      Top = 52
       Width = 140
       Height = 19
       Hint = 'Current / incl. In Progress / incl. Planned'
@@ -1289,8 +1290,8 @@ object SystemInfoForm: TSystemInfoForm
       OnDblClick = MiliLinksLabel1DblClick
     end
     object SlotsLabel: TLabel
-      Left = 711
-      Top = 3
+      Left = 584
+      Top = 13
       Width = 109
       Height = 19
       Hint = 'Free construction slots, click to change'
@@ -1306,8 +1307,8 @@ object SystemInfoForm: TSystemInfoForm
       OnClick = SlotsLabelClick
     end
     object Label12: TLabel
-      Left = 1161
-      Top = 6
+      Left = 1157
+      Top = 12
       Width = 55
       Height = 16
       Caption = 'Economies'
@@ -1320,8 +1321,8 @@ object SystemInfoForm: TSystemInfoForm
       OnClick = Label12Click
     end
     object Label13: TLabel
-      Left = 1250
-      Top = 6
+      Left = 1246
+      Top = 12
       Width = 33
       Height = 16
       Caption = 'Filters'
@@ -1335,7 +1336,7 @@ object SystemInfoForm: TSystemInfoForm
     end
     object Label14: TLabel
       Left = 1162
-      Top = 34
+      Top = 51
       Width = 43
       Height = 16
       Caption = 'Up Links'
@@ -1349,11 +1350,11 @@ object SystemInfoForm: TSystemInfoForm
     end
     object Label0: TLabel
       Left = 4
-      Top = 3
-      Width = 35
-      Height = 19
+      Top = 0
+      Width = 39
+      Height = 38
       Hint = 'Free construction slots, click to change'
-      Caption = 'Score'
+      Caption = 'Score '#13#10'(proj.)'
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clSilver
       Font.Height = -16
@@ -1365,12 +1366,12 @@ object SystemInfoForm: TSystemInfoForm
       OnClick = SlotsLabelClick
     end
     object ScoreLabel: TLabel
-      Left = 44
-      Top = 3
-      Width = 68
-      Height = 19
+      Left = 50
+      Top = 0
+      Width = 48
+      Height = 38
       Hint = 'Current (Current +in progress / +planned)'
-      Caption = '00 (00/00)'
+      Caption = '00'#13#10'(00/00)'
       Color = clGold
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clGold
@@ -1384,8 +1385,8 @@ object SystemInfoForm: TSystemInfoForm
       OnClick = SlotsLabelClick
     end
     object Label20: TLabel
-      Left = 1325
-      Top = 6
+      Left = 1321
+      Top = 12
       Width = 51
       Height = 16
       Caption = 'Free slots'
@@ -1397,17 +1398,31 @@ object SystemInfoForm: TSystemInfoForm
       ParentFont = False
       OnClick = Label20Click
     end
+    object Label22: TLabel
+      Left = 1060
+      Top = 12
+      Width = 67
+      Height = 16
+      Caption = 'Altered Stats'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clSilver
+      Font.Height = -13
+      Font.Name = 'Bahnschrift SemiCondensed'
+      Font.Style = []
+      ParentFont = False
+      OnClick = Label22Click
+    end
     object EconomiesCheck: TCheckBox
-      Left = 1141
-      Top = 6
+      Left = 1137
+      Top = 12
       Width = 19
       Height = 17
       TabOrder = 0
       OnClick = EconomiesCheckClick
     end
     object FiltersCheck: TCheckBox
-      Left = 1230
-      Top = 6
+      Left = 1226
+      Top = 12
       Width = 19
       Height = 17
       TabOrder = 1
@@ -1415,7 +1430,7 @@ object SystemInfoForm: TSystemInfoForm
     end
     object ShowUpLinksCheck: TCheckBox
       Left = 1141
-      Top = 34
+      Top = 51
       Width = 19
       Height = 17
       Checked = True
@@ -1424,8 +1439,8 @@ object SystemInfoForm: TSystemInfoForm
       OnClick = ShowUpLinksCheckClick
     end
     object FreeSlotsCheck: TCheckBox
-      Left = 1305
-      Top = 6
+      Left = 1301
+      Top = 12
       Width = 19
       Height = 17
       Caption = 'Free Slots'
@@ -1438,10 +1453,18 @@ object SystemInfoForm: TSystemInfoForm
       TabOrder = 3
       OnClick = BodiesCheckClick
     end
+    object AlteredStatsCheck: TCheckBox
+      Left = 1040
+      Top = 12
+      Width = 19
+      Height = 17
+      TabOrder = 4
+      OnClick = BodiesCheckClick
+    end
   end
   object FiltersPanel: TPanel
     Left = 0
-    Top = 564
+    Top = 526
     Width = 1384
     Height = 33
     Align = alTop

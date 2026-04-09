@@ -131,6 +131,7 @@ begin
   DefineFlag('ShowDelTime','includes delivery time left, recent and average dock-to-dock time');
   DefineFlag('ShowRecentMarket','');
   DefineFlag('ShowBestMarket','');
+  DefineFlag('ShowNearMarkets','show up to 10 near markets (full capacity)');
   DefineFlag('ShowDividers','');
   DefineOpt('ShowIndicators','0-no indicators; 1-solid/hollow indicators; 2-hollow indicators only',0,2,'');
   DefineFlag('ShowDistance','shows number of jumps there and back and exact Ly distance to markets');

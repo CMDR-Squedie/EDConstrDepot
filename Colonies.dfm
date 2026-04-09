@@ -41,6 +41,11 @@ object ColoniesForm: TColoniesForm
       end
       item
         Alignment = taRightJustify
+        Caption = 'Score'
+        Tag = 1
+      end
+      item
+        Alignment = taRightJustify
         Caption = 'Dist. (Ly)'
         Tag = 16
       end
@@ -86,7 +91,12 @@ object ColoniesForm: TColoniesForm
         Caption = 'Task Group'
       end
       item
-        Caption = ' '
+        Alignment = taRightJustify
+        Caption = 'Pop. Daily Change'
+        Tag = 3
+      end
+      item
+        Caption = 'System'
       end>
     Ctl3D = False
     Font.Charset = DEFAULT_CHARSET
@@ -389,9 +399,17 @@ object ColoniesForm: TColoniesForm
       Caption = 'Copy All'
       OnClick = CopyMenuItemClick
     end
+    object CopyPopHistMenuItem: TMenuItem
+      Caption = 'Copy Pop. History'
+      OnClick = CopyPopHistMenuItemClick
+    end
     object ShareAllMenuItem: TMenuItem
       Caption = 'Share'
       OnClick = ShareAllMenuItemClick
+    end
+    object CreateRouteMenuItem: TMenuItem
+      Caption = 'Create Route'
+      OnClick = CreateRouteMenuItemClick
     end
     object N2: TMenuItem
       Caption = '-'

@@ -2,7 +2,7 @@
 
 interface
 
-uses Winapi.Windows, System.SysUtils, System.Classes, System.IniFiles;
+uses Winapi.Windows, System.SysUtils, System.Classes, System.IniFiles, Vcl.Forms;
 
 type TSettings = class (THashedStringList)
   private
@@ -31,7 +31,35 @@ end;
 
 var Opts: TSettings;
 
+procedure ApplyWindowOpts(form: TForm; tag: string; const erronlyf: Boolean = false);
+procedure SaveWindowOpts(form: TForm; tag: string);
+
 implementation
+
+procedure ApplyWindowOpts(form: TForm; tag: string; const erronlyf: Boolean = false);
+begin
+  if erronlyf then
+    if form.Left <> -32000 then Exit;
+
+  form.Width := StrToIntDef(Opts[tag + '.Width'],form.Width);
+  form.Height := StrToIntDef(Opts[tag + '.Height'],form.Height);
+  form.Left := StrToIntDef(Opts[tag + '.Left'],(Screen.Width - form.Width) div 2);
+  form.Top := StrToIntDef(Opts[tag+ '.Top'],0);
+  if -form.Left > form.Width then form.Left := 0;
+  if -form.Top > form.Height then form.Top := 0;
+end;
+
+procedure SaveWindowOpts(form: TForm; tag: string);
+begin
+  if (form.WindowState = wsNormal) and (form.Left <> -32000) then
+  begin
+    Opts[tag + '.Left'] := IntToStr(form.Left);
+    Opts[tag + '.Top'] := IntToStr(form.Top);
+    Opts[tag + '.Height'] := IntToStr(form.Height);
+    Opts[tag + '.Width'] := IntToStr(form.Width);
+    Opts.Save;
+  end;
+end;
 
 function TSettings.GetDefaults(const Name: string): string;
 begin
@@ -117,6 +145,7 @@ begin
   FDefaults.Values['ShowDistance'] := '0';
   FDefaults.Values['ShowRecentMarket'] := '1';
   FDefaults.Values['ShowBestMarket'] := '1';
+  FDefaults.Values['ShowNearMarkets'] := '0';
   FDefaults.Values['SelectedMarket'] := 'auto';
   FDefaults.Values['ShowDividers'] := '1';
   FDefaults.Values['ShowIndicators'] := '2';

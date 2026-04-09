@@ -320,6 +320,11 @@ object EDCDForm: TEDCDForm
       Caption = 'Manage All'
       OnClick = ManageAllMenuItemClick
     end
+    object TradeRoutesMenuItem: TMenuItem
+      Caption = 'Trade Routes'
+      Visible = False
+      OnClick = TradeRoutesMenuItemClick
+    end
     object SummaryMenuItem: TMenuItem
       Caption = 'Colony Totals'
       OnClick = SummaryMenuItemClick

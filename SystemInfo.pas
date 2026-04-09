@@ -168,6 +168,8 @@ type
     FreeSlotsCheck: TCheckBox;
     Label20: TLabel;
     Normal1: TMenuItem;
+    AlteredStatsCheck: TCheckBox;
+    Label22: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure EDSMScanButtonClick(Sender: TObject);
@@ -241,6 +243,8 @@ type
     procedure OrbSlotsLabelClick(Sender: TObject);
     procedure HideSlotEditLabelClick(Sender: TObject);
     procedure Label20Click(Sender: TObject);
+    procedure Label22Click(Sender: TObject);
+    procedure FormShow(Sender: TObject);
   private
     { Private declarations }
     FCP2,FCP3: Integer;
@@ -1017,14 +1021,8 @@ begin
     DataSrc.RemoveListener(self);
   end;
 
-  if WindowState = wsNormal then
-  begin
-    Opts['System.Left'] := IntToStr(self.Left);
-    Opts['System.Top'] := IntToStr(self.Top);
-    Opts['System.Height'] := IntToStr(self.Height);
-    Opts['System.Width'] := IntToStr(self.Width);
-    Opts.Save;
-  end;
+
+  SaveWindowOpts(self,'System');
 end;
 
 
@@ -1032,14 +1030,11 @@ procedure TSystemInfoForm.FormCreate(Sender: TObject);
 begin
   Panel1.Color := clBlack;
   FStartPos.X := -1;
-  InfoPanel2.Height := 32;
+  InfoPanel2.Height := 48;
   DataSrc.AddListener(self);
   ApplySettings;
 
-  self.Width := StrToIntDef(Opts['System.Width'],self.Width);
-  self.Height := StrToIntDef(Opts['System.Height'],self.Height);
-  self.Left := StrToIntDef(Opts['System.Left'],(Screen.Width-self.Width) div 2);
-  self.Top := StrToIntDef(Opts['System.Top'],(Screen.Height-self.Height) div 2);
+  ApplyWindowOpts(self,'System');
 
   if Opts['Markets.AlphaBlend'] <> '' then
   begin
@@ -1051,6 +1046,11 @@ begin
 
 end;
 
+
+procedure TSystemInfoForm.FormShow(Sender: TObject);
+begin
+  ApplyWindowOpts(self,'System',true);
+end;
 
 procedure TSystemInfoForm.Label12Click(Sender: TObject);
 begin
@@ -1084,6 +1084,11 @@ end;
 procedure TSystemInfoForm.Label20Click(Sender: TObject);
 begin
   FreeSlotsCheck.Checked := not FreeSlotsCheck.Checked;
+end;
+
+procedure TSystemInfoForm.Label22Click(Sender: TObject);
+begin
+  AlteredStatsCheck.Checked := not AlteredStatsCheck.Checked;
 end;
 
 procedure TSystemInfoForm.Label37Click(Sender: TObject);
@@ -1468,7 +1473,7 @@ begin
   surfTaken := 0;
   for i := 0 to DataSrc.Constructions.Count - 1 do
     with TConstructionDepot(DataSrc.Constructions.Objects[i]) do
-      if not Cancelled then
+      if not Cancelled and not Tentative then
       if not Planned and (StarSystem = FCurrentSystem.StarSystem) then
       begin
         ct := GetConstrType;
@@ -1531,8 +1536,13 @@ var b: TSystemBody;
     var s: string;
     begin
       if txt = '' then Exit;
-      if title <> '' then s := s + title + ': ';
-      s := s + txt;
+      if txt = 'x' then
+        s := title
+      else
+      begin
+        if title <> '' then s := s + title + ': ';
+        s := s + txt;
+      end;
       bodyInfo := bodyInfo + s + '  ';
       if newLinef then
         bodyInfo := bodyInfo + Chr(13);
@@ -1586,9 +1596,9 @@ begin
     addData('Orb. Incl.',FloatToStrF(b.OrbitalInclination,ffFixed,7,1));
   newLine;
 
-  addData('Volcanism',IfThen(b.Volcanism <> '','Yes',''));
-  addData('Tidal Lock',IfThen(b.TidalLock,'Yes',''));
-  addData('Terraform.',IfThen(b.Terraformable,'Yes',''));
+  addData('Volcanism',IfThen(b.Volcanism <> '','x',''));
+  addData('Tidal Lock',IfThen(b.TidalLock,'x',''));
+  addData('Terraform.',IfThen(b.Terraformable,'x',''));
   newLine;
 
   if FLabelMode then
@@ -1616,7 +1626,8 @@ begin
         if not Cancelled then
         begin
           s := s + IfThen(Planned,'✏',
-                   IfThen(Finished,'🚩','🚧'));
+                   IfThen(Finished,'🚩',
+                   IfThen(Tentative,'💭','🚧')));
           s := s + IfThen(IsOrbital,'⚪•','🏭');
           s := s + ' ' + CurStationName;
           if GetConstrType <> nil then
@@ -1848,9 +1859,11 @@ begin
     idx1 := 0;
     if not TConstructionDepot(Item1).Finished then idx1 := 1;
     if TConstructionDepot(Item1).Planned then idx1 := 2;
+    if TConstructionDepot(Item1).Tentative then idx1 := 3;
     idx2 := 0;
     if not TConstructionDepot(Item2).Finished then idx2 := 1;
     if TConstructionDepot(Item2).Planned then idx2 := 2;
+    if TConstructionDepot(Item2).Tentative then idx2 := 3;
     Result := CompareValue(idx1,idx2);
   except
   end;
@@ -2054,16 +2067,16 @@ var  i,i2,idx,cp2idx,cp3idx,curCol: Integer;
      t2penalty,t3penalty: Integer;
      colMaxLen: array [0..100] of Integer;
      colMaxTxt: array [0..100] of string;
-     filters: Boolean;
+     filters,altstatsf: Boolean;
      fs: string;
      fsarr: TStringDynArray;
 
      score: array [0..2] of Integer;
-     seclev: array [0..2] of Integer;
-     devlev: array [0..2] of Integer;
-     techlev: array [0..2] of Integer;
-     wealthlev: array [0..2] of Integer;
-     livlev: array [0..2] of Integer;
+     seclev: array [0..2] of Double;
+     devlev: array [0..2] of Double;
+     techlev: array [0..2] of Double;
+     wealthlev: array [0..2] of Double;
+     livlev: array [0..2] of Double;
      cp2: array [0..2] of Integer;
      cp3: array [0..2] of Integer;
      techBonus: Integer;
@@ -2078,6 +2091,7 @@ var  i,i2,idx,cp2idx,cp3idx,curCol: Integer;
      eb: TSystemBody;
 
      orbSlots,surfSlots: Integer;
+     smods: array [0..4] of Double;
 
   procedure addRow(data: TObject);
   var i,ln,idx: Integer;
@@ -2127,7 +2141,7 @@ var  i,i2,idx,cp2idx,cp3idx,curCol: Integer;
      s := IntToStr(lev[0]);
      if (lev[1] <> 0) or (lev[2] <> 0) then
      begin
-       s := s + '  (';
+       s := s + Chr(13) + '(';
 {
        if lev[2] <> 0 then
          s := s + '' + IntToStr(lev[0]+lev[1]+lev[2])
@@ -2148,6 +2162,26 @@ var  i,i2,idx,cp2idx,cp3idx,curCol: Integer;
      end;
      lab.Caption := s;
    end;
+
+   procedure dispStat2(lev: array of Double; lab: TLabel);
+   var s: string;
+   begin
+     s := FloatToStrF(lev[0],ffNumber,7,Ord(altstatsf),JSONFrmt);
+     if (lev[1] <> 0) or (lev[2] <> 0) then
+     begin
+       s := s + Chr(13) + '(';
+       if lev[1] <> 0 then
+       begin
+         s := s + '' + FloatToStrF(lev[0]+lev[1],ffNumber,7,Ord(altstatsf),JSONFrmt); //🚧
+         if lev[2] <> 0 then s := s + '/';
+       end;
+       if lev[2] <> 0 then
+         s := s + '' + FloatToStrF(lev[0]+lev[1]+lev[2],ffNumber,7,Ord(altstatsf),JSONFrmt); //✏
+       s := s + ')';
+     end;
+     lab.Caption := s;
+   end;
+
 
    procedure dispLinks(ei: TEconomy);
    var lab: TLabel;
@@ -2206,7 +2240,7 @@ var  i,i2,idx,cp2idx,cp3idx,curCol: Integer;
       begin
         if Finished and not FinishedCheck.Checked then Result := False;
         if InProgress and not InProgressCheck.Checked then Result := False;
-        if Planned and not PlannedCheck.Checked then Result := False;
+        if (Planned or Tentative) and not PlannedCheck.Checked then Result := False;
       end;
 
     if Result and (fs <> '') then
@@ -2264,6 +2298,7 @@ begin
   fs := LowerCase(FilterEdit.Text);
   fsarr := SplitString(fs,'+');
   filters := FiltersCheck.Checked;
+  altstatsf := AlteredStatsCheck.Checked;
 
   ListView.Items.BeginUpdate;
   try
@@ -2338,17 +2373,40 @@ begin
     for i := 0 to cl.Count - 1 do
       with TConstructionDepot(cl[i]) do
       begin
+        if Tentative then continue;
+        
         ct := GetConstrType;
         if ct <> nil then
         begin
           idx := 0;
           if not Finished then idx := 1;
           if Planned then idx := 2;
-          seclev[idx] := seclev[idx] + ct.SecLev;
-          devlev[idx] := devlev[idx] + ct.DevLev;
-          techlev[idx] := techlev[idx] + ct.TechLev;
-          wealthlev[idx] := wealthlev[idx] + ct.WealthLev;
-          livlev[idx] := livlev[idx] + ct.StdLivLev;
+          if not altstatsf then
+          begin
+            seclev[idx] := seclev[idx] + ct.SecLev;
+            devlev[idx] := devlev[idx] + ct.DevLev;
+            techlev[idx] := techlev[idx] + ct.TechLev;
+            wealthlev[idx] := wealthlev[idx] + ct.WealthLev;
+            livlev[idx] := livlev[idx] + ct.StdLivLev;
+          end
+          else
+          if MarketId = FCurrentSystem.PrimaryPortId then
+          begin
+            seclev[idx] := seclev[idx] + ct.SecLev * cPrimStatModifiers[sSec];
+            devlev[idx] := devlev[idx] + ct.DevLev * cPrimStatModifiers[sDev];
+            techlev[idx] := techlev[idx] + ct.TechLev * cPrimStatModifiers[sTech];
+            wealthlev[idx] := wealthlev[idx] + ct.WealthLev * cPrimStatModifiers[sWealth];
+            livlev[idx] := livlev[idx] + ct.StdLivLev * cPrimStatModifiers[sStdLiv];
+          end
+          else
+          begin
+            seclev[idx] := seclev[idx] + ct.SecLev * cStatModifiers[sSec];
+            devlev[idx] := devlev[idx] + ct.DevLev * cStatModifiers[sDev];
+            techlev[idx] := techlev[idx] + ct.TechLev * cStatModifiers[sTech];
+            wealthlev[idx] := wealthlev[idx] + ct.WealthLev * cStatModifiers[sWealth];
+            livlev[idx] := livlev[idx] + ct.StdLivLev * cStatModifiers[sStdLiv];
+          end;
+
           score[idx] := score[idx] + ct.Score;
 
           if ct.IsOrbital then
@@ -2426,11 +2484,11 @@ begin
         'T2: ' + (3+2*i).ToString + '   T3: ' + (6+6*i).ToString;
     end;
     dispStat(score,ScoreLabel);
-    dispStat(seclev,SecLabel);
-    dispStat(devlev,devLabel);
-    dispStat(techlev,TechLabel);
-    dispStat(wealthlev,WealthLabel);
-    dispStat(livlev,LivLabel);
+    dispStat2(seclev,SecLabel);
+    dispStat2(devlev,devLabel);
+    dispStat2(techlev,TechLabel);
+    dispStat2(wealthlev,WealthLabel);
+    dispStat2(livlev,LivLabel);
 
     dispStat(cp2,CP2Label);
     dispStat(cp3,CP3Label);
@@ -2609,7 +2667,8 @@ begin
               //s := s + IfThen((ct <> nil) and (ct.Location = 'Orbital'),'⚪• ','🏭 ');
               //s := s + IfThen(TConstructionDepot(bm).Finished,'','🚧');
               s := s + IfThen(cd.Planned,'✏',
-                       IfThen(cd.Finished,'🚩','🚧'));
+                       IfThen(cd.Finished,'🚩',
+                       IfThen(cd.Tentative,'💭','🚧')));
               s := s + IfThen(cd.IsOrbital,'⚪•','🏭'); //⚪○• 🏭
               if bm.LinkedMarketId <> '' then
               begin

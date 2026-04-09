@@ -67,6 +67,15 @@ type TEconomy = (
   ecoColo,
   ecoInhe );
 
+type TSystemStat = (
+  sDev, sSec, sStdLiv, sTech, sWealth );
+const cStatNames: array [Low(TSystemStat)..High(TSystemStat)] of string = (
+  'Dev','Sec','StdLiv','Tech','Wealth');
+const cPrimStatModifiers: array [sDev..sWealth] of Double = (
+  1.4, 1.4, 1.4, 1.2, 1.4 );
+const cStatModifiers: array [sDev..sWealth] of Double = (
+  0.9, 0.9, 0.8, 0.75, 0.75 );
+
 type TEconomyArray = array [Low(TEconomy)..High(TEconomy)] of Extended;
 
 procedure ClearEconomies(var a: TEconomyArray);
@@ -301,7 +310,9 @@ public
   function BodyById(id: string): TSystemBody;
   function GetFactions(abbrevf: Boolean; majorf: Boolean): string;
   function GetFactionList: string;
+  function PopDailyChange: Int64;
   function GetScore: Integer;
+  procedure GetCP(var cp2,cp3: Integer); //wip
   procedure UpdateBodies_EDSM;
   procedure UpdateFromScan_EDSM;
   procedure ResetEconomies;
@@ -408,6 +419,7 @@ TConstructionDepot = class (TBaseMarket)
   function Finished: Boolean;
   function Planned: Boolean;
   function Cancelled: Boolean;
+  function Tentative: Boolean;
 end;
 
 type TEconomySets = class
@@ -452,6 +464,7 @@ public
   function AddSystem_EDSM(sysname: string): Boolean;
   function AddNeighbours_EDSM(origin: string): Integer; //15Ly
   function AddNeighbours2_EDSM(originSys: TStarSystem): Integer; //two-hop max
+  function OptimizedRoute(startSys: TStarSystem): TSystemList;
   procedure RemoveFromName(name: string; const delf: Boolean = true);
   constructor Create;
 end;
@@ -467,7 +480,7 @@ type TConstructionList = class (THashedStringList)
   function GetConstrByName(const Sys,Name: string): TConstructionDepot;
   function GetConstrByIdx(const idx: Integer): TConstructionDepot;
 public
-  function FindCustomConstr(Sys,Name,Body: string; ActHaul: Integer): TConstructionDepot;
+  function FindMatchConstr(Sys,Name,Body: string; ActHaul: Integer; isOrbital: Boolean): TConstructionDepot;
   property ConstrByName[const Sys,Name: string]: TConstructionDepot read GetConstrByName;
   property ConstrByIdx[const idx: Integer]: TConstructionDepot read GetConstrByIdx; default;
 //  constructor Create;
@@ -484,6 +497,7 @@ type TEDDataSource = class (TDataModule)
     FCommanders: TStringList;
     FCurrentCmdr: string;
     FCurrentSystem: string;
+    FDepotIdSuffix: string;
     FCargo: TStock;
     FCargoRacks: TStock;
     FFileDates: THashedStringList;
@@ -1185,7 +1199,11 @@ begin
   if b <> nil then
   for ei := Low(TEconomy) to High(TEconomy) do
     if Result[ei] <> 0 then
+    begin
       Result[ei] := Result[ei] + b.EconomyBonuses[ei];
+      //verified - eg. space farm on tidal lock planets still gives 0.10 strong link
+      if Result[ei] < 0.10 then Result[ei] := 0.10;
+    end;
 end;
 
 function TEconomySets.GetUpLinkEconomies(cd: TConstructionDepot; b: TSystemBody): TEconomyArray;
@@ -1724,6 +1742,11 @@ begin
   Result := ConstrStatus = csCancelled;
 end;
 
+function TConstructionDepot.Tentative: Boolean;
+begin
+  Result := ConstrStatus = csTentative;
+end;
+
 function TConstructionDepot.CheckDependencies(const constrList: TList = nil): Boolean;
 var cl: TList;
 begin
@@ -1782,7 +1805,7 @@ end;
 function TStarSystem.PopForTimeStamp(tms: string): Int64;
 var i: Integer;
 begin
-  Result := Population;
+  Result := 0; //Population;
   for i := PopHistory.Count - 1 downto 0 do
   begin
     if PopHistory.Names[i] <= tms then
@@ -1795,12 +1818,53 @@ end;
 
 procedure TStarSystem.AddPopToHistory(tms: string; pop: Int64);
 var i: Integer;
+    dt,lastdt: string;
+    lastpop: Int64;
 begin
   if tms = '' then Exit;
   if PopHistory.Count > 0 then
-    if pop = StrToInt64Def(PopHistory.ValueFromIndex[PopHistory.Count-1],0) then Exit;
+  begin
+    lastpop := StrToInt64Def(PopHistory.ValueFromIndex[PopHistory.Count-1],0);
+    if pop = lastpop then
+    begin
+      dt := Copy(tms,1,10);
+      lastdt := Copy(PopHistory.Names[PopHistory.Count-1],1,10);
+      if (PopHistory.Count < 3) or (lastdt = dt) then //skip previously established colonies or visits on same day
+        Exit;
+    end;
+  end;
   PopHistory.AddPair(tms,IntToStr(pop));
 end;
+
+function TStarSystem.PopDailyChange: Int64;
+var idx,d: Integer;
+    pop,lastpop: Int64;
+    dt,lastdt: TDateTime;
+begin
+  Result := 0;
+  if PopHistory.Count < 2 then Exit;
+  try
+
+    idx := PopHistory.Count - 1;
+    lastpop := StrToInt64Def(PopHistory.ValueFromIndex[idx],0);
+    lastdt := StrToDateTime(Copy(PopHistory.Names[idx],1,10));
+
+    idx := idx - 1;
+    while idx >= 0 do
+    begin
+      pop := StrToInt64Def(PopHistory.ValueFromIndex[idx],0);
+      dt := StrToDateTime(Copy(PopHistory.Names[idx],1,10));
+      if (dt <> lastdt) and (pop <> lastpop) then break;
+      idx := idx - 1;
+    end;
+    d := Trunc(lastdt - dt);
+    if d > 0 then
+      Result := Trunc((lastpop-pop)/d);
+  except
+
+  end;
+end;
+
 
 function TStarSystem.GetScore: Integer;
 var i: Integer;
@@ -1815,6 +1879,27 @@ begin
       ct := GetConstrType;
       if ct <> nil then
          Result := Result + ct.Score;
+    end;
+end;
+
+//wip: do not use, check SystemInfo for proper algorithm
+procedure TStarSystem.GetCP(var cp2,cp3: Integer);
+var i: Integer;
+    ct: TConstructionType;
+begin
+  cp2 := 0;
+  cp3 := 0;
+  if Constructions = nil then Exit;
+  for i := 0 to Constructions.Count - 1 do
+    with TConstructionDepot(Constructions[i]) do
+    if Finished then
+    begin
+      ct := GetConstrType;
+      if ct <> nil then
+      begin
+         cp2 := cp2 + ct.CP2;
+         cp3 := cp3 + ct.CP3;
+      end;
     end;
 end;
 
@@ -2445,7 +2530,7 @@ begin
     DeleteFile(PChar(fn));
     fn := DataSrc.FWorkingDir + fld + '\' + SystemAddress + '.json';
   end;
-  TFile.WriteAllText(fn, j.Format());
+  TFile.WriteAllText(fn, j.Format(), TEncoding.UTF8);
   j.Free;
 end;
 
@@ -2603,6 +2688,7 @@ constructor TSystemList.Create;
 begin
   FAlterNames := THashedStringList.Create;
   FAddresses := THashedStringList.Create;
+//  StrictDelimiter := True;
   inherited;
 end;
 
@@ -3121,6 +3207,142 @@ begin
   end;
 end;
 
+
+type
+  T3DPoint = record
+    x, y, z: double;
+  end;
+
+function TSystemList.OptimizedRoute(startSys: TStarSystem): TSystemList;
+const  MAXN = 300;
+var
+  points: array[1..MAXN] of T3DPoint;
+  visited: array[1..MAXN] of boolean;
+  path: array[1..MAXN] of integer;
+  i,n: integer;
+  t: TStarSystem;
+
+  function Dist(a, b: T3DPoint): double;
+  begin
+    Result := Sqrt(Sqr(a.x - b.x) + Sqr(a.y - b.y) + Sqr(a.z - b.z));
+  end;
+
+  procedure Reverse(i, j: integer);
+  var
+    temp: integer;
+  begin
+    while i < j do
+    begin
+      temp := path[i];
+      path[i] := path[j];
+      path[j] := temp;
+      Inc(i);
+      Dec(j);
+    end;
+  end;
+
+  procedure NearestNeighbor;
+  var
+    i, j, current, next: integer;
+    mind, d: double;
+  begin
+    for i := 1 to n do
+      visited[i] := false;
+
+    current := 1;
+    path[1] := current;
+    visited[current] := true;
+
+    for i := 2 to n do
+    begin
+      mind := 1E30;
+      next := -1;
+
+      for j := 2 to n do
+        if not visited[j] then
+        begin
+          d := Dist(points[current], points[j]);
+          if d < mind then
+          begin
+            mind := d;
+            next := j;
+          end;
+        end;
+
+      path[i] := next;
+      visited[next] := true;
+      current := next;
+    end;
+  end;
+
+
+  procedure TwoOpt;
+  var
+    i, j: integer;
+    oldDist, newDist: real;
+    improved: boolean;
+  begin
+    repeat
+      improved := false;
+
+      for i := 2 to n - 2 do
+        for j := i + 1 to n - 1 do
+        begin
+          oldDist :=
+            Dist(points[path[i-1]], points[path[i]]) +  Dist(points[path[j]], points[path[j+1]]);
+
+          newDist :=
+            Dist(points[path[i-1]], points[path[j]]) + Dist(points[path[i]], points[path[j+1]]);
+
+          if newDist < oldDist then
+          begin
+            Reverse(i, j);
+            improved := true;
+          end;
+        end;
+    until not improved;
+  end;
+
+begin
+  Result := TSystemList.Create;
+  if startSys = nil then
+  begin
+    points[1].x := 0;
+    points[1].y := 0;
+    points[1].z := 0;
+  end
+  else
+  with startSys do
+  begin
+    points[1].x := StarPosX;
+    points[1].y := StarPosY;
+    points[1].z := StarPosZ;
+  end;
+  n := 1;
+
+  for i := 1 to self.Count do
+  begin
+    t := GetSystemByIdx(i-1);
+ //   if t <> startSys then
+    with t do
+    begin
+      Inc(n);
+      points[n].x := StarPosX;
+      points[n].y := StarPosY;
+      points[n].z := StarPosZ;
+    end;
+  end;
+
+  //initial path based on nearest neighbours only
+  NearestNeighbor;
+  //streamline the path by exchanging pairs
+  TwoOpt;
+
+  for i := 2 to n do
+    Result.AddObject(self.Strings[path[i]-2],self.Objects[path[i]-2]);
+
+end;
+
 procedure TStarRoute.StartRoute(sl: TStringList);
 begin
   if sl.Count < 2 then Exit;
@@ -3158,7 +3380,7 @@ begin
   end;
 end;
 
-function TConstructionList.FindCustomConstr(Sys,Name,Body: string; ActHaul: Integer): TConstructionDepot;
+function TConstructionList.FindMatchConstr(Sys,Name,Body: string; ActHaul: Integer; isOrbital: Boolean): TConstructionDepot;
 var i: Integer;
     cd: TConstructionDepot;
     ct: TConstructionType;
@@ -3177,6 +3399,8 @@ begin
         Result := cd;
         break;
       end;
+
+      if isOrbital <> cd.IsOrbital then continue;
 
       if Body <> '' then
         if cd.Body <> body then continue;
@@ -3617,7 +3841,7 @@ end;
 procedure TEDDataSource.UpdateFromJournal(fn: string; jrnl: TStringList);
 var j: TJSONObject;
     jarr: TJSONArray;
-    js,s,s2,tms,event,orgevent,mID,entryId: string;
+    js,s,s2,tms,event,orgevent,mID,sysname,entryId: string;
     i,i2,cpos,q,idx: Integer;
     cd,cd2: TConstructionDepot;
     m: TMarket;
@@ -3752,6 +3976,22 @@ begin
 
         if FDoingBackup then
         begin
+        {
+          if event = 'Loadout' then continue;
+          if event = 'ColonisationConstructionDepot' then
+          begin
+            j := TJSONObject.ParseJSONValue(jrnl[i]) as TJSONObject;
+            tms := j.GetValue<string>('timestamp');
+            mID := '';
+            try mID := j.GetValue<string>('MarketID'); except end;
+            cd := DepotForMarketId(mID);
+            if (cd <> nil) and cd.DepotComplete then
+            begin
+              if (tms > cd.FirstUpdate) and (tms < cd.LastUpdate) then
+                continue;
+            end;
+          end;
+         }
           AppendToBackupFile(js);
           continue;
         end;
@@ -3862,7 +4102,7 @@ begin
           goto LUpdateTms;
         end;
 
-        if event = 'SupercruiseExit' then
+        if event = 'SupercruiseExit' then  //this fails when using team nav locks
         begin
           if FLastDropId <> '' then
           begin
@@ -3964,14 +4204,29 @@ begin
           s := j.GetValue<string>('StationType');
           if s = 'FleetCarrier' then FLastFC := mID;
           s2 := j.GetValue<string>('StationName');
+
+if s2.Contains('Malocello') then
+  s2 := s2;
+          sysname := j.GetValue<string>('StarSystem');
+
           if (Pos('Construction',s) > 0) or (Pos('ColonisationShip',s2) > 0) then
           begin
-            cd := DepotForMarketId(mID);
             s := '';
             try s := j.GetValue<string>('StationName_Localised'); except end;
             if s = '' then s := j.GetValue<string>('StationName');
             if s.Contains('_inactive') then
-              goto LUpdateTms; //accidental docking to finished primary
+              goto LUpdateTms; //docking to finished primary
+
+            cd := DepotForMarketId(mID);
+            //SHIT!  FDev started re-using MarketIDs for construction depots!!!
+            FDepotIdSuffix := '';
+            if (cd.StarSystem <> '') and (cd.StarSystem <> sysname) then
+            begin
+              FDepotIdSuffix := '.' + sysname;
+              mID := mID + FDepotIdSuffix;
+              cd := DepotForMarketId(mID);
+            end;
+
             if newstationf then
               cd.FOrbital_JRNL := Ord((Pos('Orbital ',s) > 0));
             cpos := Pos(': ',s);
@@ -3990,7 +4245,7 @@ begin
             try
               cd.DistFromStar := Trunc(j.GetValue<single>('DistFromStarLS'));
             except end;
-            cd.StarSystem := j.GetValue<string>('StarSystem');
+            cd.StarSystem := sysname;
             if cd.Body = '-' then cd.Body := FLastBody;
 
             cd.LastDock := tms;
@@ -4090,15 +4345,16 @@ begin
 
         if event = 'ColonisationContribution' then
         begin
-          cd := DepotForMarketId(mID);
-          cd.UpdateContribution(j);
+          cd := DepotForMarketId(mID + FDepotIdSuffix);
+          if cd <> nil then
+            cd.UpdateContribution(j);
         end;
 
 
         if event = 'ColonisationConstructionDepot' then
         begin
-          cd := DepotForMarketId(mID);
-          if not cd.DepotComplete then
+          cd := DepotForMarketId(mID + FDepotIdSuffix);
+          if (cd <> nil) and not cd.DepotComplete then
           begin
             newstationf := (cd.Status = '');
             cd.Status := jrnl[i];
@@ -4120,9 +4376,8 @@ begin
 
             if newstationf and not FInitialLoad then
             begin
-              //Orbital/Surface flag is not needed as of now because of est.haul differences
-              cd2 := FConstructions.FindCustomConstr(cd.StarSystem,cd.StationName,
-                cd.Body,cd.ActualHaul);
+              cd2 := FConstructions.FindMatchConstr(cd.StarSystem,cd.StationName,
+                cd.Body,cd.ActualHaul,cd.IsOrbital);
               if cd2 <> nil then
               begin
                 cd.ConstructionType := cd2.ConstructionType;
@@ -4405,7 +4660,7 @@ var sl: TStringList;
 begin
   sl := TStringList.Create;
   try
-    sl.LoadFromFile(fn);
+    sl.LoadFromFile(fn,TEncoding.UTF8);
     js := sl.Text;
     StarSystems.AddFromJSON(js);
   finally

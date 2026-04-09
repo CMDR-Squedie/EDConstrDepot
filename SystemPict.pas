@@ -20,6 +20,7 @@ type
     InfoLabel: TLabel;
     EditPictureMenuItem: TMenuItem;
     ReloadPictureMenuItem: TMenuItem;
+    ToggleOverlayMenuItem: TMenuItem;
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure PastePictureMenuItemClick(Sender: TObject);
     procedure SavePictureMenuItemClick(Sender: TObject);
@@ -28,6 +29,7 @@ type
     procedure EditPictureMenuItemClick(Sender: TObject);
     procedure PopupMenuPopup(Sender: TObject);
     procedure ReloadPictureMenuItemClick(Sender: TObject);
+    procedure ToggleOverlayMenuItemClick(Sender: TObject);
   private
     { Private declarations }
     FCurrentSystem: TStarSystem;
@@ -116,6 +118,21 @@ begin
     SysImage.Picture.Assign(png);
     FImageChanged := False;
   except
+  end;
+end;
+
+procedure TSystemPictForm.ToggleOverlayMenuItemClick(Sender: TObject);
+begin
+  if AlphaBlend then
+  begin
+    AlphaBlend := False;
+    FormStyle := fsNormal;
+  end
+  else
+  begin
+    AlphaBlendValue := 128;
+    AlphaBlend := True;
+    FormStyle := fsStayOnTop;
   end;
 end;
 

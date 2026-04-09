@@ -89,6 +89,8 @@ type
     SetActiveButton: TButton;
     Label20: TLabel;
     SystemLabel: TLabel;
+    Label21: TLabel;
+    TentativeStatus: TRadioButton;
     procedure FormCreate(Sender: TObject);
     procedure TypeComboChange(Sender: TObject);
     procedure OKButtonClick(Sender: TObject);
@@ -171,6 +173,7 @@ begin
         if PlannedStatus.Checked then ConstrStatus := csPlanned;
         if FinishedStatus.Checked then ConstrStatus := csFinished;
         if CancelledStatus.Checked then ConstrStatus := csCancelled;
+        if TentativeStatus.Checked then ConstrStatus := csTentative;
       end;
 
       if FCurrentStation.MarketId = '' then
@@ -399,6 +402,8 @@ begin
     FinishedStatus.Enabled := true;
     CancelledStatus.Checked := Cancelled;
     CancelledStatus.Enabled := true;
+    TentativeStatus.Checked := Tentative;
+    TentativeStatus.Enabled := true;
   end;
 
   PrimaryCheck.Checked := (FCurrentStation.GetSys.PrimaryPortId <> '') and

@@ -62,6 +62,7 @@ type
     StarMapMenuItem: TMenuItem;
     SummaryMenuItem: TMenuItem;
     IgnoreRecentTimeMenuItem: TMenuItem;
+    TradeRoutesMenuItem: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure UpdTimerTimer(Sender: TObject);
     procedure TextColLabelMouseMove(Sender: TObject; Shift: TShiftState; X,
@@ -120,6 +121,7 @@ type
     procedure StarMapMenuItemClick(Sender: TObject);
     procedure SummaryMenuItemClick(Sender: TObject);
     procedure IgnoreRecentTimeMenuItemClick(Sender: TObject);
+    procedure TradeRoutesMenuItemClick(Sender: TObject);
 private
     { Private declarations }
     FSelectedConstructions: TStringList;
@@ -150,7 +152,7 @@ private
     procedure ArrangeLayers;
     procedure UpdateLayersPos;
     procedure UpdateTransparency;
-    function FindBestMarket(reqList: TStringList; prevMarket: TMarket): TMarket;
+    function FindBestMarket(reqList: TStringList; prevMarket: TMarket; nearMarkets: TList): TMarket;
     function GetItemMarketIndicators(normItem: string; reqQty: Integer; cargo: Integer; bestMarket: TMarket): string;
     function IsEliteActiveWnd: Boolean;
   public
@@ -177,7 +179,7 @@ implementation
 {$R *.dfm}
 
 uses Splash, Markets, SettingsGUI, MarketInfo, Clipbrd, Colonies, StationInfo,
-  SystemInfo, ConstrTypes, Toolbar, StarMap, Summary;
+  SystemInfo, ConstrTypes, Toolbar, StarMap, Summary, TradeRoutes;
 
 const cDefaultCapacity: Integer = 784;
 
@@ -330,7 +332,7 @@ begin
   ShellExecute(0, 'open', 'https://github.com/CMDR-Squedie/EDConstrDepot/wiki', nil, nil, SW_SHOWNORMAL);
 end;
 
-function TEDCDForm.FindBestMarket(reqList: TStringList; prevMarket: TMarket): TMarket;
+function TEDCDForm.FindBestMarket(reqList: TStringList; prevMarket: TMarket; nearMarkets: TList): TMarket;
 var i,mi,score,maxscore,reqQty,shipQty,stock,totAvail,lowCnt,uniqueCnt,bonus,extraJumps: Integer;
     m: TMarket;
     normItem,tg: string;
@@ -464,7 +466,14 @@ begin
         begin
           extraJumps := Ceil(d / DataSrc.MaxJumpRange) + Ceil(d / DataSrc.JumpRange) - 2;
           score := score * 6 div (6 + extraJumps);  // reverse 16% penalty for each extra jump
+
         end;
+
+        if nearMarkets <> nil then
+          if totAvail >= DataSrc.Capacity then
+            if d < DataSrc.MaxJumpRange then
+              nearMarkets.Add(m);
+
       end;
 
 //penalty for no large pads
@@ -623,6 +632,7 @@ var j: TJSONObject;
     col: TCDCol;
     m,bestMarket: TMarket;
     avgt: Extended;
+    nearMarkets: TList;
 label
     LSkipDepotSelection;
 
@@ -652,6 +662,7 @@ begin
 
   sl := TStringList.Create;
   csl := TStock.Create;
+  nearMarkets := TList.Create;
 
   prevSys := '';
   if FCurrentDepot <> nil then
@@ -847,10 +858,10 @@ begin
 
     bestMarket := nil;
     if Opts.Flags['ShowBestMarket'] then
-      bestMarket := FindBestMarket(sl,nil);
+      bestMarket := FindBestMarket(sl,nil,nearMarkets);
 
     if FAutoSelectMarket then
-      FSecondaryMarket := FindBestMarket(sl,bestMarket);
+      FSecondaryMarket := FindBestMarket(sl,bestMarket,nil);
 
     if Opts['AutoSort'] = '2' then
     begin
@@ -1125,6 +1136,17 @@ begin
           addDistInfo(FSecondaryMarket);
           addline;
         end;
+        if Opts.Flags['ShowNearMarkets'] then
+        for i := 0 to Min(nearMarkets.Count - 1,10) do
+          if (nearMarkets[i] <> bestMarket) and (nearMarkets[i] <> FSecondaryMarket) then
+          begin
+            s := '';
+            l[colReq] := s;
+            l[colText] := TMarket(nearMarkets[i]).StationName_abbrev(true); //FullName;
+            addDistInfo(TMarket(nearMarkets[i]));
+            addline;
+          end;
+
       end;
     end;
 
@@ -1199,6 +1221,7 @@ LSkipDepotSelection:;
     j.Free;
     sl.Free;
     csl.Free;
+    nearMarkets.Free;
   end;
 
   if FCurrentDepot <> nil then
@@ -2229,6 +2252,7 @@ begin
     //if cd.Status = '' then continue; //docked but no depot info?
     if cd.Planned then continue; //docked but no depot info?
     if cd.Cancelled then continue;
+    if cd.Tentative then continue;
     if cd.Finished and not Opts.Flags['IncludeFinished'] then
       if FSelectedConstructions.IndexOf(cd.MarketID) = -1 then continue;
     if DataSrc.GetMarketLevel(cd.MarketID) = miIgnore then continue;
@@ -2650,6 +2674,11 @@ begin
     end;
   end;
   if not Opts.Flags['ShowCloseBox'] then CloseLabel.Visible := activef;
+end;
+
+procedure TEDCDForm.TradeRoutesMenuItemClick(Sender: TObject);
+begin
+  TradeRoutesForm.Show;
 end;
 
 end.
