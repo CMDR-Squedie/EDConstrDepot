@@ -661,6 +661,7 @@ begin
     cd := TConstructionDepot(ListView.Selected.Data);
     cd.ConstructionType := DataSrc.ConstructionTypes[TMenuItem(Sender).Tag];
     cd.Modified := True;
+    cd.AutoMatch := False;
     FCurrentSystem.Save;
     UpdateView;
   end;

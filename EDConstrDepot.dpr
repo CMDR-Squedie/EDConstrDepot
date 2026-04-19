@@ -26,27 +26,22 @@ uses
   Solver in 'Solver.pas' {SolverForm},
   BodyInfo in 'BodyInfo.pas' {BodyInfoForm},
   MaterialList in 'MaterialList.pas' {MaterialListForm},
-  TradeRoutes in 'TradeRoutes.pas' {TradeRoutesForm};
+  TradeRoutes in 'TradeRoutes.pas' {TradeRoutesForm},
+  Chart in 'Chart.pas' {ChartForm},
+  Dashboard in 'Dashboard.pas' {DashboardForm};
 
 {$R *.res}
 
-const gNiceVersion: string = 'Release 32, build 1';
+const gNiceVersion: string = 'Release 33, build 1';
 
 {
 changes:
- - Create Route from Colonies list
- - Optimize command from Route menu in Star Map
- - map background from optional starbkg.bmp file
- - Show Near Markets (up to 10 additional markets for full capacity)
- - altered system stats option to include new penalties/bonuses
- - reused depot IDs workaround - duplicate IDs are suffixed with system name if needed
- - construction identification includes orbital/surface flag
- - planner now rearranges list of player-planned contructions for dependencies
- - Copy Population History command for system selected in Colonies list
- - Copy Population History for Summary window (all colonies)
- - system score and daily population growth columns in Colonies list
- - support for unicode chars in system data (alternative name etc.)
- - minimum strong link of 0.10 added
+ - colonization charts and dashboard
+ - Settings toolbar button replaced with Main Menu button (includes Settings command)
+ - Dashboard command in Main Menu with Colony Summary and preselected charts
+ - create charts for selected colonies with Chart command in Colonies windows
+ - create general charts with Chart command in Summary window
+ - menu button and Select All commands for Colonies and Markets/Constructions list
 
 
   future builds:
@@ -91,6 +86,7 @@ begin
   Application.CreateForm(TBodyInfoForm, BodyInfoForm);
   Application.CreateForm(TTradeRoutesForm, TradeRoutesForm);
   Application.CreateForm(TMaterialListForm, MaterialListForm);
+  Application.CreateForm(TDashboardForm, DashboardForm);
   SettingsForm.VersionLabel.Caption := gNiceVersion;
 
   Application.OnActivate :=  EDCDForm.AppActivate;
@@ -101,12 +97,17 @@ begin
   SplashForm.Update;
 
   DataSrc.Load;
+
+  //Application.ProcessMessages;
+
   EDCDForm.UpdateConstrDepot;
   EDCDForm.Show;
   EDCDForm.BringToFront;
   DataSrc.UpdTimer.Enabled := True;
 
-  SplashForm.Hide;
+  //SplashForm.Hide;  //this sometimes fails from wrong message processing
+  SplashForm.ShowInfo('Ready.',1);
+  SplashForm.Update;
 
   Application.Run;
 end.

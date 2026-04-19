@@ -63,6 +63,7 @@ type
     SummaryMenuItem: TMenuItem;
     IgnoreRecentTimeMenuItem: TMenuItem;
     TradeRoutesMenuItem: TMenuItem;
+    DashboardMenuItem: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure UpdTimerTimer(Sender: TObject);
     procedure TextColLabelMouseMove(Sender: TObject; Shift: TShiftState; X,
@@ -122,6 +123,7 @@ type
     procedure SummaryMenuItemClick(Sender: TObject);
     procedure IgnoreRecentTimeMenuItemClick(Sender: TObject);
     procedure TradeRoutesMenuItemClick(Sender: TObject);
+    procedure DashboardMenuItemClick(Sender: TObject);
 private
     { Private declarations }
     FSelectedConstructions: TStringList;
@@ -179,7 +181,7 @@ implementation
 {$R *.dfm}
 
 uses Splash, Markets, SettingsGUI, MarketInfo, Clipbrd, Colonies, StationInfo,
-  SystemInfo, ConstrTypes, Toolbar, StarMap, Summary, TradeRoutes;
+  SystemInfo, ConstrTypes, Toolbar, StarMap, Summary, TradeRoutes, Dashboard;
 
 const cDefaultCapacity: Integer = 784;
 
@@ -1233,6 +1235,8 @@ end;
 procedure TEDCDForm.FormShow(Sender: TObject);
 begin
 //
+
+  SplashForm.Hide;
 end;
 
 procedure TEDCDForm.ReqQtyColLabelDblClick(Sender: TObject);
@@ -2142,6 +2146,25 @@ begin
     Clipboard.AsText := FCurrentDepot.StarSystem;
     SplashForm.ShowInfo('System name copied...',1000);
   end;
+end;
+
+procedure TEDCDForm.DashboardMenuItemClick(Sender: TObject);
+begin
+  SummaryForm.Hide;
+  DashboardForm.Hide;
+
+  SummaryForm.Position := poDesigned;
+  DashboardForm.Position := poDesigned;
+
+  SummaryForm.Left := (Screen.Width - SummaryForm.Width*4) div 2;
+  DashboardForm.Left := SummaryForm.BoundsRect.Right;
+  DashboardForm.Top := SummaryForm.Top;
+  DashboardForm.Width := SummaryForm.Width*3 - 150;
+  DashboardForm.Height := SummaryForm.Height;
+
+  SummaryForm.Show;
+  DashboardForm.Show;
+
 end;
 
 procedure TEDCDForm.PasteReqQtyMenuItemClick(Sender: TObject);

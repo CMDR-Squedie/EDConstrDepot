@@ -14,7 +14,7 @@ type
     SystemLabel: TLabel;
     InfoLabel: TLabel;
     ColoniesLabel: TLabel;
-    SettingsLabel: TLabel;
+    MenuLabel: TLabel;
     InProgressLabel: TLabel;
     MapLabel: TLabel;
     procedure FormShow(Sender: TObject);
@@ -26,7 +26,7 @@ type
     procedure ConstructionsLabelClick(Sender: TObject);
     procedure InProgressLabelClick(Sender: TObject);
     procedure PlannedLabelClick(Sender: TObject);
-    procedure SettingsLabelClick(Sender: TObject);
+    procedure MenuLabelClick(Sender: TObject);
     procedure InfoLabelMouseEnter(Sender: TObject);
     procedure PlannedLabelMouseLeave(Sender: TObject);
     procedure MapLabelClick(Sender: TObject);
@@ -131,9 +131,14 @@ begin
    TooltipForm.Hide;
 end;
 
-procedure TToolbarForm.SettingsLabelClick(Sender: TObject);
+procedure TToolbarForm.MenuLabelClick(Sender: TObject);
+var pt: TPoint;
 begin
-  EDCDForm.SettingsMenuItemClick(Sender);
+  //EDCDForm.SettingsMenuItemClick(Sender);
+  pt.X := MenuLabel.Left;
+  pt.Y := MenuLabel.Top + MenuLabel.Height;
+  pt := self.ClientToScreen(pt);
+  EDCDForm.PopupMenu.Popup(pt.X,pt.Y);
 end;
 
 procedure TToolbarForm.SystemLabelClick(Sender: TObject);

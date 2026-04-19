@@ -125,11 +125,25 @@ object MarketsForm: TMarketsForm
     OnMouseDown = Panel1MouseDown
     OnMouseMove = Panel1MouseMove
     object Label1: TLabel
-      Left = 8
+      Left = 34
       Top = 8
       Width = 27
       Height = 16
       Caption = 'Filter'
+    end
+    object MenuLabel: TLabel
+      Left = 3
+      Top = 0
+      Width = 18
+      Height = 28
+      Caption = #9776
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -20
+      Font.Name = 'Segoe UI'
+      Font.Style = []
+      ParentFont = False
+      OnClick = MenuLabelClick
     end
     object MarketsCheck: TCheckBox
       Left = 272
@@ -171,9 +185,9 @@ object MarketsForm: TMarketsForm
       OnClick = MarketsCheckClick
     end
     object FilterEdit: TComboBox
-      Left = 40
+      Left = 64
       Top = 5
-      Width = 194
+      Width = 170
       Height = 24
       DropDownCount = 20
       Sorted = True
@@ -301,6 +315,10 @@ object MarketsForm: TMarketsForm
         Caption = 'Group Add/Remove'
         OnClick = ListViewAction
       end
+      object MatchConstrTypeMenuItem: TMenuItem
+        Caption = 'Match Constr. Type'
+        OnClick = MatchConstrTypeMenuItemClick
+      end
       object N4: TMenuItem
         Caption = '-'
       end
@@ -374,6 +392,10 @@ object MarketsForm: TMarketsForm
     object CopyAllMenuItem: TMenuItem
       Caption = 'Copy All'
       OnClick = CopyMenuItemClick
+    end
+    object SelectAllMenuItem: TMenuItem
+      Caption = 'Select All'
+      OnClick = SelectAllMenuItemClick
     end
     object N2: TMenuItem
       Caption = '-'

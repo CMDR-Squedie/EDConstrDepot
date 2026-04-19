@@ -517,7 +517,6 @@ object StationInfoForm: TStationInfoForm
     Align = alBottom
     BevelOuter = bvNone
     TabOrder = 0
-    ExplicitTop = 546
     object OKButton: TButton
       Left = 378
       Top = 8

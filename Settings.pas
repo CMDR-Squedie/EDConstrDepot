@@ -8,11 +8,11 @@ type TSettings = class (THashedStringList)
   private
     FDefaults: THashedStringList;
     FFileName: string;
+    function GetInt(const Name: string): Integer;
     procedure SetFlag(const Name: string; v: Boolean);
     function GetFlag(const Name: string): Boolean;
     procedure SetVal(const Name: string; v: string);
     function GetVal(const Name: string): string;
-    function GetInt(const Name: string): Integer;
     procedure SetDefaults(const Name: string; v: string);
     function GetDefaults(const Name: string): string;
   public

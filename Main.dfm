@@ -258,6 +258,8 @@ object EDCDForm: TEDCDForm
     end
     object TaskGroupSubMenu: TMenuItem
       Caption = 'Task Group'
+      Enabled = False
+      Visible = False
       object TaskGroupSeparator: TMenuItem
         Caption = '-'
       end
@@ -303,45 +305,48 @@ object EDCDForm: TEDCDForm
     object N6: TMenuItem
       Caption = '-'
     end
+    object StarMapMenuItem: TMenuItem
+      Caption = #10024' Star Map'
+      OnClick = StarMapMenuItemClick
+    end
     object ManageColoniesMenuItem: TMenuItem
-      Caption = 'Manage Colonies'
+      Caption = #55357#57001' Manage Colonies'
       OnClick = ManageColoniesMenuItemClick
     end
     object ManageMarketsMenuItem: TMenuItem
-      Caption = 'Manage Markets'
+      Caption = #55357#57042' Manage Markets'
       OnClick = ManageMarketsMenuItemClick
     end
     object ManageContructionsMenuItem: TMenuItem
       Tag = -1
-      Caption = 'Manage Constr.'
+      Caption = #55356#57303' Manage Constr.'
       OnClick = ActiveConstrMenuItemClick
     end
     object ManageAllMenuItem: TMenuItem
-      Caption = 'Manage All'
+      Caption = #55357#56580' Manage All'
       OnClick = ManageAllMenuItemClick
     end
-    object TradeRoutesMenuItem: TMenuItem
-      Caption = 'Trade Routes'
-      Visible = False
-      OnClick = TradeRoutesMenuItemClick
-    end
     object SummaryMenuItem: TMenuItem
-      Caption = 'Colony Totals'
+      Caption = #55357#56522' Colony Totals'
       OnClick = SummaryMenuItemClick
     end
-    object SettingsMenuItem: TMenuItem
-      Caption = 'Settings'
-      OnClick = SettingsMenuItemClick
+    object DashboardMenuItem: TMenuItem
+      Caption = #55357#56520' Dashboard'
+      OnClick = DashboardMenuItemClick
     end
-    object StarMapMenuItem: TMenuItem
-      Caption = 'Star Map'
-      Visible = False
-      OnClick = StarMapMenuItemClick
+    object SettingsMenuItem: TMenuItem
+      Caption = #55357#56615' Settings'
+      OnClick = SettingsMenuItemClick
     end
     object Wiki1: TMenuItem
       Caption = 'Wiki'
       Visible = False
       OnClick = Wiki1Click
+    end
+    object TradeRoutesMenuItem: TMenuItem
+      Caption = 'Trade Routes'
+      Visible = False
+      OnClick = TradeRoutesMenuItemClick
     end
     object N1: TMenuItem
       Caption = '-'

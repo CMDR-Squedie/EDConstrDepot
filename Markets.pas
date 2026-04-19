@@ -57,6 +57,9 @@ type
     ConstrTypesButton: TButton;
     InclOtherColCheck: TCheckBox;
     N6: TMenuItem;
+    MatchConstrTypeMenuItem: TMenuItem;
+    SelectAllMenuItem: TMenuItem;
+    MenuLabel: TLabel;
     procedure ListViewColumnClick(Sender: TObject; Column: TListColumn);
     procedure ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
@@ -87,6 +90,9 @@ type
       State: TCustomDrawState; var DefaultDraw: Boolean);
     procedure MarketHistoryMenuItemClick(Sender: TObject);
     procedure ConstrTypesButtonClick(Sender: TObject);
+    procedure MatchConstrTypeMenuItemClick(Sender: TObject);
+    procedure SelectAllMenuItemClick(Sender: TObject);
+    procedure MenuLabelClick(Sender: TObject);
   private
     { Private declarations }
     FHighlightColor: Integer;
@@ -135,6 +141,11 @@ begin
     UpdateItems;
     RestoreSelection;
   end;
+end;
+
+procedure TMarketsForm.SelectAllMenuItemClick(Sender: TObject);
+begin
+  ListView.SelectAll;
 end;
 
 procedure TMarketsForm.SetColony(sid: string);
@@ -321,6 +332,42 @@ begin
   DataSrc.CreateMarketSnapshot(mid);
 //  UpdateItems;
 end;
+
+procedure TMarketsForm.MatchConstrTypeMenuItemClick(Sender: TObject);
+var i: Integer;
+    cd: TConstructionDepot;
+    ct: TConstructionType;
+    foundMore: Boolean;
+begin
+  for i := 0 to ListView.Items.Count -1 do
+    if IsSelected(ListView.Items[i]) then
+      if TBaseMarket(ListView.Items[i].Data) is TConstructionDepot then
+      begin
+        cd := TConstructionDepot(ListView.Items[i].Data);
+        if cd.ConstructionType = '' then
+        begin
+          ct := DataSrc.ConstructionTypes.FindBestMatch(cd,foundMore);
+          if ct <> nil then
+          begin
+            cd.ConstructionType := ct.Id;
+            cd.Modified := True;
+            cd.AutoMatch := True;
+            cd.GetSys.Save;
+          end;
+        end;
+      end;
+  UpdateItems;
+end;
+
+procedure TMarketsForm.MenuLabelClick(Sender: TObject);
+var pt: TPoint;
+begin
+  pt.X := MenuLabel.Left;
+  pt.Y := MenuLabel.Top + MenuLabel.Height;
+  pt := self.ClientToScreen(pt);
+  PopupMenu.Popup(pt.X,pt.Y);
+end;
+
 
 procedure TMarketsForm.ClearFilterButtonClick(Sender: TObject);
 begin
@@ -815,9 +862,9 @@ begin
         s := Format('%.0n', [double(cd.DistFromStar)]);
       addSubItem(s);
 
-      addSubItem('');
-//      s := Format('%.0n', [double(cd.Contribution)]);
-//      addSubItem(s);
+//      addSubItem('');
+      s := Format('%.0n', [double(cd.Contribution)]);
+      addSubItem(s);
 
       addSubItem(cMarketIgnoreInd[DataSrc.GetMarketLevel(cd.MarketId)]);
       addSubItem('');
@@ -955,7 +1002,7 @@ begin
     end
     else
     begin
-      ListView.Columns[7].Caption := '';
+      ListView.Columns[7].Caption := 'Contrib.';
       ListView.Columns[7].Width := 0;
     end;
 

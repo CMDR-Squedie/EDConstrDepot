@@ -55,6 +55,7 @@ object ColoniesForm: TColoniesForm
       end
       item
         Caption = 'Alter. Name'
+        MaxWidth = 100
         Tag = 7
       end
       item
@@ -62,10 +63,12 @@ object ColoniesForm: TColoniesForm
       end
       item
         Caption = 'Factions'
+        MaxWidth = 150
         Tag = 5
       end
       item
         Caption = 'Comment'
+        MaxWidth = 150
         Tag = 8
       end
       item
@@ -75,10 +78,12 @@ object ColoniesForm: TColoniesForm
       end
       item
         Caption = 'Current Goals'
+        MaxWidth = 150
         Tag = 9
       end
       item
         Caption = 'Objectives'
+        MaxWidth = 100
         Tag = 10
       end
       item
@@ -139,7 +144,7 @@ object ColoniesForm: TColoniesForm
     OnMouseDown = Panel1MouseDown
     OnMouseMove = Panel1MouseMove
     object Label1: TLabel
-      Left = 8
+      Left = 32
       Top = 8
       Width = 27
       Height = 16
@@ -159,6 +164,20 @@ object ColoniesForm: TColoniesForm
       Font.Style = []
       ParentFont = False
     end
+    object MenuLabel: TLabel
+      Left = 3
+      Top = 0
+      Width = 18
+      Height = 28
+      Caption = #9776
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -20
+      Font.Name = 'Segoe UI'
+      Font.Style = []
+      ParentFont = False
+      OnClick = MenuLabelClick
+    end
     object InclIgnoredCheck: TCheckBox
       Left = 678
       Top = 8
@@ -169,9 +188,9 @@ object ColoniesForm: TColoniesForm
       OnClick = ColoniesCheckClick
     end
     object FilterEdit: TComboBox
-      Left = 40
+      Left = 64
       Top = 5
-      Width = 194
+      Width = 170
       Height = 24
       DropDownCount = 20
       Sorted = True
@@ -300,93 +319,128 @@ object ColoniesForm: TColoniesForm
       Caption = 'System Info'
       OnClick = ListViewAction
     end
-    object ShowOnMapMenuItem: TMenuItem
-      Caption = 'Show On Map'
-      OnClick = ShowOnMapMenuItemClick
+    object N8: TMenuItem
+      Caption = '-'
     end
-    object DistancesFromMenuItem: TMenuItem
-      Tag = 16
-      Caption = 'Set As Reference System'
-      OnClick = ListViewAction
+    object SelectAllMenuItem: TMenuItem
+      Caption = 'Select All'
+      OnClick = SelectAllMenuItemClick
     end
-    object AddToTargetsMenuItem: TMenuItem
-      Caption = 'Add To Targets'
-      OnClick = AddToTargetsMenuItemClick
+    object Chart1: TMenuItem
+      Caption = 'Chart'
+      object PopulationChartMenuItem: TMenuItem
+        Caption = 'Population History'
+        OnClick = PopulationChartMenuItemClick
+      end
+      object PopulationBySystemMenuItem: TMenuItem
+        Tag = 1
+        Caption = 'Population'
+        OnClick = PopulationBySystemMenuItemClick
+      end
+      object PopulationIncreaseBySystem1: TMenuItem
+        Tag = 2
+        Caption = 'Population Increase'
+        OnClick = PopulationBySystemMenuItemClick
+      end
+      object PopulationIncrease2MenuItem: TMenuItem
+        Caption = 'Population + Increase'
+        OnClick = PopulationIncrease2MenuItemClick
+      end
+      object ScoreBySystem1: TMenuItem
+        Tag = 3
+        Caption = 'Score'
+        OnClick = PopulationBySystemMenuItemClick
+      end
+      object DevelopmentMenuItem: TMenuItem
+        Caption = 'Development'
+        OnClick = DevelopmentMenuItemClick
+      end
+      object TechnologyLevelMenuItem: TMenuItem
+        Caption = 'Technology Level'
+        OnClick = TechnologyLevelMenuItemClick
+      end
     end
     object N6: TMenuItem
       Caption = '-'
     end
-    object EditArchitectMenuItem: TMenuItem
-      Caption = 'Architect...'
-      OnClick = EditArchitectMenuItemClick
-    end
-    object EditAlterNameMenuItem: TMenuItem
-      Tag = 7
-      Caption = 'Alternative Name...'
-      OnClick = ListViewAction
-    end
-    object EditCommentMenuItem: TMenuItem
-      Tag = 8
-      Caption = 'Comment...'
-      OnClick = ListViewAction
-    end
-    object CurrentGoalsMenuItem: TMenuItem
-      Tag = 9
-      Caption = 'Current Goals...'
-      OnClick = ListViewAction
-    end
-    object LongtermObjectivesMenuItem: TMenuItem
-      Tag = 10
-      Caption = 'Long-term Objectives...'
-      OnClick = ListViewAction
-    end
-    object TaskGroupSubMenu: TMenuItem
-      Caption = 'Task Group'
-      object askGroup2: TMenuItem
+    object Change1: TMenuItem
+      Caption = 'Edit'
+      object EditArchitectMenuItem: TMenuItem
+        Caption = 'Architect...'
+        OnClick = EditArchitectMenuItemClick
+      end
+      object EditAlterNameMenuItem: TMenuItem
+        Tag = 7
+        Caption = 'Alternative Name...'
+        OnClick = ListViewAction
+      end
+      object EditCommentMenuItem: TMenuItem
+        Tag = 8
+        Caption = 'Comment...'
+        OnClick = ListViewAction
+      end
+      object CurrentGoalsMenuItem: TMenuItem
+        Tag = 9
+        Caption = 'Current Goals...'
+        OnClick = ListViewAction
+      end
+      object LongtermObjectivesMenuItem: TMenuItem
+        Tag = 10
+        Caption = 'Long-term Objectives...'
+        OnClick = ListViewAction
+      end
+      object TaskGroupSubMenu: TMenuItem
+        Caption = 'Task Group'
+        object askGroup2: TMenuItem
+          Caption = '-'
+        end
+        object OtherGroupMenuItem: TMenuItem
+          Caption = 'New...'
+          OnClick = OtherGroupMenuItemClick
+        end
+        object RemoveTaskGroupMenuItem: TMenuItem
+          Caption = 'Remove...'
+          OnClick = RemoveTaskGroupMenuItemClick
+        end
+        object N3: TMenuItem
+          Caption = '-'
+        end
+        object Clear1: TMenuItem
+          Caption = 'Clear'
+          OnClick = TaskGroupMenuItemClick
+        end
+      end
+      object N5: TMenuItem
         Caption = '-'
       end
-      object OtherGroupMenuItem: TMenuItem
-        Caption = 'New...'
-        OnClick = OtherGroupMenuItemClick
-      end
-      object RemoveTaskGroupMenuItem: TMenuItem
-        Caption = 'Remove...'
-        OnClick = RemoveTaskGroupMenuItemClick
-      end
-      object N3: TMenuItem
-        Caption = '-'
-      end
-      object Clear1: TMenuItem
-        Caption = 'Clear'
-        OnClick = TaskGroupMenuItemClick
+      object ToggleIgnoredMenuItem: TMenuItem
+        Tag = 4
+        Caption = 'Toggle Ignored'
+        OnClick = ToggleIgnoredMenuItemClick
       end
     end
-    object N4: TMenuItem
-      Caption = '-'
-    end
-    object AddSystemToScanMenuItem: TMenuItem
-      Caption = 'Add System To Scan...'
-      OnClick = AddSystemToScanMenuItemClick
-    end
-    object AddNeighboursMenuItem: TMenuItem
-      Caption = 'Add Neighbours (EDSM)'
-      OnClick = AddNeighboursMenuItemClick
-    end
-    object AddTwoHopSystemsEDSMMenuItem: TMenuItem
-      Caption = 'Add 2-Hop Systems (EDSM)'
-      OnClick = AddTwoHopSystemsEDSMMenuItemClick
-    end
-    object RemoveSystemToScanMenuItem: TMenuItem
-      Caption = 'Remove System To Scan'
-      OnClick = RemoveSystemToScanMenuItemClick
-    end
-    object N5: TMenuItem
-      Caption = '-'
-    end
-    object ToggleIgnoredMenuItem: TMenuItem
-      Tag = 4
-      Caption = 'Toggle Ignored'
-      OnClick = ToggleIgnoredMenuItemClick
+    object Colonization1: TMenuItem
+      Caption = 'Colonization'
+      object AddToTargetsMenuItem: TMenuItem
+        Caption = 'Add To Targets'
+        OnClick = AddToTargetsMenuItemClick
+      end
+      object AddSystemToScanMenuItem: TMenuItem
+        Caption = 'Add System To Scan...'
+        OnClick = AddSystemToScanMenuItemClick
+      end
+      object AddNeighboursMenuItem: TMenuItem
+        Caption = 'Add Neighbours (EDSM)'
+        OnClick = AddNeighboursMenuItemClick
+      end
+      object AddTwoHopSystemsEDSMMenuItem: TMenuItem
+        Caption = 'Add 2-Hop Systems (EDSM)'
+        OnClick = AddTwoHopSystemsEDSMMenuItemClick
+      end
+      object RemoveSystemToScanMenuItem: TMenuItem
+        Caption = 'Remove System To Scan'
+        OnClick = RemoveSystemToScanMenuItemClick
+      end
     end
     object N1: TMenuItem
       Caption = '-'
@@ -416,7 +470,17 @@ object ColoniesForm: TColoniesForm
     end
     object FindBodyMenuItem: TMenuItem
       Caption = 'Find Body...'
+      Visible = False
       OnClick = FindBodyMenuItemClick
+    end
+    object ShowOnMapMenuItem: TMenuItem
+      Caption = 'Show On Map'
+      OnClick = ShowOnMapMenuItemClick
+    end
+    object DistancesFromMenuItem: TMenuItem
+      Tag = 16
+      Caption = 'Set As Reference System'
+      OnClick = ListViewAction
     end
     object CopySystemNameMenuItem: TMenuItem
       Tag = 15

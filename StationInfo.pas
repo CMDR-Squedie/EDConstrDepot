@@ -174,6 +174,7 @@ begin
         if FinishedStatus.Checked then ConstrStatus := csFinished;
         if CancelledStatus.Checked then ConstrStatus := csCancelled;
         if TentativeStatus.Checked then ConstrStatus := csTentative;
+        AutoMatch := False;
       end;
 
       if FCurrentStation.MarketId = '' then

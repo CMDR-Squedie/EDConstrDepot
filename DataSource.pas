@@ -151,20 +151,20 @@ public
   constructor Create;
 end;
 
-type TConstructionTypes = class (THashedStringList)
+TStarSystem = class;
+TConstructionDepot = class;
+TMarket = class;
+
+TConstructionTypes = class (THashedStringList)
   function GetTypeById(const Id: string): TConstructionType;
   function GetTypeByIdx(const Idx: Integer): TConstructionType;
 public
+  function FindBestMatch(cd: TConstructionDepot; var FoundMore: Boolean): TConstructionType;
   property TypeById[const Id: string]: TConstructionType read GetTypeById;
   property TypeByIdx[const Idx: Integer]: TConstructionType read GetTypeByIdx;
   procedure PopulateList(sl: TStrings);
   procedure Load;
 end;
-
-type
-TStarSystem = class;
-TConstructionDepot = class;
-TMarket = class;
 
 TSystemBody = class
 private
@@ -313,6 +313,7 @@ public
   function PopDailyChange: Int64;
   function GetScore: Integer;
   procedure GetCP(var cp2,cp3: Integer); //wip
+  function GetRawStat(styp: TSystemStat): Integer; //unaltered
   procedure UpdateBodies_EDSM;
   procedure UpdateFromScan_EDSM;
   procedure ResetEconomies;
@@ -357,6 +358,7 @@ public
   Stock: TStock;
   DistFromStar: Integer;
   DockToDockTimes: TDockToDockTimes;
+  TransactionHistory: TStringList;
   MarketLevel: TMarketLevel;
   Comment: string;
   ConstructionType: string;
@@ -393,6 +395,7 @@ TMarket = class (TBaseMarket)
   MarketEconomies: string; //updated on market visit
   HoldSnapshots: Boolean;
   Snapshot: Boolean;
+  PurchaseQty: Integer;
 end;
 
 TConstructionDepot = class (TBaseMarket)
@@ -411,8 +414,10 @@ TConstructionDepot = class (TBaseMarket)
   LinkHub: Boolean; //true if a port is collecting links; irrelevant for facilities
   CustomRequest: string;
   ReplacedWith: string; //session only, when player's construction is replaced with actual one by name
+  AutoMatch: Boolean;
+  ResRequired: TStock;
   procedure UpdateHaul;
-  procedure UpdateContribution(j: TJSONObject);
+  procedure UpdateContribution(j: TJSONObject; cmdr,tms: string);
   procedure PasteRequest;
   function CheckDependencies(const constrList: TList = nil): Boolean;
   function InProgress: Boolean;
@@ -420,6 +425,8 @@ TConstructionDepot = class (TBaseMarket)
   function Planned: Boolean;
   function Cancelled: Boolean;
   function Tentative: Boolean;
+  constructor Create;
+  destructor Destroy;
 end;
 
 type TEconomySets = class
@@ -619,7 +626,7 @@ type TEDDataSource = class (TDataModule)
     procedure UpdateMarketGroup(mID: string; s: string; delf: Boolean);
     procedure AddListener(Sender: IEDDataListener);
     procedure RemoveListener(Sender: IEDDataListener);
-    procedure GetUniqueGroups(sl: TStringList);
+    procedure GetUniqueGroups(sl: TStringList; const coloniesOnly: Boolean = false);
     procedure ResetDockTimes;
     function EcoFromName(s: string): TEconomy;
     procedure SetRoute(name,systems:string);
@@ -863,6 +870,57 @@ begin
     end;
 end;
 
+
+function TConstructionTypes.FindBestMatch(cd: TConstructionDepot; var FoundMore: Boolean): TConstructionType;
+var d: Double;
+    rlist: TStringList;
+    s,s2: string;
+    i,j: Integer;
+    ct: TConstructionType;
+begin
+  FoundMore := False;
+
+  Result := nil;
+  rlist := TStringList.Create;
+  try
+    rlist.Assign(cd.ResRequired);
+
+    //remove aluminium added to primary outpost before comparison
+    if cd.IsPrimary then
+      if cd.ActualHaul < 25000 then
+        if rlist.Names[0] = 'Aluminium' then
+          rlist.Delete(0);
+
+    for j := 0 to rlist.Count - 1 do
+      rlist[j] := rlist.Names[j];
+    rlist.Sort;
+    s := LowerCase(rlist.Text);
+
+    for i := 0 to Count - 1 do
+    begin
+      ct := self.TypeByIdx[i];
+      if cd.IsOrbital = ct.IsOrbital then
+      begin
+        rlist.Assign(ct.ResourcesRequired);
+        for j := 0 to rlist.Count - 1 do
+          rlist[j] := rlist.Names[j];
+        rlist.Sort;
+        s2 := LowerCase(rlist.Text);
+        if s = s2 then  //that's really bad, but the lists are so short...
+        begin
+          d := Abs(100 * (cd.ActualHaul - ct.EstCargo) div ct.EstCargo); //deviation in %
+          if (d <= 6) or (cd.IsPrimary and (cd.ActualHaul > ct.EstCargo) and (d <= 33)) then
+            if Result <> nil then
+              FoundMore := true
+            else
+              Result := ct;
+        end;
+      end;
+    end;
+  finally
+    rlist.Free;
+  end;
+end;
 
 procedure TConstructionTypes.Load;
 var ct: TConstructionType;
@@ -1529,6 +1587,7 @@ begin
   DistFromStar := 0;
   Stock.Clear;
   DockToDockTimes.Clear;
+  TransactionHistory.Clear;
 end;
 
 function TBaseMarket.FullName: string;
@@ -1585,6 +1644,8 @@ var link: string;
     maxlen: Integer;
 begin
   Result := StationName;
+  if GetLinkedMarket <> nil then
+    Result := GetLinkedMarket.StationName;
   if StationName2 <> '' then Result := StationName2;
   link := Result + '/' + StarSystem;
 
@@ -1630,6 +1691,7 @@ constructor TBaseMarket.Create;
 begin
   Stock := TStock.Create;
   DockToDockTimes := TDockToDockTimes.Create;
+  TransactionHistory := TStringList.Create;
   DistFromStar := -1;
   LPads := -1;
   MPads := -1;
@@ -1640,6 +1702,19 @@ destructor TBaseMarket.Destroy;
 begin
   Stock.Free;
   DockToDockTimes.Free;
+  TransactionHistory.Free;
+end;
+
+constructor TConstructionDepot.Create;
+begin
+  inherited;
+  ResRequired := TStock.Create;
+end;
+
+destructor TConstructionDepot.Destroy;
+begin
+  inherited;
+  ResRequired.Free;
 end;
 
 procedure TConstructionDepot.PasteRequest;
@@ -1680,8 +1755,10 @@ var j: TJSONObject;
     i,q,cq: Integer;
     ct: TConstructionType;
     nm,s: string;
+    updresf: Boolean;
 begin
   ActualHaul := 0;
+  updresf := ResRequired.Count = 0;
   try
     j := TJSONObject.ParseJSONValue(Status) as TJSONObject;
     try
@@ -1691,6 +1768,8 @@ begin
         resReq.Items[i].TryGetValue<string>('Name_Localised',nm);
         resReq.Items[i].TryGetValue<Integer>('RequiredAmount',q);
         ActualHaul := ActualHaul + q;
+        if updresf then
+          ResRequired[nm] := q;
         ct := GetConstrType;
         if ct <> nil then
         begin
@@ -1707,7 +1786,7 @@ begin
   end;
 end;
 
-procedure TConstructionDepot.UpdateContribution(j: TJSONObject);
+procedure TConstructionDepot.UpdateContribution(j: TJSONObject; cmdr,tms: string);
 var jarr: TJSONArray;
     i,q: Integer;
 begin
@@ -1717,6 +1796,7 @@ begin
     begin
       jarr[i].TryGetValue<Integer>('Amount',q);
       self.Contribution := self.Contribution + q;
+      TransactionHistory.AddPair(tms,cmdr + '|CONTRIB|' + q.ToString);
     end;
   except
   end;
@@ -1879,6 +1959,30 @@ begin
       ct := GetConstrType;
       if ct <> nil then
          Result := Result + ct.Score;
+    end;
+end;
+
+function TStarSystem.GetRawStat(styp: TSystemStat): Integer;
+var i: Integer;
+    ct: TConstructionType;
+begin
+  Result := 0;
+  if Constructions = nil then Exit;
+  for i := 0 to Constructions.Count - 1 do
+    with TConstructionDepot(Constructions[i]) do
+    if Finished then
+    begin
+      ct := GetConstrType;
+      if ct <> nil then
+      begin
+        case styp of
+          sDev: Result := Result + ct.DevLev;
+          sSec: Result := Result + ct.SecLev;
+          sStdLiv: Result := Result + ct.StdLivLev;
+          sTech: Result := Result + ct.TechLev;
+          sWealth: Result := Result + ct.WealthLev;
+        end;
+      end;
     end;
 end;
 
@@ -2442,6 +2546,8 @@ begin
         st.AddPair(TJSONPair.Create('NameModified', NameModified));
         st.AddPair(TJSONPair.Create('CustomRequest', CustomRequest));
         st.AddPair(TJSONPair.Create('Faction', Faction));
+        if AutoMatch then
+          st.AddPair(TJSONPair.Create('AutoMatch', AutoMatch));
         sarr.Add(st);
       end;
 
@@ -2761,7 +2867,7 @@ var j,j2: TJSONObject;
     bm: TBaseMarket;
     ct: TConstructionType;
     b: TSystemBody;
-    planf,finf: Boolean;
+    planf,finf,automatchf: Boolean;
 begin
   try
     j := TJSONObject.ParseJSONValue(js) as TJSONObject;
@@ -2839,6 +2945,9 @@ begin
 
               jarr[i].TryGetValue<string>('CustomRequest',TConstructionDepot(bm).CustomRequest);
               jarr[i].TryGetValue<string>('Faction',TConstructionDepot(bm).Faction);
+              automatchf := false;
+              jarr[i].TryGetValue<Boolean>('AutoMatch',automatchf);
+              if automatchf then TConstructionDepot(bm).AutoMatch := automatchf;
               DataSrc.FConstructions.AddObject(bm.MarketId,bm);
             end;
             if mtyp = 'market' then
@@ -3940,7 +4049,7 @@ begin
            (s<>'Loadout') and
            (s<>'Docked') and
            (s<>'ColonisationConstructionDepot') and
-//           (s<>'ColonisationContribution') and
+           (s<>'ColonisationContribution') and
 
 //delivery time only
            (s<>'Undocked') and
@@ -4140,6 +4249,10 @@ begin
           mID := FLastFC;
         if mID = '' then continue;
 
+
+//if mID = '3958754818' then
+//  s2 := s2;
+
         if event = 'SupercruiseDestinationDrop' then
         begin
           m := MarketFromId(mID);
@@ -4205,8 +4318,8 @@ begin
           if s = 'FleetCarrier' then FLastFC := mID;
           s2 := j.GetValue<string>('StationName');
 
-if s2.Contains('Malocello') then
-  s2 := s2;
+//if mID = '3961242114' then
+//  s2 := s2;
           sysname := j.GetValue<string>('StarSystem');
 
           if (Pos('Construction',s) > 0) or (Pos('ColonisationShip',s2) > 0) then
@@ -4227,7 +4340,8 @@ if s2.Contains('Malocello') then
               cd := DepotForMarketId(mID);
             end;
 
-            if newstationf then
+            //if newstationf then
+            if cd.Status = '' then
               cd.FOrbital_JRNL := Ord((Pos('Orbital ',s) > 0));
             cpos := Pos(': ',s);
             if cpos > 0 then
@@ -4347,7 +4461,7 @@ if s2.Contains('Malocello') then
         begin
           cd := DepotForMarketId(mID + FDepotIdSuffix);
           if cd <> nil then
-            cd.UpdateContribution(j);
+            cd.UpdateContribution(j,FCurrentCmdr,tms);
         end;
 
 
@@ -4397,6 +4511,9 @@ if s2.Contains('Malocello') then
           m := MarketFromId(mID);
           if m = nil then continue;
           if (event = 'MarketSell') and (m.StationType <> 'FleetCarrier') then continue;
+          q := StrToIntDef(j.GetValue<string>('Count'),0);
+          if event = 'MarketBuy' then
+            m.PurchaseQty := m.PurchaseQty + q;
           if m.LastUpdate < tms then
           begin
             s := '';
@@ -4404,7 +4521,6 @@ if s2.Contains('Malocello') then
             if s = '' then
               s := j.GetValue<string>('Type');
             s := LowerCase(s);
-            q := StrToIntDef(j.GetValue<string>('Count'),0);
             if event = 'MarketBuy' then
               m.Stock.Qty[s] := m.Stock.Qty[s] - q
             else
@@ -5001,20 +5117,24 @@ begin
 //  NotifyListeners;
 end;
 
-procedure TEDDataSource.GetUniqueGroups(sl: TStringList);
+procedure TEDDataSource.GetUniqueGroups(sl: TStringList; const coloniesOnly: Boolean = false);
 var i: Integer;
     s: string;
 begin
   sl.Clear;
   sl.Sorted := True;
   sl.Duplicates := dupIgnore;
+  if not coloniesOnly then
   for i := 0 to FMarketGroups.Count - 1 do
   begin
     s := FMarketGroups.ValueFromIndex[i];
     if s <> '' then sl.Add(s);
   end;
+
   for i := 0 to FStarSystems.Count - 1 do
   begin
+    if coloniesOnly then
+      if not FStarSystems[i].IsOwnColony then continue;
     if FStarSystems[i].TaskGroup <> '' then sl.Add(FStarSystems[i].TaskGroup);
   end;
   if FTaskGroup <> '' then

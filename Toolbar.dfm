@@ -130,20 +130,20 @@ object ToolbarForm: TToolbarForm
     ExplicitLeft = 56
     ExplicitHeight = 28
   end
-  object SettingsLabel: TLabel
-    Left = 224
+  object MenuLabel: TLabel
+    Left = 237
     Top = 0
     Width = 28
     Height = 29
-    Hint = 'Settings'
-    Align = alLeft
+    Hint = 'Main Menu'
+    Align = alRight
     Alignment = taCenter
     AutoSize = False
-    Caption = #55357#56615
+    Caption = #9776
     Color = clBlack
     ParentColor = False
     Transparent = False
-    OnClick = SettingsLabelClick
+    OnClick = MenuLabelClick
     OnMouseEnter = InfoLabelMouseEnter
     OnMouseLeave = PlannedLabelMouseLeave
     ExplicitLeft = 196

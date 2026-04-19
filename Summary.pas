@@ -5,16 +5,45 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ComCtrls, Vcl.Menus, Vcl.StdCtrls,
-  System.IniFiles, System.DateUtils;
+  System.IniFiles, System.DateUtils, System.Math, Vcl.ExtCtrls, System.StrUtils,
+  System.Skia, Vcl.Skia;
 
 type
   TSummaryForm = class(TForm)
     ListView: TListView;
     PopupMenu: TPopupMenu;
     CopyMenuItem: TMenuItem;
-    CmdrComboBox: TComboBox;
     N1: TMenuItem;
     CopyPopHistMenuItem: TMenuItem;
+    Chart1: TMenuItem;
+    PopulationHistoryMenuItem: TMenuItem;
+    ConstrHistory2MenuItem: TMenuItem;
+    ConstrHistory1MenuItem: TMenuItem;
+    ScoreHistoryMenuItem: TMenuItem;
+    Panel1: TPanel;
+    CmdrComboBox: TComboBox;
+    MenuButton: TButton;
+    PopulationIncHistMenuItem: TMenuItem;
+    DailyContrib1MenuItem: TMenuItem;
+    DailyContribution30days1: TMenuItem;
+    DailyContribution90days1: TMenuItem;
+    ConstructionTypesMenuItem: TMenuItem;
+    N2: TMenuItem;
+    N3: TMenuItem;
+    N4: TMenuItem;
+    BestMarketsMenuItem: TMenuItem;
+    PopulationHistory1: TMenuItem;
+    WeeklyFinishedConstrMenuItem: TMenuItem;
+    WeeklyScore90days1: TMenuItem;
+    General1: TMenuItem;
+    FINISHEDCONSTUCTIONS1: TMenuItem;
+    CONTIBUTIONt1: TMenuItem;
+    N5: TMenuItem;
+    ASKGROUPS1: TMenuItem;
+    TaskGroupScoreMenuItem: TMenuItem;
+    TaskGroupPopulationMenuItem: TMenuItem;
+    OTHER1: TMenuItem;
+    TaskGroupComboBox: TComboBox;
     procedure FormCreate(Sender: TObject);
     procedure CopyMenuItemClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
@@ -23,9 +52,24 @@ type
       State: TCustomDrawState; var DefaultDraw: Boolean);
     procedure ListViewDblClick(Sender: TObject);
     procedure CopyPopHistMenuItemClick(Sender: TObject);
+    procedure PopulationHistoryMenuItemClick(Sender: TObject);
+    procedure ConstrHistory2MenuItemClick(Sender: TObject);
+    procedure ScoreHistoryMenuItemClick(Sender: TObject);
+    procedure MenuButtonClick(Sender: TObject);
+    procedure PopulationIncHistMenuItemClick(Sender: TObject);
+    procedure DailyContrib1MenuItemClick(Sender: TObject);
+    procedure ConstructionTypesMenuItemClick(Sender: TObject);
+    procedure BestMarketsMenuItemClick(Sender: TObject);
+    procedure WeeklyFinishedConstrMenuItemClick(Sender: TObject);
+    procedure WeeklyScore90days1Click(Sender: TObject);
+    procedure TaskGroupPopulationMenuItemClick(Sender: TObject);
+    procedure TaskGroupScoreMenuItemClick(Sender: TObject);
+    procedure TaskGroupComboBoxChange(Sender: TObject);
   private
     { Private declarations }
     FPopHistory: THashedStringList;
+    FCurCmdr: string;
+    FCurTaskGroup: string;
     procedure UpdateItems;
   public
     { Public declarations }
@@ -40,11 +84,31 @@ implementation
 
 {$R *.dfm}
 
-uses DataSource, Main, Settings, Clipbrd, Bodies;
+uses DataSource, Main, Settings, Clipbrd, Bodies, Chart, Dashboard;
+
+
+
+procedure TSummaryForm.BestMarketsMenuItemClick(Sender: TObject);
+var title,cmdr: string;
+    mode: Integer;
+    dataSeries: THashedStringList;
+begin
+  //mode := TControl(Sender).Tag;
+  GetMarketData(1, 24, dataSeries, title);
+  with TChartForm.Create(Application) do
+    CreateChart(dataSeries,title,[],1,ctColumn,csRedToGreen,0.9);
+  dataSeries.Free;
+end;
 
 procedure TSummaryForm.CmdrComboBoxChange(Sender: TObject);
 begin
+  FCurCmdr := '';
+  if CmdrComboBox.ItemIndex > 0 then
+    FCurCmdr := DataSrc.Commanders.Names[CmdrComboBox.ItemIndex-1];
+
   UpdateItems;
+  if DashboardForm.Visible then
+    DashboardForm.UpdateCharts(FCurCmdr,FCurTaskGroup);
 end;
 
 procedure TSummaryForm.UpdateItems;
@@ -87,7 +151,7 @@ begin
   s := Copy(DateToISO8601(dt),1,10);
   while s > '2025-03' do  //Trailblazers start , todo: switch to journals start
   begin
-    FPopHistory.Values[s] := '0';
+    FPopHistory.Add(s + '=0');
     //dt := IncMonth(dt,-1);
     dt := dt - 7;
     s := Copy(DateToISO8601(dt),1,10);
@@ -137,12 +201,19 @@ begin
     sys := DataSrc.StarSystems[i];
     isColonyf := (sys.Architect <> '') and (sys.PrimaryDone or (sys.Population > 0));
     if not isColonyf then continue;
+{
     if CmdrComboBox.ItemIndex = 0 then
     begin
       if DataSrc.Commanders.Values[sys.Architect] = '' then continue;
     end
     else
       if sys.ArchitectName <> CmdrComboBox.Text then continue;
+}
+    if FCurCmdr <> '' then
+      if sys.Architect <> FCurCmdr then continue;
+    if FCurTaskGroup <> '' then
+      if sys.TaskGroup <> FCurTaskGroup then continue;
+
 
     sys.UpdateMoons;
 
@@ -306,10 +377,112 @@ begin
 
 end;
 
+procedure TSummaryForm.WeeklyFinishedConstrMenuItemClick(Sender: TObject);
+begin
+  with TChartForm.Create(Application) do
+    CreateChartById('SCOREWEEKLY',FCurCmdr);
+end;
+
+procedure TSummaryForm.WeeklyScore90days1Click(Sender: TObject);
+begin
+  with TChartForm.Create(Application) do
+    CreateChartById('SCOREW90',FCurCmdr);
+end;
+
 procedure TSummaryForm.RestoreAndShow;
 begin
   if WindowState = wsMinimized then WindowState := wsNormal;
   Show;
+end;
+
+procedure TSummaryForm.ScoreHistoryMenuItemClick(Sender: TObject);
+var cd: TConstructionDepot;
+    ct: TConstructionType;
+    sys: TStarSystem;
+    s,title: string;
+    i,i2,valIdx,idx: Integer;
+    dt: TDateTime;
+    dataSeries: THashedStringList;
+    v: Int64;
+begin
+  valIdx := TControl(Sender).Tag;
+  dataSeries := THashedStringList.Create;
+  dt := Now;
+  s := Copy(DateToISO8601(dt),1,10);
+  while s > '2025-03' do  //Trailblazers start , todo: switch to journals start
+  begin
+    dataSeries.Values[s] := '0';
+    dt := dt - 7;
+    s := Copy(DateToISO8601(dt),1,10);
+  end;
+  dataSeries.Sort;
+
+  for i := 0 to DataSrc.Constructions.Count - 1 do
+  begin
+    cd := DataSrc.Constructions.ConstrByIdx[i];
+    ct := cd.GetConstrType;
+    if ct = nil then continue;
+    sys := cd.GetSys;
+    if sys = nil then continue;
+
+    if FCurCmdr <> '' then
+      if sys.Architect <> FCurCmdr then continue;
+    if FCurTaskGroup <> '' then
+      if sys.TaskGroup <> FCurTaskGroup then continue;
+
+
+    if cd.Finished  then
+    begin
+      if cd.LastUpdate <> '' then
+        s := Copy(cd.LastUpdate,1,10)
+      else
+        s := '2025-03-31';
+      dataSeries.Find(s,idx);
+      if idx < dataSeries.Count then
+        dataSeries.ValueFromIndex[idx] :=
+          (StrToInt64Def(dataSeries.ValueFromIndex[idx],0) + ct.Score).ToString;
+    end;
+  end;
+
+  while dataSeries.ValueFromIndex[dataSeries.Count-1] = '0' do
+    dataSeries.Delete(dataSeries.Count-1);
+
+  for i := 1 to dataSeries.Count - 1 do
+  begin
+    dataSeries.ValueFromIndex[i] :=
+      (StrToInt64Def(dataSeries.ValueFromIndex[i],0) +
+      StrToInt64Def(dataSeries.ValueFromIndex[i-1],0)).ToString;
+  end;
+
+
+
+  title := 'Total Score - ' + CmdrComboBox.Text;
+  with TChartForm.Create(Application) do
+    CreateChart(dataSeries,title,[],4,ctLine,csGradient);
+  dataSeries.Free;
+end;
+
+procedure TSummaryForm.TaskGroupComboBoxChange(Sender: TObject);
+begin
+  FCurTaskGroup := '';
+  if TaskGroupComboBox.ItemIndex > 0 then
+    FCurTaskGroup := TaskGroupComboBox.Items[TaskGroupComboBox.ItemIndex];
+
+  UpdateItems;
+  if DashboardForm.Visible then
+    DashboardForm.UpdateCharts(FCurCmdr,FCurTaskGroup);
+end;
+
+procedure TSummaryForm.TaskGroupPopulationMenuItemClick(Sender: TObject);
+begin
+  with TChartForm.Create(Application) do
+    CreateChartById('TGPOP',FCurCmdr);
+end;
+
+procedure TSummaryForm.TaskGroupScoreMenuItemClick(Sender: TObject);
+begin
+  with TChartForm.Create(Application) do
+    CreateChartById('TGSCORE',FCurCmdr);
 end;
 
 procedure TSummaryForm.ApplySettings;
@@ -363,6 +536,19 @@ begin
   Clipboard.AsText := s;
 end;
 
+procedure TSummaryForm.DailyContrib1MenuItemClick(Sender: TObject);
+var title,cmdr: string;
+    mode: Integer;
+    dataSeries: THashedStringList;
+begin
+  mode := TControl(Sender).Tag;
+  GetContribData(mode, FCurCmdr, FCurTaskGroup, dataSeries, title);
+  with TChartForm.Create(Application) do
+    CreateChart(dataSeries,title,[],1 + dataseries.Count div 45,ctColumn,csRedToGreen);
+  dataSeries.Free;
+
+end;
+
 procedure TSummaryForm.FormCreate(Sender: TObject);
 begin
   FPopHistory := THashedStringList.Create;
@@ -372,13 +558,46 @@ end;
 
 procedure TSummaryForm.FormShow(Sender: TObject);
 var i: Integer;
+    sl: TStringList;
 begin
   for i := CmdrComboBox.Items.Count - 1 downto 1 do
     CmdrComboBox.Items.Delete(i);
   for i := 0 to DataSrc.Commanders.Count - 1 do
     CmdrComboBox.Items.Add(DataSrc.Commanders.ValueFromIndex[i]);
   CmdrComboBox.ItemIndex := 0;
+
+  for i := TaskGroupComboBox.Items.Count - 1 downto 1 do
+    TaskGroupComboBox.Items.Delete(i);
+
+  sl := TStringList.Create;
+  DataSrc.GetUniqueGroups(sl,true);
+  TaskGroupComboBox.Items.AddStrings(sl);
+  sl.Free;
+  TaskGroupComboBox.ItemIndex := 0;
+
   UpdateItems;
+end;
+
+procedure TSummaryForm.ConstrHistory2MenuItemClick(Sender: TObject);
+var title: string;
+    mode: Integer;
+    dataSeries: THashedStringList;
+begin
+  mode := TControl(Sender).Tag;
+  GetFinishedConstrData(mode, FCurCmdr, FCurTaskGroup, dataSeries, title);
+  with TChartForm.Create(Application) do
+    CreateChart(dataSeries,title,[coReversed],1,ctColumn,csCyclic);
+  dataSeries.Free;
+end;
+
+procedure TSummaryForm.ConstructionTypesMenuItemClick(Sender: TObject);
+var title: string;
+    dataSeries: THashedStringList;
+begin
+  GetConstrTypesData(1, FCurCmdr, FCurTaskGroup, dataSeries, title);
+  with TChartForm.Create(Application) do
+    CreateChart(dataSeries,title,[],1,ctColumn,csGolden);
+  dataSeries.Free;
 end;
 
 procedure TSummaryForm.ListViewCustomDrawItem(Sender: TCustomListView;
@@ -419,6 +638,46 @@ begin
     BodiesForm.EndFilterChange;
   end;
   BodiesForm.UpdateAndShow;
+end;
+
+procedure TSummaryForm.MenuButtonClick(Sender: TObject);
+var pt: TPoint;
+begin
+  pt.X := MenuButton.Left;
+  pt.Y := MenuButton.Top + MenuButton.Height;
+  pt := Panel1.ClientToScreen(pt);
+  PopupMenu.Popup(pt.X,pt.Y);
+end;
+
+procedure TSummaryForm.PopulationHistoryMenuItemClick(Sender: TObject);
+var id: string;
+begin
+  id := 'POPHIST';
+  if TControl(Sender).Tag = 2 then
+    id := 'POPHISTM';
+  with TChartForm.Create(Application) do
+    CreateChartById(id);
+end;
+
+procedure TSummaryForm.PopulationIncHistMenuItemClick(Sender: TObject);
+var pop,lastpop,d: Int64;
+    dataSeries: THashedStringList;
+    i: Integer;
+begin
+  dataSeries := THashedStringList.Create;
+  lastpop := 0;
+  for i := FPopHistory.Count - 1 downto 0 do
+  begin
+    pop := StrToInt64Def(FPopHistory.ValueFromIndex[i],0);
+    d := pop - lastpop;
+    if d < 0 then d := 0;
+    dataSeries.Add(FPopHistory.Names[i] + '=' + d.ToString);
+    lastpop := pop;
+  end;
+
+  with TChartForm.Create(Application) do
+    CreateChart(dataSeries,'Weekly Population Increase - ' + CmdrComboBox.Text,[]);
+  dataSeries.Free;
 end;
 
 end.
