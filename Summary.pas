@@ -32,7 +32,6 @@ type
     N3: TMenuItem;
     N4: TMenuItem;
     BestMarketsMenuItem: TMenuItem;
-    PopulationHistory1: TMenuItem;
     WeeklyFinishedConstrMenuItem: TMenuItem;
     WeeklyScore90days1: TMenuItem;
     General1: TMenuItem;
@@ -44,6 +43,17 @@ type
     TaskGroupPopulationMenuItem: TMenuItem;
     OTHER1: TMenuItem;
     TaskGroupComboBox: TComboBox;
+    WeeklyContribution90days1: TMenuItem;
+    N6: TMenuItem;
+    ASKGROUPS2: TMenuItem;
+    FactionPopulationMenuItem: TMenuItem;
+    FactionScoreMenuItem: TMenuItem;
+    FactionCtrlMenuItem: TMenuItem;
+    FactionPresenceMenuItem: TMenuItem;
+    PopulationGrowth1: TMenuItem;
+    Populationand30dayGrowth1: TMenuItem;
+    PopulationGrowth2: TMenuItem;
+    Populationand30dayGrowth2: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure CopyMenuItemClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
@@ -52,19 +62,11 @@ type
       State: TCustomDrawState; var DefaultDraw: Boolean);
     procedure ListViewDblClick(Sender: TObject);
     procedure CopyPopHistMenuItemClick(Sender: TObject);
-    procedure PopulationHistoryMenuItemClick(Sender: TObject);
-    procedure ConstrHistory2MenuItemClick(Sender: TObject);
-    procedure ScoreHistoryMenuItemClick(Sender: TObject);
     procedure MenuButtonClick(Sender: TObject);
     procedure PopulationIncHistMenuItemClick(Sender: TObject);
-    procedure DailyContrib1MenuItemClick(Sender: TObject);
-    procedure ConstructionTypesMenuItemClick(Sender: TObject);
-    procedure BestMarketsMenuItemClick(Sender: TObject);
-    procedure WeeklyFinishedConstrMenuItemClick(Sender: TObject);
     procedure WeeklyScore90days1Click(Sender: TObject);
-    procedure TaskGroupPopulationMenuItemClick(Sender: TObject);
-    procedure TaskGroupScoreMenuItemClick(Sender: TObject);
     procedure TaskGroupComboBoxChange(Sender: TObject);
+    procedure FactionPopulationMenuItemClick(Sender: TObject);
   private
     { Private declarations }
     FPopHistory: THashedStringList;
@@ -88,18 +90,6 @@ uses DataSource, Main, Settings, Clipbrd, Bodies, Chart, Dashboard;
 
 
 
-procedure TSummaryForm.BestMarketsMenuItemClick(Sender: TObject);
-var title,cmdr: string;
-    mode: Integer;
-    dataSeries: THashedStringList;
-begin
-  //mode := TControl(Sender).Tag;
-  GetMarketData(1, 24, dataSeries, title);
-  with TChartForm.Create(Application) do
-    CreateChart(dataSeries,title,[],1,ctColumn,csRedToGreen,0.9);
-  dataSeries.Free;
-end;
-
 procedure TSummaryForm.CmdrComboBoxChange(Sender: TObject);
 begin
   FCurCmdr := '';
@@ -108,7 +98,7 @@ begin
 
   UpdateItems;
   if DashboardForm.Visible then
-    DashboardForm.UpdateCharts(FCurCmdr,FCurTaskGroup);
+    DashboardForm.UpdateCharts(true,FCurCmdr,FCurTaskGroup);
 end;
 
 procedure TSummaryForm.UpdateItems;
@@ -117,11 +107,11 @@ var i,i2,i3: Integer;
     sys: TStarSystem;
     isColonyf: Boolean;
     totPop,totPopInc,pop: Int64;
-    totHaul,totScore,totSystems,totConstr,totT3,totT2,totT1surf,totT1orb: Integer;
+    totHaul,totScore,totSystems,totConstr,totT3,totT3Surf,totT2,totT1surf,totT1orb: Integer;
     totSystems10,totSystems100,totSystems1b,totShipyards,totTechBrokers: Integer;
     totELW,totWW,totAW,totELW2,totWW2,totAW2,totELW3,totWW3,totAW3: Integer;
     totLandRings,totG4,totG5,totGW,totGH,
-      totLandOxy,totLandHelium,totAbundLife,totLandAtmMoons,totWaterGeysers,totMetalRings,totLandTiny: Integer;
+      totLandOxy,totLandWater,totLandHelium,totAbundLife,totLandAtmMoons,totWaterGeysers,totMetalRings,totLandTiny: Integer;
     ct: TConstructionType;
     s,lasttms: string;
     dt: TDateTime;
@@ -169,6 +159,7 @@ begin
   totSystems1b := 0;
   totHaul := 0;
   totT3 := 0;
+  totT3Surf := 0;
   totT2 := 0;
   totT1orb := 0;
   totT1surf := 0;
@@ -189,6 +180,7 @@ begin
   totWaterGeysers := 0;
   totLandHelium := 0;
   totLandOxy := 0;
+  totLandWater := 0;
   totAbundLife := 0;
   totG4 := 0;
   totG5 := 0;
@@ -249,7 +241,13 @@ begin
         if ct <> nil then
         begin
           if ActualHaul = 0 then totHaul := totHaul + ct.EstCargo;
-          if ct.Tier = '3' then Inc(totT3);
+          if ct.Tier = '3' then
+          begin
+            Inc(totT3);
+            if not ct.IsOrbital then
+              Inc(totT3Surf);
+          end;
+
           if ct.Tier = '2' then
             if ct.Category = 'Starport' then Inc(totT2);
           if ct.Tier = '1' then
@@ -303,6 +301,7 @@ begin
           if HasRings then Inc(totLandRings);
           if Pos('helium',LowerCase(Atmosphere)) > 0 then Inc(totLandHelium);
           if Pos('oxygen',LowerCase(Atmosphere)) > 0 then Inc(totLandOxy);
+          if Pos('water',LowerCase(Atmosphere)) > 0 then Inc(totLandWater);
           if BiologicalSignals > 4 then Inc(totAbundLife);
           if Atmosphere <> '' then
             if IsMoon then
@@ -340,7 +339,8 @@ begin
   addStat('  - popul. over 1b',totSystems1b,false);
 
   addHeader('CONSTRUCTIONS');
-  addStat('T3 Ports (Orbis, Ocellus, Surf. Port)',totT3);
+  addStat('T3 Ports (Dodec, Orbis, etc.)',totT3);
+  addStat('  - planetary',totT3Surf);
   addStat('T2 Ports (Coriolis, Asteroid)',totT2);
   addStat('T1 Surface Ports',totT1surf);
   addStat('T1 Orbital Outposts',totT1orb);
@@ -368,6 +368,7 @@ begin
   addStat('Water Giants',totGW,false,'water giant');
   addStat('Landable w/Rings',totLandRings,false,'land+rings');
   addStat('Landable w/Oxygen',totLandOxy,false,'land+oxy');
+  addStat('Landable w/Water',totLandWater,false,'land+thin water');
   addStat('Landable w/Helium',totLandHelium,false,'land+helium');
   addStat('Landable w/Bio-diversity (min.5)',totAbundLife,false,'land+bio');
   addStat('Landable Moon w/Atm. and Moons',totLandAtmMoons,false,'land+atmo+moons');
@@ -377,89 +378,16 @@ begin
 
 end;
 
-procedure TSummaryForm.WeeklyFinishedConstrMenuItemClick(Sender: TObject);
-begin
-  with TChartForm.Create(Application) do
-    CreateChartById('SCOREWEEKLY',FCurCmdr);
-end;
-
 procedure TSummaryForm.WeeklyScore90days1Click(Sender: TObject);
 begin
   with TChartForm.Create(Application) do
-    CreateChartById('SCOREW90',FCurCmdr);
+    CreateChartById('SCOREW90',FCurCmdr,FCurTaskGroup);
 end;
 
 procedure TSummaryForm.RestoreAndShow;
 begin
   if WindowState = wsMinimized then WindowState := wsNormal;
   Show;
-end;
-
-procedure TSummaryForm.ScoreHistoryMenuItemClick(Sender: TObject);
-var cd: TConstructionDepot;
-    ct: TConstructionType;
-    sys: TStarSystem;
-    s,title: string;
-    i,i2,valIdx,idx: Integer;
-    dt: TDateTime;
-    dataSeries: THashedStringList;
-    v: Int64;
-begin
-  valIdx := TControl(Sender).Tag;
-  dataSeries := THashedStringList.Create;
-  dt := Now;
-  s := Copy(DateToISO8601(dt),1,10);
-  while s > '2025-03' do  //Trailblazers start , todo: switch to journals start
-  begin
-    dataSeries.Values[s] := '0';
-    dt := dt - 7;
-    s := Copy(DateToISO8601(dt),1,10);
-  end;
-  dataSeries.Sort;
-
-  for i := 0 to DataSrc.Constructions.Count - 1 do
-  begin
-    cd := DataSrc.Constructions.ConstrByIdx[i];
-    ct := cd.GetConstrType;
-    if ct = nil then continue;
-    sys := cd.GetSys;
-    if sys = nil then continue;
-
-    if FCurCmdr <> '' then
-      if sys.Architect <> FCurCmdr then continue;
-    if FCurTaskGroup <> '' then
-      if sys.TaskGroup <> FCurTaskGroup then continue;
-
-
-    if cd.Finished  then
-    begin
-      if cd.LastUpdate <> '' then
-        s := Copy(cd.LastUpdate,1,10)
-      else
-        s := '2025-03-31';
-      dataSeries.Find(s,idx);
-      if idx < dataSeries.Count then
-        dataSeries.ValueFromIndex[idx] :=
-          (StrToInt64Def(dataSeries.ValueFromIndex[idx],0) + ct.Score).ToString;
-    end;
-  end;
-
-  while dataSeries.ValueFromIndex[dataSeries.Count-1] = '0' do
-    dataSeries.Delete(dataSeries.Count-1);
-
-  for i := 1 to dataSeries.Count - 1 do
-  begin
-    dataSeries.ValueFromIndex[i] :=
-      (StrToInt64Def(dataSeries.ValueFromIndex[i],0) +
-      StrToInt64Def(dataSeries.ValueFromIndex[i-1],0)).ToString;
-  end;
-
-
-
-  title := 'Total Score - ' + CmdrComboBox.Text;
-  with TChartForm.Create(Application) do
-    CreateChart(dataSeries,title,[],4,ctLine,csGradient);
-  dataSeries.Free;
 end;
 
 procedure TSummaryForm.TaskGroupComboBoxChange(Sender: TObject);
@@ -470,19 +398,7 @@ begin
 
   UpdateItems;
   if DashboardForm.Visible then
-    DashboardForm.UpdateCharts(FCurCmdr,FCurTaskGroup);
-end;
-
-procedure TSummaryForm.TaskGroupPopulationMenuItemClick(Sender: TObject);
-begin
-  with TChartForm.Create(Application) do
-    CreateChartById('TGPOP',FCurCmdr);
-end;
-
-procedure TSummaryForm.TaskGroupScoreMenuItemClick(Sender: TObject);
-begin
-  with TChartForm.Create(Application) do
-    CreateChartById('TGSCORE',FCurCmdr);
+    DashboardForm.UpdateCharts(true,FCurCmdr,FCurTaskGroup);
 end;
 
 procedure TSummaryForm.ApplySettings;
@@ -536,17 +452,10 @@ begin
   Clipboard.AsText := s;
 end;
 
-procedure TSummaryForm.DailyContrib1MenuItemClick(Sender: TObject);
-var title,cmdr: string;
-    mode: Integer;
-    dataSeries: THashedStringList;
+procedure TSummaryForm.FactionPopulationMenuItemClick(Sender: TObject);
 begin
-  mode := TControl(Sender).Tag;
-  GetContribData(mode, FCurCmdr, FCurTaskGroup, dataSeries, title);
   with TChartForm.Create(Application) do
-    CreateChart(dataSeries,title,[],1 + dataseries.Count div 45,ctColumn,csRedToGreen);
-  dataSeries.Free;
-
+    CreateChartById(TMenuItem(Sender).Hint,'S',FCurCmdr,FCurTaskGroup);
 end;
 
 procedure TSummaryForm.FormCreate(Sender: TObject);
@@ -576,28 +485,6 @@ begin
   TaskGroupComboBox.ItemIndex := 0;
 
   UpdateItems;
-end;
-
-procedure TSummaryForm.ConstrHistory2MenuItemClick(Sender: TObject);
-var title: string;
-    mode: Integer;
-    dataSeries: THashedStringList;
-begin
-  mode := TControl(Sender).Tag;
-  GetFinishedConstrData(mode, FCurCmdr, FCurTaskGroup, dataSeries, title);
-  with TChartForm.Create(Application) do
-    CreateChart(dataSeries,title,[coReversed],1,ctColumn,csCyclic);
-  dataSeries.Free;
-end;
-
-procedure TSummaryForm.ConstructionTypesMenuItemClick(Sender: TObject);
-var title: string;
-    dataSeries: THashedStringList;
-begin
-  GetConstrTypesData(1, FCurCmdr, FCurTaskGroup, dataSeries, title);
-  with TChartForm.Create(Application) do
-    CreateChart(dataSeries,title,[],1,ctColumn,csGolden);
-  dataSeries.Free;
 end;
 
 procedure TSummaryForm.ListViewCustomDrawItem(Sender: TCustomListView;
@@ -649,35 +536,29 @@ begin
   PopupMenu.Popup(pt.X,pt.Y);
 end;
 
-procedure TSummaryForm.PopulationHistoryMenuItemClick(Sender: TObject);
-var id: string;
-begin
-  id := 'POPHIST';
-  if TControl(Sender).Tag = 2 then
-    id := 'POPHISTM';
-  with TChartForm.Create(Application) do
-    CreateChartById(id);
-end;
-
 procedure TSummaryForm.PopulationIncHistMenuItemClick(Sender: TObject);
 var pop,lastpop,d: Int64;
-    dataSeries: THashedStringList;
     i: Integer;
+    cd: TChartData;
 begin
-  dataSeries := THashedStringList.Create;
+{
+  cd := TChartData.Create('');
+  cd.title := 'Weekly Population Increase - ' + CmdrComboBox.Text;
+  cd.chartType := ctColumn;
+  cd.colorScheme := csRedToGreen;
   lastpop := 0;
   for i := FPopHistory.Count - 1 downto 0 do
   begin
     pop := StrToInt64Def(FPopHistory.ValueFromIndex[i],0);
     d := pop - lastpop;
     if d < 0 then d := 0;
-    dataSeries.Add(FPopHistory.Names[i] + '=' + d.ToString);
+    cd.dataSeries.Add(FPopHistory.Names[i] + '=' + d.ToString);
     lastpop := pop;
   end;
 
   with TChartForm.Create(Application) do
-    CreateChart(dataSeries,'Weekly Population Increase - ' + CmdrComboBox.Text,[]);
-  dataSeries.Free;
+    CreateChart(cd);
+}
 end;
 
 end.

@@ -821,13 +821,12 @@ object SolverForm: TSolverForm
       Width = 122
       Height = 24
       Style = csDropDownList
-      ItemIndex = 0
       TabOrder = 25
-      Text = 'display only'
       Items.Strings = (
         'display only'
         'automatically add'
-        'exclude stations')
+        'exclude stations'
+        'display (ignore slots)')
     end
     object AllowPortsCheck: TCheckBox
       Left = 649

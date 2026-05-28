@@ -139,17 +139,17 @@ begin
   FDefaults.Values['FontSize2'] := '10';
   FDefaults.Values['Color'] := 'FFA000';
   FDefaults.Values['ShowUnderCapacity'] := '1';
-  FDefaults.Values['ShowProgress'] := '1';
-  FDefaults.Values['ShowFlightsLeft'] := '1';
-  FDefaults.Values['ShowDelTime'] := '0';
-  FDefaults.Values['ShowDistance'] := '0';
+  FDefaults.Values['ShowProgress'] := '2';
+  FDefaults.Values['ShowFlightsLeft'] := '2';
+  FDefaults.Values['ShowDelTime'] := '1';
+  FDefaults.Values['ShowDistance'] := '1';
   FDefaults.Values['ShowRecentMarket'] := '1';
   FDefaults.Values['ShowBestMarket'] := '1';
   FDefaults.Values['ShowNearMarkets'] := '0';
   FDefaults.Values['SelectedMarket'] := 'auto';
   FDefaults.Values['ShowDividers'] := '1';
   FDefaults.Values['ShowIndicators'] := '2';
-  FDefaults.Values['ShowStarSystem'] := '0';
+  FDefaults.Values['ShowStarSystem'] := '1';
   FDefaults.Values['IncludeSupply'] := '1';
   FDefaults.Values['ShowCloseBox'] := '0';
   FDefaults.Values['TransparentTitle'] := '0';
@@ -157,8 +157,8 @@ begin
   FDefaults.Values['AlwaysOnTop'] := '2';
   FDefaults.Values['Backdrop'] := '2';
   FDefaults.Values['AlphaBlend'] := '64';
-  FDefaults.Values['AutoAlphaBlend'] := '0';
-  FDefaults.Values['ClickThrough'] := '0';
+  FDefaults.Values['AutoAlphaBlend'] := '1';
+  FDefaults.Values['ClickThrough'] := '1';
   FDefaults.Values['AutoHeight'] := '1';
   FDefaults.Values['AutoWidth'] := '1';
   FDefaults.Values['AutoSort'] := '2';
@@ -172,11 +172,18 @@ begin
   FDefaults.Values['MapProjX'] := 'X';
   FDefaults.Values['MapProjY'] := 'Z';
   FDefaults.Values['MapLanes'] := 'A';
+  FDefaults.Values['FullMapDepth'] := '0';
   FDefaults.Values['CrossHair'] := '0';
-  FDefaults.Values['ShowAlterNames'] := '0';
+  FDefaults.Values['ShowAlterNames'] := '1';
   FDefaults.Values['ShowSysPreview'] := '1';
-  FDefaults.Values['ShowSysNames'] := '0';
+  FDefaults.Values['ShowSysNames'] := '1';
   FDefaults.Values['ShowInTaskbar'] := '0';
+  FDefaults.Values['WeekStartDay'] := '0';
+  FDefaults.Values['DashboardRows'] := '3';
+  FDefaults.Values['DashboardCols'] := '3';
+  FDefaults.Values['ShowMiniChart'] := '1';
+  FDefaults.Values['QuotaMode'] := '0';
+  FDefaults.Values['DailyQuota'] := '20000';
 
 //.ini file only
   FDefaults.Values['IndicatorsPadding'] := '1';
@@ -186,7 +193,7 @@ begin
   FDefaults.Values['AllowMoreWindows'] := '0';
   FDefaults.Values['MaxIdleDockTime'] := '60';  //to eliminate AFK time when docked to depot, seconds
   FDefaults.Values['DockToUndockTime'] := '15'; //
-  FDefaults.Values['MaxColonyDist'] := '1500';  //Ly in any direction from Sol (cube)
+  FDefaults.Values['MaxColonyDist'] := '0';  //Ly in any direction from Sol (cube), 0 - off
   FDefaults.Values['MinHistHaul'] := '15000';
 
   FDefaults.Values['CrossHairSize'] := '10';

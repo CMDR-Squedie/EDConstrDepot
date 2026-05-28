@@ -316,7 +316,7 @@ object MarketsForm: TMarketsForm
         OnClick = ListViewAction
       end
       object MatchConstrTypeMenuItem: TMenuItem
-        Caption = 'Match Constr. Type'
+        Caption = 'Match Construction Type'
         OnClick = MatchConstrTypeMenuItemClick
       end
       object N4: TMenuItem

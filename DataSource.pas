@@ -308,9 +308,12 @@ public
   procedure AddSignals(js: string; j: TJSONObject);
   function BodyByName(name: string): TSystemBody;
   function BodyById(id: string): TSystemBody;
-  function GetFactions(abbrevf: Boolean; majorf: Boolean): string;
-  function GetFactionList: string;
+  function GetFactions(abbrevf: Boolean; majorOnlyf: Boolean; const addPrcf: Boolean = true): string;
+  function GetFactionList(const sep: string = ','): string;
+  function GetControllingFaction: string;
   function PopDailyChange: Int64;
+  function PopMonthlyChange: Int64;
+  function PopChangeEstimate(maxDays: Integer): Int64;
   function GetScore: Integer;
   procedure GetCP(var cp2,cp3: Integer); //wip
   function GetRawStat(styp: TSystemStat): Integer; //unaltered
@@ -473,6 +476,7 @@ public
   function AddNeighbours2_EDSM(originSys: TStarSystem): Integer; //two-hop max
   function OptimizedRoute(startSys: TStarSystem): TSystemList;
   procedure RemoveFromName(name: string; const delf: Boolean = true);
+  function GetSystemByName_IgnoreCase(const Name: string): TStarSystem;
   constructor Create;
 end;
 
@@ -487,6 +491,7 @@ type TConstructionList = class (THashedStringList)
   function GetConstrByName(const Sys,Name: string): TConstructionDepot;
   function GetConstrByIdx(const idx: Integer): TConstructionDepot;
 public
+  function FindConstrForMarket(m: TMarket): TConstructionDepot;
   function FindMatchConstr(Sys,Name,Body: string; ActHaul: Integer; isOrbital: Boolean): TConstructionDepot;
   property ConstrByName[const Sys,Name: string]: TConstructionDepot read GetConstrByName;
   property ConstrByIdx[const idx: Integer]: TConstructionDepot read GetConstrByIdx; default;
@@ -516,7 +521,7 @@ type TEDDataSource = class (TDataModule)
     FConstructions: TConstructionList;
     FCargoExt: TMarket;
     FSimDepot: TConstructionDepot;
-//    FMissions: TConstructionDepot;  //test
+    FMissions: TConstructionDepot;  //test
     FMarket: TMarket;
     FMarketComments: THashedStringList;
     FMarketLevels: THashedStringList;
@@ -554,7 +559,11 @@ type TEDDataSource = class (TDataModule)
     FProcessedEvents: THashedStringList;
     FModules: THashedStringList;
     FLastLoadoutUpdTime: string;
-
+    FMissionsMaxBackDate: string;
+    FCurrentUTC: TDateTime;
+    FCurrentTimeStamp: string;
+    FCurrentContribution: Integer;
+    procedure DailyReset;
     procedure SetDataChanged;
     function CheckLoadFromFile(var sl: TStringList; fn: string): Boolean;
     procedure MarketFromJSON(m: TMarket; js: string);
@@ -566,6 +575,7 @@ type TEDDataSource = class (TDataModule)
     procedure UpdateMarket;
     procedure UpdateCapacity;
     procedure UpdateCapacity2(js: string);
+    procedure UpdateMissions(js: string);
     procedure UpdateSimDepot;
     procedure UpdateFromJournal(fn: string; jrnl: TStringList);
     procedure NotifyListeners;
@@ -608,6 +618,7 @@ type TEDDataSource = class (TDataModule)
     property CurrentRoute: TStarRoute read FCurrentRoute;
     property Routes: TStringList read FRoutes;
     property Docked: Boolean read FDocked;
+    property CurrentContribution: Integer read FCurrentContribution;
     procedure MarketToSimDepot(mID: string);
     procedure MarketToCargoExt(mID: string);
     procedure CreateMarketSnapshot(mID: string);
@@ -639,6 +650,7 @@ type TEDDataSource = class (TDataModule)
 end;
 
 procedure __log_except(fname: string;info: string);
+function NowUTC: TDateTime;
 
 const cMinDockToDockTime: Integer = 3; //minutes
       cMaxDockToDockTime: Integer = 60;
@@ -664,6 +676,11 @@ begin
         Exception(ExceptObject).StackTrace + Chr(13),
         TEncoding.ASCII);
     end;
+end;
+
+function NowUTC: TDateTime;
+begin
+  Result := TTimeZone.Local.ToUniversalTime(Now);
 end;
 
 function GetFactionAbbrev(name: string): string;
@@ -911,7 +928,13 @@ begin
           d := Abs(100 * (cd.ActualHaul - ct.EstCargo) div ct.EstCargo); //deviation in %
           if (d <= 6) or (cd.IsPrimary and (cd.ActualHaul > ct.EstCargo) and (d <= 33)) then
             if Result <> nil then
-              FoundMore := true
+            begin
+              //some heuristic ;)  people prefer orbis, military outpost, coriolis
+              if ct.StationType = 'Coriolis' then Result := ct;
+              if ct.StationType = 'Orbis' then Result := ct;
+              if ct.StationType = 'Military Outpost' then Result := ct;
+              FoundMore := true;
+            end
             else
               Result := ct;
         end;
@@ -1059,8 +1082,12 @@ begin
   begin
     tlockf := true;
     if parentBody <> nil then
-      if (parentBody.Parent <> '') and not parentBody.TidalLock then
-        tlockf := false;
+    begin
+      s := LowerCase(parentBody.BodyType);
+      if Pos('star',s) <= 0 then
+        if (parentBody.Parent <> '') and not parentBody.TidalLock then
+          tlockf := false;
+    end;
     if tlockf then
       features.Add('tidally locked');
   end;
@@ -1661,7 +1688,10 @@ end;
 
 function TBaseMarket.GetSys: TStarSystem;
 begin
-  if (FSysData = nil) {or (FSysData.StarSystem <> self.StarSystem)} then
+//why was the 2nd test commented out?
+//if you do this again, leave some info or write getter/setter for FStarSystem
+//  if (FSysData = nil) {or (FSysData.StarSystem <> self.StarSystem)} then
+  if (FSysData = nil) or (FSysData.StarSystem <> self.StarSystem) then
     FSysData := DataSrc.StarSystems.SystemByName[self.StarSystem];
   Result := FSysData;
 end;
@@ -1797,6 +1827,9 @@ begin
       jarr[i].TryGetValue<Integer>('Amount',q);
       self.Contribution := self.Contribution + q;
       TransactionHistory.AddPair(tms,cmdr + '|CONTRIB|' + q.ToString);
+
+      if Copy(tms,1,10) = Copy(DataSrc.FCurrentTimeStamp,1,10) then
+        DataSrc.FCurrentContribution := DataSrc.FCurrentContribution + q;
     end;
   except
   end;
@@ -1945,6 +1978,56 @@ begin
   end;
 end;
 
+function TStarSystem.PopMonthlyChange: Int64;
+begin
+  Result := PopChangeEstimate(30);
+end;
+
+function TStarSystem.PopChangeEstimate(maxDays: Integer): Int64;
+var i: Integer;
+    ct: TConstructionType;
+    fastGrowthDays: Integer;
+    dt,lastSysUpdt: TDateTime;
+begin
+  Result := 0;
+  if LastUpdate = '' then Exit;
+
+  Result := PopDailyChange;
+
+  lastSysUpdt := ISO8601ToDate(LastUpdate);
+  if maxDays = -1 then
+    maxDays := Trunc(NowUTC - lastSysUpdt);
+
+  //T3 orbitals grow very fast in first 14 days (usually +1 day)
+  //if the system was visited in last 14 days and there is a T3 orbital built lately
+  //the monthly growth needs to be scaled down
+  //this actually fails if multiple T3 were built lately in same system
+  if LastUpdate <> '' then
+  if Constructions <> nil then
+  for i := 0 to Constructions.Count - 1 do
+    with TConstructionDepot(Constructions[i]) do
+    if Finished then
+    if LastUpdate <> '' then
+    begin
+      ct := GetConstrType;
+      if ct <> nil then
+      if ct.IsOrbital and (ct.Tier = '3') then
+      begin
+        dt := ISO8601ToDate(LastUpdate);
+        if dt > lastSysUpdt - 15 then
+        begin
+          fastGrowthDays := Ceil(15 - (lastSysUpdt - dt));
+          if fastGrowthDays < 0  then fastGrowthDays := 0;
+          if fastGrowthDays > maxDays then fastGrowthDays := maxDays;
+
+          Result := Ceil(fastGrowthDays * Result + (maxDays-fastGrowthDays) * Result * 0.25);
+          Exit;
+        end;
+      end;
+    end;
+
+  Result := Result * maxDays;
+end;
 
 function TStarSystem.GetScore: Integer;
 var i: Integer;
@@ -2007,7 +2090,7 @@ begin
     end;
 end;
 
-function TStarSystem.GetFactions(abbrevf: Boolean; majorf: Boolean): string;
+function TStarSystem.GetFactions(abbrevf: Boolean; majorOnlyf: Boolean; const addPrcf: Boolean = true): string;
 var j: TJSONObject;
     jarr: TJSONArray;
     i,i2: Integer;
@@ -2031,7 +2114,7 @@ begin
           s := s + '   ' + name;
 
         infl := jarr.Items[i].GetValue<Extended>('Influence') * 100;
-        s2 := FloatToStrF(infl,ffFixed,7,1 - Ord(majorf));
+        s2 := FloatToStrF(infl,ffFixed,7,1 - Ord(majorOnlyf));
         sl.Add(s2.PadLeft(10,' ') + s + '=' + s2);
       end;
 
@@ -2040,7 +2123,7 @@ begin
       for i := sl.Count - 1 downto 0 do
       begin
 
-        if majorf then
+        if majorOnlyf then
         begin
           infl := sl.ValueFromIndex[i].ToExtended;
           if previnfl <> 0 then
@@ -2055,7 +2138,8 @@ begin
             Result := Result + '; '
           else
             Result := Result + Chr(13);
-        Result := Result + Copy(sl.Names[i],11,200) + ' ' + sl.ValueFromIndex[i] + '%';
+        if addPrcf then
+          Result := Result + Copy(sl.Names[i],11,200) + ' ' + sl.ValueFromIndex[i] + '%';
       end;
 
     finally
@@ -2080,7 +2164,7 @@ begin
   Result := GetFactions(false,false);
 end;
 
-function TStarSystem.GetFactionList: string;
+function TStarSystem.GetFactionList(const sep: string = ','): string;
 var j: TJSONObject;
     jarr: TJSONArray;
     i: Integer;
@@ -2092,8 +2176,36 @@ begin
       jarr := j.GetValue<TJSONArray>('Factions');
       for i := 0 to jarr.Count - 1 do
       begin
-        if Result <> '' then  Result := Result + ',';
+        if Result <> '' then  Result := Result + sep;
         Result := Result + jarr.Items[i].GetValue<string>('Name');
+      end;
+    except
+    end;
+  finally
+    j.Free;
+  end;
+end;
+
+function TStarSystem.GetControllingFaction: string;
+var j: TJSONObject;
+    jarr: TJSONArray;
+    i: Integer;
+    infl,maxInfl: Extended;
+begin
+  Result := '';
+  maxInfl := 0;
+  try
+    j := TJSONObject.ParseJSONValue(Status) as TJSONObject;
+    try
+      jarr := j.GetValue<TJSONArray>('Factions');
+      for i := 0 to jarr.Count - 1 do
+      begin
+        infl := jarr.Items[i].GetValue<Extended>('Influence');
+        if infl > maxInfl then
+        begin
+          Result := jarr.Items[i].GetValue<string>('Name');
+          maxInfl := infl;
+        end;
       end;
     except
     end;
@@ -2784,6 +2896,23 @@ begin
     Result := TStarSystem(Objects[idx]);
 end;
 
+function TSystemList.GetSystemByName_IgnoreCase(const Name: string): TStarSystem;
+var i,idx: Integer;
+    s: string;
+begin
+  Result := nil;
+  s := LowerCase(Name);
+  idx := -1;
+  for i := 0 to Count - 1 do
+    if LowerCase(Strings[i]) = s then
+    begin
+      idx := i;
+      break;
+    end;
+  if idx > -1 then
+    Result := TStarSystem(Objects[idx]);
+end;
+
 function TSystemList.GetSystemByIdx(const idx: Integer): TStarSystem;
 var i: Integer;
 begin
@@ -2810,9 +2939,12 @@ begin
     px := StrToFloat(jarr[0].Value,JSONFrmt);
     py := StrToFloat(jarr[1].Value,JSONFrmt);
     pz := StrToFloat(jarr[2].Value,JSONFrmt);
-    if Abs(px) > Opts.MaxColonyDist then Exit;
-    if Abs(py) > Opts.MaxColonyDist then Exit;
-    if Abs(pz) > Opts.MaxColonyDist then Exit;
+    if Opts.MaxColonyDist > 0 then
+    begin
+      if Abs(px) > Opts.MaxColonyDist then Exit;
+      if Abs(py) > Opts.MaxColonyDist then Exit;
+      if Abs(pz) > Opts.MaxColonyDist then Exit;
+    end;
 
     tms := j.GetValue<string>('timestamp');
     name := j.GetValue<string>('StarSystem');
@@ -3481,13 +3613,75 @@ begin
   begin
     cd := TConstructionDepot(Objects[i]);
     if cd.StarSystem = Sys then
+    begin
       if cd.StationName = Name then
       begin
         Result := cd;
         break;
       end;
+
+      if cd.IsPrimary then
+      if Name = '' then
+      begin
+        Result := cd;
+        break;
+      end;
+
+    end;
   end;
 end;
+
+function TConstructionList.FindConstrForMarket(m: TMarket): TConstructionDepot;
+var i: Integer;
+    cd,primcd,nearcd: TConstructionDepot;
+    ct: TConstructionType;
+begin
+  Result := nil;
+  primcd := nil;
+  nearcd := nil;
+  for i := 0 to Count - 1 do
+  begin
+    cd := TConstructionDepot(Objects[i]);
+    if cd.Finished then
+    if cd.StarSystem = m.StarSystem then
+    begin
+      if cd.LinkedMarketId = m.MarketID then
+      begin
+        Result := cd;
+        break;
+      end;
+
+      if cd.LinkedMarketId = '' then
+      begin
+        if cd.StationName = m.StationName then
+        begin
+          Result := cd;
+          break;
+        end;
+
+        ct := cd.GetConstrType;
+        if ct = nil then continue;
+        if ct.Category = 'Installation' then continue;
+        if ct.Category = 'Hub' then continue;
+
+        //this causes some mismatches, remove?
+        if cd.IsPrimary then
+          primcd := cd;
+        if cd.DistFromStar <> 0 then
+        begin
+          if Abs(100*(cd.DistFromStar - m.DistFromStar)/cd.DistFromStar) <= 5  then
+            nearcd := cd;
+        end;
+        //todo: station type to market type matching; eg. markets have types like "bernal" etc.
+      end;
+    end;
+  end;
+  if Result = nil then
+    Result := nearcd;
+  if Result = nil then
+    Result := primcd;
+end;
+
 
 function TConstructionList.FindMatchConstr(Sys,Name,Body: string; ActHaul: Integer; isOrbital: Boolean): TConstructionDepot;
 var i: Integer;
@@ -3532,6 +3726,8 @@ begin
             Result := cd;
         end;
       end;
+
+      //todo: check constr. type against market data
     end;
   end;
 end;
@@ -3661,6 +3857,109 @@ begin
       FLastLoadoutUpdTime := tms;
     finally
       j.Free;
+    end;
+  except
+  end;
+
+end;
+
+procedure TEDDataSource.UpdateMissions(js: string);
+var j: TJSONObject;
+    jarr: TJSONArray;
+    i,qty,prevQty,mcnt: Integer;
+    ev,tms,s,mid,cname,cmdr,sys: string;
+    csl: TStringList;
+    varr: TArray<string>;
+label LUpdateRequest;
+begin
+  try
+    j := TJSONObject.ParseJSONValue(js) as TJSONObject;
+    csl := TStringList.Create;
+    try
+
+//{ "timestamp":"2026-04-30T13:03:47Z", "event":"CargoDepot", "MissionID":1052917155,
+//"UpdateType":"Deliver", "CargoType":"Thorium", "Count":432,
+//"StartMarketID":0, "EndMarketID":4247112195, "ItemsCollected":0, "ItemsDelivered":432,
+//"TotalItemsToDeliver":432, "Progress":0.000000 }
+
+      j.TryGetValue<string>('timestamp',tms);
+      if tms <= FMissionsMaxBackDate then Exit;
+      j.TryGetValue<string>('event',ev);
+      j.TryGetValue<string>('MissionID',mid);
+
+      if ev = 'Commander' then
+      begin
+        goto LUpdateRequest;
+      end;
+
+      if (ev = 'MissionCompleted') or (ev = 'MissionAbandoned') or (ev = 'MissionFailed')then
+      begin
+        try
+          FMissions.TransactionHistory.Delete(FMissions.TransactionHistory.IndexOfName(mid));
+        except
+        end;
+        goto LUpdateRequest;
+      end;
+
+      cname := '';
+      qty := 0;
+      if ev = 'CargoDepot' then
+      begin
+        varr := FMissions.TransactionHistory.Values[mid].Split(['|']);
+        cmdr := varr[0];
+        sys := varr[1];
+        cname := varr[2];
+{
+        cname := '';
+        j.TryGetValue<string>('CargoType_Localised',cname);
+        if cname = '' then
+          j.TryGetValue<string>('CargoType',cname);
+}
+        j.TryGetValue<Integer>('TotalItemsToDeliver',qty);
+        j.TryGetValue<Integer>('ItemsDelivered',prevQty);
+        qty := qty - prevQty;
+        if qty = 0 then
+        try
+          FMissions.TransactionHistory.Delete(FMissions.TransactionHistory.IndexOfName(mid));
+        except
+        end;
+      end
+      else
+      if ev = 'MissionAccepted' then
+      begin
+        j.TryGetValue<string>('Commodity_Localised',cname);
+        if cname = '' then
+          j.TryGetValue<string>('Commodity',cname);
+        j.TryGetValue<Integer>('Count',qty);
+        cmdr := FCurrentCmdr;
+        j.TryGetValue<string>('DestinationSystem',sys);
+      end;
+      if cname = '' then Exit;
+      if qty = 0 then Exit;
+
+      //FMissions.FSysData := nil;
+
+      FMissions.TransactionHistory.Values[mid] := cmdr + '|' + sys + '|' + cname + '|'  + qty.ToString;
+
+LUpdateRequest:;
+
+      mcnt := 0;
+//temp, this needs separate function and trigger
+      for i := 0 to FMissions.TransactionHistory.Count - 1 do
+      begin
+        varr := FMissions.TransactionHistory.ValueFromIndex[i].Split(['|']);
+        if varr[0] <> FCurrentCmdr then continue;
+        qty := StrToIntDef(varr[3],0);
+        csl.Values[varr[2]] := IntToStr(StrToIntDef(csl.Values[varr[2]],0) + qty);
+        FMissions.StarSystem := varr[1];
+        Inc(mcnt);
+      end;
+      FMissions.StationName := 'Missions (' + mcnt.ToString + ')';
+      FMissions.CustomRequest := csl.Text;
+
+    finally
+      j.Free;
+      csl.Free;
     end;
   except
   end;
@@ -4034,13 +4333,21 @@ begin
         end;
 
 
-          if (s = 'ModuleStore') or (s = 'ModuleRetrieve') or (s = 'MassModuleStore') or
-             (s = 'ModuleBuy') or (s = 'ModuleSell') then
-          begin
-            UpdateCapacity2(js);
-            SetDataChanged;
-            continue;
-          end;
+        if (s = 'ModuleStore') or (s = 'ModuleRetrieve') or (s = 'MassModuleStore') or
+           (s = 'ModuleBuy') or (s = 'ModuleSell') then
+        begin
+          UpdateCapacity2(js);
+          SetDataChanged;
+          continue;
+        end;
+
+        if (s = 'MissionAccepted') or (s = 'MissionCompleted') or (s = 'MissionAbandoned') or
+           (s = 'MissionFailed') or (s = 'CargoDepot') then
+        begin
+          UpdateMissions(js);
+          SetDataChanged;
+          continue;
+        end;
 
 
         if (s<>'Commander') and
@@ -4136,6 +4443,8 @@ begin
             FLastBody := '';
           end;
           FCurrentCmdr := s;
+          //temp
+          UpdateMissions(js);
           goto LUpdateTms;
         end;
 
@@ -4439,7 +4748,12 @@ begin
                 if m.GetSys <> nil then
                 if m.GetSys.Architect <> '' then
                 begin
+                  cd2 := FConstructions.FindConstrForMarket(m);
+                  {
                   cd2 := FConstructions.ConstrByName[m.StarSystem,m.StationName];
+                  if cd2 = nil then
+                    cd2 := FConstructions.ConstrByName[m.StarSystem,''];
+                  }
                   if (cd2 <> nil) and (cd2.LinkedMarketId = '') then
                   begin
                     cd2.LinkedMarketId := m.MarketId;
@@ -4810,6 +5124,11 @@ begin
 end;
 
 
+procedure TEDDataSource.DailyReset;
+begin
+  FCurrentContribution := 0;
+end;
+
 procedure TEDDataSource.Update;
 var sl: TStringList;
     fn,jsd: string;
@@ -4829,6 +5148,11 @@ begin
   try
 
 //  tc := GetTickCount;
+
+    if Trunc(FCurrentUTC) <> Trunc(NowUTC) then
+      DataSrc.DailyReset;
+    FCurrentUTC := NowUTC;
+    FCurrentTimeStamp := DateToISO8601(FCurrentUTC);
 
     UpdateCargo;
     UpdateMarket;
@@ -5174,6 +5498,8 @@ begin
 
   FWorkingDir := GetCurrentDir + '\';
 
+  FMissionsMaxBackDate := DateToISO8601(Now-7); //should be UTC actually
+
   FillChar(JSONFrmt, SizeOf(JSONFrmt), 0);
 //  JSONFrmt.ThousandSeparator := '';
   JSONFrmt.DecimalSeparator := '.';
@@ -5242,13 +5568,13 @@ begin
   FModules := THashedStringList.Create;
   FDataChanged := false;
 
-  {
+//test
   FMissions := TConstructionDepot.Create;
   FMissions.MarketID := '$missions';
   FMissions.StationName := 'Missions';
   FMissions.Simulated := True;
   FConstructions.AddObject(FMissions.MarketID,FMissions);
-  }
+
 
   FInitialLoad := true;
 

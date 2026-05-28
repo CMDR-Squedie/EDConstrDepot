@@ -49,7 +49,7 @@ implementation
 
 uses Settings, Main, Markets, MarketInfo, DataSource, Splash, Colonies,
   SystemInfo, StationInfo, ConstrTypes, MaterialList, Toolbar, ToolTip, StarMap,
-  Summary, Bodies, BodyInfo;
+  Summary, Bodies, BodyInfo, Dashboard;
 
 procedure TSettingsForm.BackupJournalLinkLinkClick(Sender: TObject;
   const Link: string; LinkType: TSysLinkType);
@@ -148,12 +148,29 @@ begin
   DefineFlag('ShowAlterNames','alternative system names on map');
   DefineOpt('ShowSysPreview','sys. preview on map: 0-off; 1-on when not plotting route; 2-always on',0,2,'');
   DefineOpt('ShowSysNames','0-all system names; 1-colonies and high-pop. only; 2-colonies only',0,2,'');
+  DefineFlag('FullMapDepth','show all stars regardless of current plane');
+
+  DefineGroup('CHARTS');
+  DefineOpt('WeekStartDay','start day of the week (ISO): 0-use last 7 days; 1,2...-Monday etc',0,7,'');
+  DefineOpt('DashboardRows','number of dashboard rows',1,9,'');
+  DefineOpt('DashboardCols','number of dashboard columns',1,9,'');
+  DefineFlag('ShowMiniChart','mini construction chart in main overlay');
+  DefineOpt('QuotaMode','daily haul for mini chart: 0-proj. daily quota; 1-average only; 2-both ',0,2,'');
+  DefineOpt('DailyQuota','projected daily haul (t) for mini chart;',0,1000000,'');
 
   for i := 0 to ListView.Columns.Count - 1 do
   begin
 //    ListView.Column[2].Width := -1;
   end;
   ListView.Column[2].Width := -1;
+end;
+
+function GetDisplayedOpt(Opt: TUserOpt): string;
+begin
+  Result := Opts[Opt.Name];
+  if Opt.SubType = '' then
+    if Opt.High = 1 then
+      if Result = '1' then Result := '✓' else Result := '';
 end;
 
 procedure TSettingsForm.UpdateList;
@@ -172,11 +189,13 @@ begin
     begin
       item := ListView.Items.Add;
       item.Caption := Name;
+      {
       s := Opts[Name];
       if SubType = '' then
         if High = 1 then
           if s = '1' then s := '✓' else s := '';
-      item.SubItems.Add(s);
+      }
+      item.SubItems.Add(GetDisplayedOpt(TUserOpt(FUserOpts[i])));
       item.SubItems.Add(Desc);
     end;
     item.Data := FUserOpts[i];
@@ -249,8 +268,9 @@ begin
       Opts[opt.Name] := FontDialog.Font.Name;
   end;
 
-  //ListView.Selected.SubItems[0] := Opts[opt.Name];
-  UpdateList;
+  //UpdateList;
+  ListView.Selected.SubItems[0] := GetDisplayedOpt(opt);
+
   for i := 0 to Application.ComponentCount - 1 do
     if Application.Components[i] is TEDCDForm then
       TEDCDForm(Application.Components[i]).OnChangeSettings;
@@ -267,6 +287,7 @@ begin
   SummaryForm.ApplySettings;
   BodiesForm.ApplySettings;
   BodyInfoForm.ApplySettings;
+  DashboardForm.ApplySettings;
 end;
 
 end.

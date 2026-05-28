@@ -6,7 +6,8 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, Winapi.PsAPI, Winapi.ShellAPI, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, System.JSON, System.IOUtils, System.Math, System.StrUtils,
-  Vcl.ExtCtrls, Vcl.Menus, Vcl.ComCtrls, System.Types, Settings, DataSource;
+  Vcl.ExtCtrls, Vcl.Menus, Vcl.ComCtrls, System.Types, Settings, DataSource,
+  System.Skia, Vcl.Skia;
 
 type TCDCol = (colReq,colText,colStock,colStatus);
 
@@ -64,6 +65,9 @@ type
     IgnoreRecentTimeMenuItem: TMenuItem;
     TradeRoutesMenuItem: TMenuItem;
     DashboardMenuItem: TMenuItem;
+    ChartArea: TSkSvg;
+    LineFeedLabel: TLabel;
+    LineFeedTimer: TTimer;
     procedure FormCreate(Sender: TObject);
     procedure UpdTimerTimer(Sender: TObject);
     procedure TextColLabelMouseMove(Sender: TObject; Shift: TShiftState; X,
@@ -93,7 +97,6 @@ type
     procedure ManageAllMenuItemClick(Sender: TObject);
     procedure SettingsMenuItemClick(Sender: TObject);
     procedure AutoSelectMarketMenuItemClick(Sender: TObject);
-    procedure TitleLabelDblClick(Sender: TObject);
     procedure TextColLabelDblClick(Sender: TObject);
     procedure StatusPaintBoxPaint(Sender: TObject);
     procedure IncludeExtCargoinRequestMenuItemClick(Sender: TObject);
@@ -124,6 +127,9 @@ type
     procedure IgnoreRecentTimeMenuItemClick(Sender: TObject);
     procedure TradeRoutesMenuItemClick(Sender: TObject);
     procedure DashboardMenuItemClick(Sender: TObject);
+    procedure BackdropMenuItemClick(Sender: TObject);
+    procedure TitleLabelDblClick(Sender: TObject);
+    procedure LineFeedTimerTimer(Sender: TObject);
 private
     { Private declarations }
     FSelectedConstructions: TStringList;
@@ -140,6 +146,7 @@ private
     FLastActiveWnd: HWND;
     FEliteWnd: HWND;
     FBackdrop: Boolean;
+    FCollapsedMode: Integer;
     FTextHeight: Integer;
     FItemsShown: Integer;
     FLastBkgColor: Integer;
@@ -181,7 +188,7 @@ implementation
 {$R *.dfm}
 
 uses Splash, Markets, SettingsGUI, MarketInfo, Clipbrd, Colonies, StationInfo,
-  SystemInfo, ConstrTypes, Toolbar, StarMap, Summary, TradeRoutes, Dashboard;
+  SystemInfo, ConstrTypes, Toolbar, StarMap, Summary, TradeRoutes, Dashboard, Chart;
 
 const cDefaultCapacity: Integer = 784;
 
@@ -253,6 +260,13 @@ begin
   end;
 end;
 
+procedure TEDCDForm.TitleLabelDblClick(Sender: TObject);
+begin
+  FCollapsedMode := (FCollapsedMode + 1) mod 3;
+  //ArrangeLayers;
+  UpdateConstrDepot;
+end;
+
 procedure TEDCDForm.UpdateBackdrop;
 begin
   if FBackdrop then
@@ -265,12 +279,6 @@ begin
     self.Color := FTransColor;
     self.TransparentColor := true;
   end;
-end;
-
-procedure TEDCDForm.TitleLabelDblClick(Sender: TObject);
-begin
-  FBackdrop := not FBackdrop;
-  UpdateBackdrop;
 end;
 
 procedure TEDCDForm.AddDepotInfoMenuItemClick(Sender: TObject);
@@ -335,7 +343,8 @@ begin
 end;
 
 function TEDCDForm.FindBestMarket(reqList: TStringList; prevMarket: TMarket; nearMarkets: TList): TMarket;
-var i,mi,score,maxscore,reqQty,shipQty,stock,totAvail,lowCnt,uniqueCnt,bonus,extraJumps: Integer;
+var i,mi,score,reqQty,shipQty,stock,totAvail,lowCnt,uniqueCnt,bonus,extraJumps: Integer;
+    maxScore,minorScore: Double;
     m: TMarket;
     normItem,tg: string;
     testf: Boolean;
@@ -343,7 +352,7 @@ var i,mi,score,maxscore,reqQty,shipQty,stock,totAvail,lowCnt,uniqueCnt,bonus,ext
     d: Extended;
 begin
   Result := nil;
-  maxscore := 0;
+  maxScore := 0.0;
   for mi := 0 to DataSrc.RecentMarkets.Count - 1 do
   begin
     m := TMarket(DataSrc.RecentMarkets.Objects[mi]);
@@ -358,6 +367,7 @@ begin
     if testf then
     begin
       score := 0;
+      minorScore := 0.0;
       totAvail := 0;
       lowCnt := 0;
       uniqueCnt := 0;
@@ -468,7 +478,10 @@ begin
         begin
           extraJumps := Ceil(d / DataSrc.MaxJumpRange) + Ceil(d / DataSrc.JumpRange) - 2;
           score := score * 6 div (6 + extraJumps);  // reverse 16% penalty for each extra jump
-
+          //extra penalty for excess distance
+          //to compensate for no straight line routes
+          if extraJumps > 0 then
+            minorScore := (DataSrc.JumpRange-d)/d;
         end;
 
         if nearMarkets <> nil then
@@ -481,7 +494,7 @@ begin
 //penalty for no large pads
       if score > 0 then
         if m.LPads = 0 then
-          score := score * 2 div 3;  //33% penalty
+          score := score * 1 div 3;  //66% penalty
 
 //bonus for favorite market
       if score > 0 then
@@ -492,9 +505,9 @@ begin
           score := score * 150 div 100;  //50% bonus
       end;
 
-      if score > maxscore then
+      if score + minorScore > maxScore then
       begin
-        maxscore := score;
+        maxScore := score + minorScore;
         Result := m;
         //m.LastScore := IntToStr(score);
       end;
@@ -626,7 +639,7 @@ var j: TJSONObject;
     i,ci,res,lastWIP,h,w,q,prec,sortPrefixLen: Integer;
     fa: DWord;
     reqQty,delQty,cargo,stock,prevQty,maxQty: Integer;
-    totReqQty,totDelQty,validCargo: Integer;
+    totReqQty,totDelQty,validCargo,reqQtyAcc: Integer;
     srec: TSearchRec;
     useExtCargo: Integer;
     a,l: array [colReq..colStatus] of string;
@@ -636,7 +649,8 @@ var j: TJSONObject;
     avgt: Extended;
     nearMarkets: TList;
 label
-    LSkipDepotSelection;
+    LSkipDepotSelection,
+    LCollapsedMode;
 
   procedure addline;
   var col: TCDCol;
@@ -915,6 +929,7 @@ begin
     if totReqQty > 0  then
     begin
       validCargo := 0;
+      reqQtyAcc := 0;
       if DataSrc.CargoExt <> nil then
         useExtCargo := StrToIntDef(Opts['UseExtCargo'],-1);
       for i := 0 to sl.Count - 1 do
@@ -931,6 +946,25 @@ begin
           cargo := cargo + StrToIntDef(DataSrc.CargoExt.Stock.Values[normItem],0);
         if useExtCargo = 3 then
           cargo := cargo + StrToIntDef(DataSrc.CargoExt.Stock.Values['$' + normItem],0);
+
+        if FCollapsedMode = 1 then
+        if not FCurrentDepot.Finished then
+        if (cargo = 0) and (reqQtyAcc > DataSrc.Capacity) then
+          continue;
+        reqQtyAcc := reqQtyAcc + reqQty;
+
+ {
+        if not FCurrentDepot.Finished then
+        if (cargo = 0) and (reqQtyAcc > DataSrc.Capacity) then
+        if (FItemsShown > 3) and (i < sl.Count - 3) then
+        begin
+          a[colText] := a[colText] + '...' + Chr(13);
+          a[colReq] := a[colReq] + Chr(13);
+          a[colStock] := a[colStock]  + Chr(13);
+          a[colStatus] := a[colStatus]  + Chr(13);
+          break;
+        end;
+ }
 
 {
         if not FCurrentDepot.Finished and (cargo = 0) and (FItemsShown > 3) and (i < sl.Count - 3) then
@@ -1002,6 +1036,7 @@ begin
           l[colStock] := '(' + IntToStr(DataSrc.Capacity-validCargo) + ')';
           addline;
         end;
+
       if (FCurrentDepot <> nil) and Opts.Flags['ShowProgress'] then
       begin
         if Opts['ShowProgress'] = '1' then
@@ -1056,6 +1091,10 @@ begin
           addline;
         end;
       end;
+
+      if FCollapsedMode > 0 then
+        goto LCollapsedMode;
+
 
       if FFlightHistory then
       begin
@@ -1152,6 +1191,8 @@ begin
       end;
     end;
 
+LCollapsedMode:;
+
    if useExtCargo <> -1 then cprogress := cprogress + '🠵 ' ;
 
 
@@ -1176,6 +1217,7 @@ LSkipDepotSelection:;
 
     if a[colText] = '' then
     if FCurrentDepot <> nil then
+    if not FCurrentDepot.Simulated then
     begin
       l[colText] := 'Empty material list. '; addline;
       l[colText] := 'Dock to depot, paste list'; addline;
@@ -1193,14 +1235,40 @@ LSkipDepotSelection:;
     else
       TitleLabel.Caption := cprogress + cnames;
 
+//test
+    if Opts.Flags['ShowMiniChart'] then
+    begin
+      TChartData(ChartArea.Tag).chartObject := self.FCurrentDepot;
+      TChartData(ChartArea.Tag).Update;
+      ChartArea.Svg.Source := TChartData(ChartArea.Tag).svgSource;
+      ChartArea.Height := ChartArea.Width * 2 div 3;
+      ChartArea.Visible := ChartArea.Svg.Source <> '';
+      ChartArea.BringToFront; //make sure the bottom line is above
+    end;
+
 
     if Opts.Flags['AutoHeight'] then
     begin
-      sl.Text := a[colText];
-      h := TextColLabel.Margins.Top +
-           FTextHeight * sl.Count +
-           TextColLabel.Margins.Bottom;
-      h := TextColLabel.Top + h + 2;
+      if (FCollapsedMode = 0) or (FCollapsedMode = 1) then
+      begin
+        sl.Text := a[colText];
+        h := TextColLabel.Margins.Top +
+             FTextHeight * sl.Count +
+             TextColLabel.Margins.Bottom;
+        h := TextColLabel.Top + h + 2;
+      end;
+      if FCollapsedMode = 0 then
+      begin
+        if ChartArea.Visible then
+          h := h + ChartArea.Height;
+      end else
+        ChartArea.Visible := False;
+      if FCollapsedMode = 2 then
+      begin
+        h := TitleLabel.Height + 2;
+      end;
+      TitleLabel.BringToFront;
+      CloseLabel.BringToFront;
       if self.Height <> h then
       begin
         self.Height := h;
@@ -1658,6 +1726,27 @@ begin
   self.BringToFront;
 end;
 
+var gFeedText: string;
+    gFeedPos: Integer;
+
+procedure TEDCDForm.LineFeedTimerTimer(Sender: TObject);
+begin
+{
+  if Visible then
+  begin
+    if gFeedPos = 0 then
+    begin
+      gFeedText := TextColLabel.Caption;
+    end;
+    LineFeedLabel.Caption := Copy(gFeedText,1,gFeedPos);
+    gFeedPos := gFeedPos + 1;
+    if gFeedPos > Length(gFeedText) then
+      gFeedPos := 0;
+    LineFeedLabel.Update;
+  end;
+  }
+end;
+
 procedure TEDCDForm.Layer1DblClick(Sender: TObject);
 var pt: TPoint;
     r: TRect;
@@ -1851,6 +1940,12 @@ begin
    UpdateConstrDepot;
 end;
 
+procedure TEDCDForm.BackdropMenuItemClick(Sender: TObject);
+begin
+  FBackdrop := not FBackdrop;
+  UpdateBackdrop;
+end;
+
 procedure TEDCDForm.ComparePurchaseOrderMenuItemClick(Sender: TObject);
 begin
   if ComparePurchaseOrderMenuItem.Checked then
@@ -1954,6 +2049,7 @@ begin
     Show;
     UpdateLayersPos;
     UpdateConstrDepot;
+    UpdTimer.Enabled := True;
   end;
   AppActivate(nil);
 end;
@@ -2355,19 +2451,20 @@ begin
   if custreqf then
   begin
     mitem := TMenuItem.Create(SelectDepotSubMenu);
-    mitem.Caption := 'Paste Request';
-    mitem.OnClick := PasteReqQtyMenuItemClick;
-    //mitem.Enabled := custreqf;
-    SelectDepotSubMenu.Add(mitem);
-
-    mitem := TMenuItem.Create(SelectDepotSubMenu);
     mitem.Caption := 'Use Avg. Request';
     mitem.OnClick := UseMaxReqQtyMenuItemClick;
     //mitem.Enabled := custreqf;
     SelectDepotSubMenu.Add(mitem);
 
     mitem := TMenuItem.Create(SelectDepotSubMenu);
-    mitem.Caption := 'Use Max. Request';
+    mitem.Caption := 'Paste Custom Request';
+    mitem.OnClick := PasteReqQtyMenuItemClick;
+    //mitem.Enabled := custreqf;
+    SelectDepotSubMenu.Add(mitem);
+
+
+    mitem := TMenuItem.Create(SelectDepotSubMenu);
+    mitem.Caption := 'Use Max. Request (obsolete)';
     mitem.OnClick := UseMaxReqQtyMenuItemClick;
     mitem.Tag := 1;
     //mitem.Enabled := custreqf;
@@ -2597,6 +2694,7 @@ end;
 
 procedure TEDCDForm.FormCreate(Sender: TObject);
 var s: string;
+    cd: TChartData;
 begin
   FIndicators := TStringList.Create;
 
@@ -2628,6 +2726,11 @@ begin
   self.Top := StrToIntDef(Opts['Top'],(Screen.Height - self.Height) div 2);
   UpdateLayersPos;
 
+  //test
+  cd := TChartData.Create('CONSTRHIST','M');
+  cd.chartOptions := cd.chartOptions +
+    [coNoTitle, coNoBackground, coNoEmpty, coLargeLabels];
+  ChartArea.Tag := NativeInt(cd);
 end;
 
 procedure TEDCDForm.UpdateLayersPos;

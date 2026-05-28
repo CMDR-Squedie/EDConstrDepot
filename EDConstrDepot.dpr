@@ -32,17 +32,17 @@ uses
 
 {$R *.res}
 
-const gNiceVersion: string = 'Release 33, build 1';
+const gNiceVersion: string = 'Release 34, build 1';
 
 {
-changes:
- - colonization charts and dashboard
- - Settings toolbar button replaced with Main Menu button (includes Settings command)
- - Dashboard command in Main Menu with Colony Summary and preselected charts
- - create charts for selected colonies with Chart command in Colonies windows
- - create general charts with Chart command in Summary window
- - menu button and Select All commands for Colonies and Markets/Constructions list
-
+  changes
+  - customizable dashboard (select charts and set dashboard dimensions)
+  - more chart types, chart options and ability to save the default chart setup
+  - mini-chart in main overlay with current construction progress and projected daily haul
+  - collapse main overlay by double-clicking the title bar (3 modes)
+  - commander's missions (as a simulated construction)
+  - limited star map depth and ability to change it
+  - option to temporarily turn off map labels
 
   future builds:
  - 'asteroid' slots
@@ -87,6 +87,8 @@ begin
   Application.CreateForm(TTradeRoutesForm, TradeRoutesForm);
   Application.CreateForm(TMaterialListForm, MaterialListForm);
   Application.CreateForm(TDashboardForm, DashboardForm);
+
+
   SettingsForm.VersionLabel.Caption := gNiceVersion;
 
   Application.OnActivate :=  EDCDForm.AppActivate;
@@ -103,6 +105,8 @@ begin
   EDCDForm.UpdateConstrDepot;
   EDCDForm.Show;
   EDCDForm.BringToFront;
+
+  EDCDForm.UpdTimer.Enabled := True;
   DataSrc.UpdTimer.Enabled := True;
 
   //SplashForm.Hide;  //this sometimes fails from wrong message processing

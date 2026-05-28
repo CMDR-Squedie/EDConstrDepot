@@ -74,6 +74,11 @@ type
     FindBodiesMenuItem: TMenuItem;
     AddSystemsMenuItem: TMenuItem;
     OptimizeRouteMenuItem: TMenuItem;
+    DepthLabel: TLabel;
+    LabelsOffLabel: TLabel;
+    N5: TMenuItem;
+    CopyRouteMenuItem: TMenuItem;
+    PasteRouteMenuItem: TMenuItem;
     procedure PaintBoxPaint(Sender: TObject);
     procedure PaintBoxDblClick(Sender: TObject);
     procedure ProjectionXComboChange(Sender: TObject);
@@ -115,8 +120,13 @@ type
     procedure FindBodiesMenuItemClick(Sender: TObject);
     procedure AddSystemsMenuItemClick(Sender: TObject);
     procedure OptimizeRouteMenuItemClick(Sender: TObject);
+    procedure DepthLabelDblClick(Sender: TObject);
+    procedure LabelsOffLabelDblClick(Sender: TObject);
+    procedure CopyRouteMenuItemClick(Sender: TObject);
+    procedure PasteRouteMenuItemClick(Sender: TObject);
   private
     { Private declarations }
+    FLastSearch: string;
     FShowNeighbours: Boolean;
     FHideDistances: Boolean;
     FCenterOnSelected: Boolean;
@@ -139,6 +149,8 @@ type
     FSelectedSystem: TStarSystem;
     FPreviewRect: TRect;
     FBkg: TBitmap;
+    FDepthRatio: Integer;
+    FLabelsOff: Boolean;
     function InfoLayer: string;
     procedure UpdateItems;
     procedure UpdateMap(const autoCenter: Boolean = false; const centerOnSelected: Boolean = false);
@@ -207,7 +219,9 @@ begin
     PaintBoxPaint(nil);
   end
   else
+  begin
     FCenterOnSelected := True;
+  end;
 end;
 
 procedure TStarMapForm.RestoreAndShow;
@@ -298,6 +312,18 @@ end;
 function TStarMapForm.InfoLayer: string;
 begin
   Result := Trim(RightStr(InfoCombo.Text,6));
+end;
+
+procedure TStarMapForm.LabelsOffLabelDblClick(Sender: TObject);
+begin
+  FLabelsOff := not FLabelsOff;
+  if FLabelsOff then
+    LabelsOffLabel.Caption := 'Labels off'
+  else
+    LabelsOffLabel.Caption := 'Labels on';
+
+  UpdateMap;
+  PaintBoxPaint(nil);
 end;
 
 procedure TStarMapForm.LinkStyleComboChange(Sender: TObject);
@@ -453,6 +479,11 @@ begin
   PaintBoxPaint(nil);
 end;
 
+procedure TStarMapForm.CopyRouteMenuItemClick(Sender: TObject);
+begin
+  Clipboard.AsText := FRoute.Text;
+end;
+
 procedure TStarMapForm.CopySystemNameMenuItemClick(Sender: TObject);
 begin
   if FSelectedSystem = nil then Exit;
@@ -486,7 +517,7 @@ var s: string;
     i: Integer;
     sys: TStarSystem;
 begin
-  s := LowerCase(Vcl.Dialogs.InputBox('Find System', 'Name', ''));
+  s := LowerCase(Vcl.Dialogs.InputBox('Find System', 'Name', FLastSearch));
   sys := nil;
   if s <> '' then
     for i := 0 to DataSrc.StarSystems.Count - 1 do
@@ -506,6 +537,7 @@ begin
     end;
   if sys <> nil then
     SelectSystem(sys);
+  FLastSearch := s;
 end;
 
 procedure TStarMapForm.FormClose(Sender: TObject; var Action: TCloseAction);
@@ -532,6 +564,7 @@ begin
   ApplyWindowOpts(self,'Map');
 
   FMapZoom := 100;
+  FDepthRatio := 1;
   FOrigin := TPoint.Create(0,0);
   ProjectionXCombo.ItemIndex := ProjectionXCombo.Items.IndexOf(Opts['MapProjX']);
   ProjectionYCombo.ItemIndex := ProjectionYCombo.Items.IndexOf(Opts['MapProjY']);
@@ -920,8 +953,8 @@ var i,i2,i3,w,idx,si,margin,projectionX,projectionY,labOffsetX,labOffsetY,fontSi
     cnt1,cnt2,cnt3: Integer;
     png: TPngImage;
     selSysIdx: Integer;
-    minY,maxY,midY: Integer;
-    elevationf: Boolean;
+    minY,maxY,midY,mapDepth: Integer;
+    elevationf,calcDepthf: Boolean;
     othernamesf: Integer;
 label
     LSkipLabelReposition,LSkipLabelPrint;
@@ -1023,8 +1056,15 @@ begin
   elevationf := ElevationCheck.Checked;
   othernamesf := Opts.Int['ShowSysNames'];
 
+
   projectionX := ProjectionXCombo.ItemIndex;
   projectionY := ProjectionYCombo.ItemIndex;
+  calcDepthf := true;
+  if projectionX in [1,4] then calcDepthf := false;
+  if projectionY in [1,4] then calcDepthf := false;
+  if not calcDepthf then elevationf := false;
+
+
 
   if autoCenter then
     FMapSpan := Default(TRect);
@@ -1038,26 +1078,28 @@ begin
   with FMap.Canvas do
   begin
 
-          GetBrushOrgEx(Handle,pt);
-          SetStretchBltMode(Handle,HALFTONE);
-          SetBrushOrgEx(Handle,pt.x,pt.y,@pt);
-          StretchBlt(Handle, 0, 0, FBkg.Width, FBkg.Height,
-            FBkg.Canvas.Handle, 0, 0, FBkg.Width, FBkg.Height, CopyMode);
+    GetBrushOrgEx(Handle,pt);
+    SetStretchBltMode(Handle,HALFTONE);
+    SetBrushOrgEx(Handle,pt.x,pt.y,@pt);
+    StretchBlt(Handle, 0, 0, FBkg.Width, FBkg.Height,
+      FBkg.Canvas.Handle, 0, 0, FBkg.Width, FBkg.Height, CopyMode);
 
 
     sysSpanList := FColonies;
     if FRouteName <> '' then
       sysSpanList := FRoute;
 
-    if elevationf then
-    for i := 0 to sysSpanList.Count - 1 do
+    if calcDepthf then
     begin
-      sys := sysSpanList[i];
-      if sys = nil then continue;
-      setMin(minY,sys.StarPosY);
-      setMax(maxY,sys.StarPosY);
+      for i := 0 to sysSpanList.Count - 1 do
+      begin
+        sys := sysSpanList[i];
+        if sys = nil then continue;
+        setMin(minY,sys.StarPosY);
+        setMax(maxY,sys.StarPosY);
+      end;
+      midY := (minY + maxY) div 2;
     end;
-    midY := (minY + maxY) div 2;
 
     if autoCenter then
     begin
@@ -1089,7 +1131,18 @@ begin
     end;
 
     maxSize := Max(FMapSpan.Width,FMapSpan.Height);
-    PixelsPerLy := Min(Width,Height) / maxSize;
+    if not calcDepthf or Opts.Flags['FullMapDepth'] then
+    begin
+      mapDepth := -1;
+      DepthLabel.Caption := 'Depth: full';
+    end else begin
+      mapDepth := Max(maxSize div 2 + 2,20);
+      mapDepth := Max(mapDepth, Abs(maxY-minY) div 2 + 2);
+      mapDepth := mapDepth * FDepthRatio;
+      DepthLabel.Caption := 'Depth: ' + mapDepth.ToString + ' Ly';
+    end;
+
+    PixelsPerLy := Min(self.ClientWidth,self.ClientHeight) / maxSize;
     PixelsPerLy := PixelsPerLy * FMapZoom / 100;
 
     if autoCenter then
@@ -1328,6 +1381,12 @@ begin
     begin
       sys := FStarSystems[i];
 
+//test
+      if mapDepth > 0 then
+        if sys <> FSelectedSystem then
+          if Abs(sys.StarPosY-midY)>mapDepth then continue;
+  
+
       if True then
       begin
         idx := High(sysPosArr) + 1;
@@ -1436,6 +1495,9 @@ begin
         if InfoLayer = 'AH' then
           if sys.ClaimDate > FHistory.Strings[FHistoryEntry] then
             continue;
+
+        if sys <> FSelectedSystem then
+          if FLabelsOff then goto LSkipLabelPrint;
 
         if sys <> FSelectedSystem then
         if sys.CurrentGoals = '' then
@@ -1995,6 +2057,7 @@ LSkipLabelPrint:;
       end;
 
       s := '';
+//      if FLabelsOff then s := s + sysName + '  ';
       if FSelectedSystem.Comment <> '' then s := s + FSelectedSystem.Comment + '  ';
       if FSelectedSystem.CurrentGoals <> '' then s := s + FSelectedSystem.CurrentGoals + '  ';
       if s <> '' then
@@ -2015,6 +2078,32 @@ begin
   if (FMap.Width <> Paintbox.Width) or (FMap.Height <> PaintBox.Height) then
     UpdateMap;
   PaintBox.Canvas.Draw(0,0,FMap);
+end;
+
+procedure TStarMapForm.PasteRouteMenuItemClick(Sender: TObject);
+var sl: TStringList;
+    i: Integer;
+    sys: TStarSystem;
+begin
+  sl := TStringList.Create;
+  try
+    sl.Text := Clipboard.AsText;
+    FRoute.Clear;
+    for i := 0 to Min(sl.Count - 1, 299) do
+    begin
+      sys := DataSrc.StarSystems.GetSystemByName_IgnoreCase(sl[i]);
+      if sys = nil then
+        sys := DataSrc.StarSystems.GetSystemByName_IgnoreCase(sl.Names[i]);
+      if sys <> nil then
+        FRoute.AddObject(sys.StarSystem,sys);
+    end;
+  finally
+    sl.Free;
+  end;
+  FMapZoom := 75;
+  UpdateItems;
+  UpdateMap(true);
+  PaintBoxPaint(nil);
 end;
 
 procedure TStarMapForm.SetRouteMenuItemClick(Sender: TObject);
@@ -2059,6 +2148,14 @@ begin
   PaintBoxPaint(nil);
 end;
 
+procedure TStarMapForm.DepthLabelDblClick(Sender: TObject);
+begin
+  FDepthRatio := FDepthRatio * 2;
+  if FDepthRatio > 4 then FDepthRatio := 1;
+  UpdateMap;
+  PaintBoxPaint(nil);
+end;
+
 procedure TStarMapForm.PopupMenuPopup(Sender: TObject);
 var i: Integer;
     mitem: TMenuItem;
@@ -2070,6 +2167,7 @@ begin
   StartRouteMenuItem.Enabled := FRoute.Count > 1;
   StopRouteMenuItem.Enabled := (FRoute.Count > 1) or DataSrc.CurrentRoute.Active;
   ClearRouteMenuItem.Enabled := FRoute.Count > 1;
+  CopyRouteMenuItem.Enabled := FRoute.Count > 1;
   OptimizeRouteMenuItem.Enabled := FRoute.Count > 2;
 
   AddSystemsMenuItem.Visible := Opts.Flags['DevMode'];

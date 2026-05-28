@@ -351,7 +351,8 @@ begin
           begin
             cd.ConstructionType := ct.Id;
             cd.Modified := True;
-            cd.AutoMatch := True;
+            if foundMore then
+              cd.AutoMatch := True;
             cd.GetSys.Save;
           end;
         end;
@@ -849,7 +850,11 @@ begin
           csPlanned: s := '(Planned)';
         end;
       if cd.GetConstrType <> nil then
-        s := s + ' ' + cd.GetConstrType.StationType_full;
+        s := s + ' ' + cd.GetConstrType.StationType_full
+      else
+        s := s + ' (unknown type)';
+      if cd.AutoMatch then
+        s := s + ' (?)';
       addSubItem(s);
       addSubItem(cd.StarSystem_nice);
       addSubItem(cd.Body);

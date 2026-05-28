@@ -669,6 +669,7 @@ var item: TListItem;
         else
           //do not list dependencies if system has no slots of type needed
           //otherwise, let me always see them to decide
+          if dependMode <> 3 then
           if act.GetFirstDependType <> nil then
             if act.GetFirstDependType.IsOrbital then
             begin

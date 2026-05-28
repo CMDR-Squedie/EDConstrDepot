@@ -97,7 +97,7 @@ object ColoniesForm: TColoniesForm
       end
       item
         Alignment = taRightJustify
-        Caption = 'Pop. Daily Change'
+        Caption = 'Pop. Daily Growth'
         Tag = 3
       end
       item
@@ -330,34 +330,41 @@ object ColoniesForm: TColoniesForm
       Caption = 'Chart'
       object PopulationChartMenuItem: TMenuItem
         Caption = 'Population History'
+        Hint = 'POPHISTM'
         OnClick = PopulationChartMenuItemClick
       end
       object PopulationBySystemMenuItem: TMenuItem
         Tag = 1
         Caption = 'Population'
-        OnClick = PopulationBySystemMenuItemClick
+        Hint = 'SYSPOP'
+        OnClick = PopulationChartMenuItemClick
       end
       object PopulationIncreaseBySystem1: TMenuItem
         Tag = 2
         Caption = 'Population Increase'
-        OnClick = PopulationBySystemMenuItemClick
+        Hint = 'SYSPOPINC'
+        OnClick = PopulationChartMenuItemClick
       end
       object PopulationIncrease2MenuItem: TMenuItem
-        Caption = 'Population + Increase'
-        OnClick = PopulationIncrease2MenuItemClick
+        Caption = 'Population and 30-day Growth'
+        Hint = 'SYSPOPS'
+        OnClick = PopulationChartMenuItemClick
       end
       object ScoreBySystem1: TMenuItem
         Tag = 3
         Caption = 'Score'
-        OnClick = PopulationBySystemMenuItemClick
+        Hint = 'SYSSCORE'
+        OnClick = PopulationChartMenuItemClick
       end
       object DevelopmentMenuItem: TMenuItem
         Caption = 'Development'
-        OnClick = DevelopmentMenuItemClick
+        Hint = 'DEVELOP'
+        OnClick = PopulationChartMenuItemClick
       end
       object TechnologyLevelMenuItem: TMenuItem
         Caption = 'Technology Level'
-        OnClick = TechnologyLevelMenuItemClick
+        Hint = 'TECHLEV'
+        OnClick = PopulationChartMenuItemClick
       end
     end
     object N6: TMenuItem

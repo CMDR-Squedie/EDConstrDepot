@@ -91,6 +91,8 @@ type
     SystemLabel: TLabel;
     Label21: TLabel;
     TentativeStatus: TRadioButton;
+    Label23: TLabel;
+    LastContribLabel: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure TypeComboChange(Sender: TObject);
     procedure OKButtonClick(Sender: TObject);
@@ -331,6 +333,12 @@ procedure TStationInfoForm.SetStation(st: TBaseMarket);
 var i: Integer;
     m: TMarket;
     ct: TConstructionType;
+
+  function niceTime(tms: string): string;
+  begin
+    Result := Copy(tms,1,10) + ' ' + Copy(tms,12,8);
+  end;
+
 begin
   if (st is TConstructionDepot) and TConstructionDepot(st).Simulated then
   begin
@@ -385,6 +393,7 @@ begin
   LinkedStationCombo.Items.InsertObject(0,'( none )',nil);
 
 
+  LastContribLabel.Caption := '';
   if st is TMarket then
   begin
     PlannedStatus.Enabled := False;
@@ -405,6 +414,7 @@ begin
     CancelledStatus.Enabled := true;
     TentativeStatus.Checked := Tentative;
     TentativeStatus.Enabled := true;
+    LastContribLabel.Caption := niceTime(LastUpdate);
   end;
 
   PrimaryCheck.Checked := (FCurrentStation.GetSys.PrimaryPortId <> '') and

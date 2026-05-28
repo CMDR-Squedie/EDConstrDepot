@@ -42,9 +42,6 @@ object SummaryForm: TSummaryForm
     ViewStyle = vsReport
     OnCustomDrawItem = ListViewCustomDrawItem
     OnDblClick = ListViewDblClick
-    ExplicitTop = 56
-    ExplicitWidth = 400
-    ExplicitHeight = 664
   end
   object Panel1: TPanel
     Left = 0
@@ -65,7 +62,6 @@ object SummaryForm: TSummaryForm
       OnChange = CmdrComboBoxChange
       Items.Strings = (
         '(all local commanders)')
-      ExplicitWidth = 260
     end
     object MenuButton: TButton
       Left = 0
@@ -82,7 +78,6 @@ object SummaryForm: TSummaryForm
       ParentFont = False
       TabOrder = 1
       OnClick = MenuButtonClick
-      ExplicitHeight = 20
     end
     object TaskGroupComboBox: TComboBox
       Left = 224
@@ -120,16 +115,13 @@ object SummaryForm: TSummaryForm
       object PopulationHistoryMenuItem: TMenuItem
         Tag = 1
         Caption = '   Population History'
-        OnClick = PopulationHistoryMenuItemClick
-      end
-      object PopulationHistory1: TMenuItem
-        Tag = 2
-        Caption = '   Population History (w/ T3 markers)'
-        OnClick = PopulationHistoryMenuItemClick
+        Hint = 'POPHISTM'
+        OnClick = FactionPopulationMenuItemClick
       end
       object ScoreHistoryMenuItem: TMenuItem
         Caption = '   Score History'
-        OnClick = ScoreHistoryMenuItemClick
+        Hint = 'SCOREHIST'
+        OnClick = FactionPopulationMenuItemClick
       end
       object PopulationIncHistMenuItem: TMenuItem
         Tag = 2
@@ -147,25 +139,30 @@ object SummaryForm: TSummaryForm
       object ConstrHistory1MenuItem: TMenuItem
         Tag = 1
         Caption = '   Monthly Tonage'
-        OnClick = ConstrHistory2MenuItemClick
+        Hint = 'FINCONHAUL'
+        OnClick = FactionPopulationMenuItemClick
       end
       object ConstructionTypesMenuItem: TMenuItem
         Caption = '   Types'
-        OnClick = ConstructionTypesMenuItemClick
+        Hint = 'FINCONTYPE'
+        OnClick = FactionPopulationMenuItemClick
       end
       object ConstrHistory2MenuItem: TMenuItem
         Tag = 2
         Caption = '   Monthly Score'
-        OnClick = ConstrHistory2MenuItemClick
+        Hint = 'FINCONSCORE'
+        OnClick = FactionPopulationMenuItemClick
       end
       object WeeklyFinishedConstrMenuItem: TMenuItem
         Caption = '   Weekly Score'
-        OnClick = WeeklyFinishedConstrMenuItemClick
+        Hint = 'SCOREWEEKLY'
+        OnClick = FactionPopulationMenuItemClick
       end
       object WeeklyScore90days1: TMenuItem
         Tag = 1
         Caption = '   Weekly Score (90 days)'
-        OnClick = WeeklyScore90days1Click
+        Hint = 'SCOREW90'
+        OnClick = FactionPopulationMenuItemClick
       end
       object N3: TMenuItem
         Caption = '-'
@@ -177,17 +174,26 @@ object SummaryForm: TSummaryForm
       object DailyContrib1MenuItem: TMenuItem
         Tag = 1
         Caption = '   Daily Contribution (30 days)'
-        OnClick = DailyContrib1MenuItemClick
+        Hint = 'CONTRIBD30'
+        OnClick = FactionPopulationMenuItemClick
       end
       object DailyContribution30days1: TMenuItem
         Tag = 2
         Caption = '   Daily Contribution (90 days)'
-        OnClick = DailyContrib1MenuItemClick
+        Hint = 'CONTRIBD90'
+        OnClick = FactionPopulationMenuItemClick
       end
       object DailyContribution90days1: TMenuItem
         Tag = 3
         Caption = '   Weekly Contribution (90 days)'
-        OnClick = DailyContrib1MenuItemClick
+        Hint = 'CONTRIBW90'
+        OnClick = FactionPopulationMenuItemClick
+      end
+      object WeeklyContribution90days1: TMenuItem
+        Tag = 4
+        Caption = '   Weekly Contribution (360 days)'
+        Hint = 'CONTRIBWYR'
+        OnClick = FactionPopulationMenuItemClick
       end
       object N5: TMenuItem
         Caption = '-'
@@ -198,11 +204,60 @@ object SummaryForm: TSummaryForm
       end
       object TaskGroupPopulationMenuItem: TMenuItem
         Caption = '   Population'
-        OnClick = TaskGroupPopulationMenuItemClick
+        Hint = 'TGPOP'
+        OnClick = FactionPopulationMenuItemClick
+      end
+      object PopulationGrowth2: TMenuItem
+        Caption = '   Population Daily Growth'
+        Hint = 'TGPOPINC'
+        OnClick = FactionPopulationMenuItemClick
+      end
+      object Populationand30dayGrowth2: TMenuItem
+        Caption = '   Population and 30-day Growth'
+        Hint = 'TGPOPS'
+        OnClick = FactionPopulationMenuItemClick
       end
       object TaskGroupScoreMenuItem: TMenuItem
         Caption = '   Score'
-        OnClick = TaskGroupScoreMenuItemClick
+        Hint = 'TGSCORE'
+        OnClick = FactionPopulationMenuItemClick
+      end
+      object N6: TMenuItem
+        Caption = '-'
+      end
+      object ASKGROUPS2: TMenuItem
+        Caption = 'FACTIONS'
+        Enabled = False
+      end
+      object FactionPopulationMenuItem: TMenuItem
+        Caption = '   Population'
+        Hint = 'FACPOP'
+        OnClick = FactionPopulationMenuItemClick
+      end
+      object PopulationGrowth1: TMenuItem
+        Caption = '   Population Daily Growth'
+        Hint = 'FACPOPINC'
+        OnClick = FactionPopulationMenuItemClick
+      end
+      object Populationand30dayGrowth1: TMenuItem
+        Caption = '   Population and 30-day Growth'
+        Hint = 'FACPOPS'
+        OnClick = FactionPopulationMenuItemClick
+      end
+      object FactionScoreMenuItem: TMenuItem
+        Caption = '   Score'
+        Hint = 'FACSCORE'
+        OnClick = FactionPopulationMenuItemClick
+      end
+      object FactionCtrlMenuItem: TMenuItem
+        Caption = '   Controlled Systems'
+        Hint = 'FACCTRL'
+        OnClick = FactionPopulationMenuItemClick
+      end
+      object FactionPresenceMenuItem: TMenuItem
+        Caption = '   Presence'
+        Hint = 'FACPRESENCE'
+        OnClick = FactionPopulationMenuItemClick
       end
       object N4: TMenuItem
         Caption = '-'
@@ -210,10 +265,12 @@ object SummaryForm: TSummaryForm
       object OTHER1: TMenuItem
         Caption = 'OTHER'
         Enabled = False
+        Hint = 'MARKETS'
       end
       object BestMarketsMenuItem: TMenuItem
         Caption = '   Markets by Purchases'
-        OnClick = BestMarketsMenuItemClick
+        Hint = 'MARKETS'
+        OnClick = FactionPopulationMenuItemClick
       end
     end
   end

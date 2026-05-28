@@ -251,6 +251,34 @@ object StarMapForm: TStarMapForm
         Font.Style = []
         ParentFont = False
       end
+      object DepthLabel: TLabel
+        Left = 618
+        Top = 10
+        Width = 44
+        Height = 16
+        Caption = 'Depth:    '
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clGray
+        Font.Height = -13
+        Font.Name = 'Bahnschrift SemiCondensed'
+        Font.Style = []
+        ParentFont = False
+        OnDblClick = DepthLabelDblClick
+      end
+      object LabelsOffLabel: TLabel
+        Left = 698
+        Top = 10
+        Width = 48
+        Height = 16
+        Caption = 'Labels on'
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clGray
+        Font.Height = -13
+        Font.Name = 'Bahnschrift SemiCondensed'
+        Font.Style = []
+        ParentFont = False
+        OnDblClick = LabelsOffLabelDblClick
+      end
       object TaskGroupCombo: TComboBox
         Left = 64
         Top = 6
@@ -363,7 +391,7 @@ object StarMapForm: TStarMapForm
         OnClick = ElevationCheckClick
       end
       object ElevFollowSelCheck: TCheckBox
-        Left = 639
+        Left = 751
         Top = 12
         Width = 90
         Height = 17
@@ -475,6 +503,17 @@ object StarMapForm: TStarMapForm
         AutoCheck = True
         Caption = 'Hide Distances'
         OnClick = HideDistancesMenuItemClick
+      end
+      object N5: TMenuItem
+        Caption = '-'
+      end
+      object CopyRouteMenuItem: TMenuItem
+        Caption = 'Copy'
+        OnClick = CopyRouteMenuItemClick
+      end
+      object PasteRouteMenuItem: TMenuItem
+        Caption = 'Paste'
+        OnClick = PasteRouteMenuItemClick
       end
       object N4: TMenuItem
         Caption = '-'

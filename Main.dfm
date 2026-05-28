@@ -63,7 +63,7 @@ object EDCDForm: TEDCDForm
     Left = 40
     Top = 18
     Width = 136
-    Height = 493
+    Height = 309
     Margins.Left = 2
     Margins.Top = 0
     Margins.Right = 2
@@ -96,7 +96,7 @@ object EDCDForm: TEDCDForm
     Left = 2
     Top = 18
     Width = 34
-    Height = 493
+    Height = 309
     Margins.Left = 2
     Margins.Top = 0
     Margins.Right = 2
@@ -126,7 +126,7 @@ object EDCDForm: TEDCDForm
     Left = 180
     Top = 18
     Width = 24
-    Height = 493
+    Height = 309
     Margins.Left = 2
     Margins.Top = 0
     Margins.Right = 2
@@ -146,6 +146,7 @@ object EDCDForm: TEDCDForm
     StyleElements = [seFont, seClient]
     OnMouseDown = TextColLabelMouseDown
     OnMouseMove = TextColLabelMouseMove
+    ExplicitHeight = 493
   end
   object DividerBottom: TShape
     Left = 0
@@ -185,7 +186,7 @@ object EDCDForm: TEDCDForm
     Left = 206
     Top = 18
     Width = 25
-    Height = 494
+    Height = 310
     Align = alRight
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clSilver
@@ -196,6 +197,30 @@ object EDCDForm: TEDCDForm
     OnPaint = StatusPaintBoxPaint
     ExplicitLeft = 209
     ExplicitTop = 15
+    ExplicitHeight = 494
+  end
+  object ChartArea: TSkSvg
+    Left = 0
+    Top = 376
+    Width = 231
+    Height = 136
+    Align = alBottom
+    Visible = False
+  end
+  object LineFeedLabel: TLabel
+    Left = 0
+    Top = 328
+    Width = 231
+    Height = 48
+    Align = alBottom
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clSilver
+    Font.Height = -13
+    Font.Name = 'Bahnschrift SemiCondensed'
+    Font.Style = []
+    ParentFont = False
+    Visible = False
+    ExplicitTop = 360
   end
   object PopupMenu: TPopupMenu
     OwnerDraw = True
@@ -310,16 +335,16 @@ object EDCDForm: TEDCDForm
       OnClick = StarMapMenuItemClick
     end
     object ManageColoniesMenuItem: TMenuItem
-      Caption = #55357#57001' Manage Colonies'
+      Caption = #55357#57001' Colonies'
       OnClick = ManageColoniesMenuItemClick
     end
     object ManageMarketsMenuItem: TMenuItem
-      Caption = #55357#57042' Manage Markets'
+      Caption = #55357#57042' Markets'
       OnClick = ManageMarketsMenuItemClick
     end
     object ManageContructionsMenuItem: TMenuItem
       Tag = -1
-      Caption = #55356#57303' Manage Constr.'
+      Caption = #55356#57303' Constructions'
       OnClick = ActiveConstrMenuItemClick
     end
     object ManageAllMenuItem: TMenuItem
@@ -327,7 +352,7 @@ object EDCDForm: TEDCDForm
       OnClick = ManageAllMenuItemClick
     end
     object SummaryMenuItem: TMenuItem
-      Caption = #55357#56522' Colony Totals'
+      Caption = #55357#56522' Summary'
       OnClick = SummaryMenuItemClick
     end
     object DashboardMenuItem: TMenuItem
@@ -353,7 +378,7 @@ object EDCDForm: TEDCDForm
     end
     object BackdropMenuItem: TMenuItem
       Caption = 'Toggle Backdrop'
-      OnClick = TitleLabelDblClick
+      OnClick = BackdropMenuItemClick
     end
     object NewWindowMenuItem: TMenuItem
       Caption = 'New Window'
@@ -369,9 +394,17 @@ object EDCDForm: TEDCDForm
     end
   end
   object UpdTimer: TTimer
+    Enabled = False
     Interval = 200
     OnTimer = UpdTimerTimer
     Left = 152
     Top = 296
+  end
+  object LineFeedTimer: TTimer
+    Enabled = False
+    Interval = 50
+    OnTimer = LineFeedTimerTimer
+    Left = 104
+    Top = 216
   end
 end

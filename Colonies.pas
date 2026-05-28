@@ -5,7 +5,8 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.ComCtrls, DataSource,
-  Vcl.StdCtrls, Vcl.Menus, System.Types, System.Math, System.IniFiles, System.StrUtils;
+  Vcl.StdCtrls, Vcl.Menus, System.Types, System.Math, System.IniFiles, System.StrUtils,
+  System.DateUtils;
 
 type
   TColoniesForm = class(TForm, IEDDataListener)
@@ -40,7 +41,6 @@ type
     DistFromLabel: TLabel;
     SystemPictureMenuItem: TMenuItem;
     N2: TMenuItem;
-    N4: TMenuItem;
     CurrentGoalsMenuItem: TMenuItem;
     LongtermObjectivesMenuItem: TMenuItem;
     N6: TMenuItem;
@@ -59,6 +59,19 @@ type
     FindBodyButton: TButton;
     CopyPopHistMenuItem: TMenuItem;
     CreateRouteMenuItem: TMenuItem;
+    Change1: TMenuItem;
+    PopulationChartMenuItem: TMenuItem;
+    Chart1: TMenuItem;
+    PopulationBySystemMenuItem: TMenuItem;
+    ScoreBySystem1: TMenuItem;
+    PopulationIncreaseBySystem1: TMenuItem;
+    N8: TMenuItem;
+    SelectAllMenuItem: TMenuItem;
+    Colonization1: TMenuItem;
+    PopulationIncrease2MenuItem: TMenuItem;
+    DevelopmentMenuItem: TMenuItem;
+    TechnologyLevelMenuItem: TMenuItem;
+    MenuLabel: TLabel;
     procedure ListViewColumnClick(Sender: TObject; Column: TListColumn);
     procedure ListViewCompare(Sender: TObject; Item1, Item2: TListItem;
       Data: Integer; var Compare: Integer);
@@ -98,6 +111,9 @@ type
     procedure EditArchitectMenuItemClick(Sender: TObject);
     procedure CopyPopHistMenuItemClick(Sender: TObject);
     procedure CreateRouteMenuItemClick(Sender: TObject);
+    procedure PopulationChartMenuItemClick(Sender: TObject);
+    procedure SelectAllMenuItemClick(Sender: TObject);
+    procedure MenuLabelClick(Sender: TObject);
   private
     { Private declarations }
     FHoldUpdate: Boolean;
@@ -108,10 +124,12 @@ type
     FSelectedItems: TStringList;
     FReferenceSystem: TStarSystem;
     FColonies: TSystemList;
+    FColMaxWidths: array [0..100] of Integer;
     function IsSelected(item: TListItem): Boolean;
     procedure SaveSelection;
     procedure RestoreSelection;
     procedure UpdateTaskGroups(s: string; const delf: Boolean = false);
+    function GetSelectedSystems(const sl: TStringList = nil): TStringList;
   public
     { Public declarations }
     procedure BeginFilterChange;
@@ -129,7 +147,7 @@ var
 implementation
 
 uses Main,Clipbrd,Settings,Splash, Markets, SystemPict, SystemInfo, StarMap,
-  Summary, Bodies;
+  Summary, Bodies, Chart;
 
 {$R *.dfm}
 
@@ -212,7 +230,8 @@ procedure TColoniesForm.OtherGroupMenuItemClick(Sender: TObject);
 var s: string;
 begin
   s := Vcl.Dialogs.InputBox('Task Group', 'Name', '');
-  UpdateTaskGroups(s);
+  if s <> '' then
+    UpdateTaskGroups(s);
 end;
 
 
@@ -242,6 +261,12 @@ begin
     self.Top := self.Top + pt.Y - gLastCursorPos.Y;
     gLastCursorPos := pt;
   end;
+end;
+
+procedure TColoniesForm.PopulationChartMenuItemClick(Sender: TObject);
+begin
+  with TChartForm.Create(Application) do
+    CreateChartById(TMenuItem(Sender).Hint,'C','','',GetSelectedSystems);
 end;
 
 procedure TColoniesForm.PopupMenuPopup(Sender: TObject);
@@ -310,6 +335,11 @@ begin
    UpdateItems;
 end;
 
+
+procedure TColoniesForm.SelectAllMenuItemClick(Sender: TObject);
+begin
+  ListView.SelectAll;
+end;
 
 procedure TColoniesForm.SelectModeCheckClick(Sender: TObject);
 begin
@@ -624,6 +654,13 @@ begin
     AlphaBlendValue := StrToIntDef(Opts['Markets.AlphaBlend'],255);
     AlphaBlend := True;
   end;
+
+  for i := 0 to ListView.Columns.Count - 1 do
+  begin
+    FColMaxWidths[i] := ListView.Columns[i].MaxWidth;
+    ListView.Columns[i].MaxWidth := 0;
+  end;
+
 end;
 
 procedure TColoniesForm.FormShow(Sender: TObject);
@@ -682,7 +719,7 @@ end;
 
 procedure TColoniesForm.UpdateItems(const _autoSizeCol: Boolean = false);
 var
-  i,i2,j,curCol: Integer;
+  i,i2,j,curCol,w,maxw: Integer;
   sys: TStarSystem;
   s: string;
   row: TStringList;
@@ -896,10 +933,19 @@ begin
 
     if autoSizeCol then
     begin
-      colMaxTxt[7] := Copy(colMaxTxt[7],1,30); //factions
+      //colMaxTxt[7] := Copy(colMaxTxt[7],1,30); //factions
+
       for i := 0 to ListView.Columns.Count - 1 do
-        ListView.Column[i].Width := ListView.Canvas.TextWidth(colMaxTxt[i]) +
-          15 + ListView.Font.Size div 6; //margins
+      begin
+        w := ListView.Canvas.TextWidth(colMaxTxt[i]) + 15 + ListView.Font.Size div 6; //margins
+        if FColMaxWidths[i] > 0 then
+        begin
+          maxw := FColMaxWidths[i] * ListView.Font.Size div 10;
+          if w > maxw then
+            w := maxw;
+        end;
+        ListView.Column[i].Width := w;
+      end;
     end;
 
 
@@ -1171,6 +1217,27 @@ end;
 procedure TColoniesForm.MapButtonClick(Sender: TObject);
 begin
   StarMapForm.RestoreAndShow;
+end;
+
+procedure TColoniesForm.MenuLabelClick(Sender: TObject);
+var pt: TPoint;
+begin
+  pt.X := MenuLabel.Left;
+  pt.Y := MenuLabel.Top + MenuLabel.Height;
+  pt := self.ClientToScreen(pt);
+  PopupMenu.Popup(pt.X,pt.Y);
+end;
+
+function TColoniesForm.GetSelectedSystems(const sl: TStringList = nil): TStringList;
+var i: Integer;
+begin
+  Result := sl;
+  if Result = nil then
+    Result := TStringList.Create;
+  Result.Clear;
+  for i := 0 to ListView.Items.Count -1 do
+    if IsSelected(ListView.Items[i]) then
+      Result.AddObject(TStarSystem(ListView.Items[i].Data).StarSystem,TStarSystem(ListView.Items[i].Data))
 end;
 
 end.
