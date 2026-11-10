@@ -2,6 +2,7 @@ EDConstrDepot is a standalone application to assist you with solo colonization p
 For team work, consider Raven Colonial/SRV Survey instead.
 
 More info: https://github.com/CMDR-Squedie/EDConstrDepot/wiki
+
 Lastest version to download: https://github.com/CMDR-Squedie/EDConstrDepot/releases/latest
 
 
