@@ -2,33 +2,41 @@ program EDConstrDepot;
 
 uses
   Vcl.Forms,
-  Main in 'Main.pas' {EDCDForm},
-  Splash in 'Splash.pas' {SplashForm},
-  Markets in 'Markets.pas' {MarketsForm},
   Vcl.Themes,
   Vcl.Styles,
   System.SysUtils,
-  Settings in 'Settings.pas',
-  DataSource in 'DataSource.pas',
-  SettingsGUI in 'SettingsGUI.pas' {SettingsForm},
-  Colonies in 'Colonies.pas' {ColoniesForm},
-  SystemPict in 'SystemPict.pas' {SystemPictForm},
-  SystemInfo in 'SystemInfo.pas' {SystemInfoForm},
-  StationInfo in 'StationInfo.pas' {StationInfoForm},
-  MarketInfo in 'MarketInfo.pas' {MarketInfoForm},
-  ConstrTypes in 'ConstrTypes.pas' {ConstrTypesForm},
-  Toolbar in 'Toolbar.pas' {ToolbarForm},
-  ToolTip in 'ToolTip.pas' {TooltipForm},
-  StarMap in 'StarMap.pas' {StarMapForm},
-  Summary in 'Summary.pas' {SummaryForm},
-  Bodies in 'Bodies.pas' {BodiesForm},
-  Memo in 'Memo.pas' {MemoForm},
-  Solver in 'Solver.pas' {SolverForm},
-  BodyInfo in 'BodyInfo.pas' {BodyInfoForm},
-  MaterialList in 'MaterialList.pas' {MaterialListForm},
-  TradeRoutes in 'TradeRoutes.pas' {TradeRoutesForm},
-  Chart in 'Chart.pas' {ChartForm},
-  Dashboard in 'Dashboard.pas' {DashboardForm};
+
+  Splash         in 'src\utils\Splash.pas' {SplashForm},
+  Toolbar        in 'src\utils\Toolbar.pas' {ToolbarForm},
+  ToolTip        in 'src\utils\ToolTip.pas' {TooltipForm},
+  Memo           in 'src\utils\Memo.pas' {MemoForm},
+
+  Main           in 'src\Main.pas' {EDCDForm},
+  DataSource     in 'src\data\DataSource.pas',
+  Settings       in 'src\settings\Settings.pas',
+
+  SettingsGUI    in 'src\settings\SettingsGUI.pas' {SettingsForm},
+
+  Markets        in 'src\browse\Markets.pas' {MarketsForm},
+  Colonies       in 'src\browse\Colonies.pas' {ColoniesForm},
+  Bodies         in 'src\browse\Bodies.pas' {BodiesForm},
+  ConstrTypes    in 'src\browse\ConstrTypes.pas' {ConstrTypesForm},
+  MaterialList   in 'src\browse\details\MaterialList.pas' {MaterialListForm},
+  MarketInfo     in 'src\browse\details\MarketInfo.pas' {MarketInfoForm},
+  BodyInfo       in 'src\browse\details\BodyInfo.pas' {BodyInfoForm},
+
+  StarMap        in 'src\map\StarMap.pas' {StarMapForm},
+
+  SystemPict     in 'src\colony\SystemPict.pas' {SystemPictForm},
+  SystemInfo     in 'src\colony\SystemInfo.pas' {SystemInfoForm},
+  StationInfo    in 'src\colony\StationInfo.pas' {StationInfoForm},
+  Solver         in 'src\colony\Solver.pas' {SolverForm},
+
+  Chart          in 'src\dashboard\Chart.pas' {ChartForm},
+  Summary        in 'src\dashboard\Summary.pas' {SummaryForm},
+  Dashboard      in 'src\dashboard\Dashboard.pas' {DashboardForm},
+
+  TradeRoutes    in 'src\wip\TradeRoutes.pas' {TradeRoutesForm};
 
 {$R *.res}
 
